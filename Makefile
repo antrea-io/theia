@@ -123,18 +123,25 @@ manifest:
 verify:
 	@echo "===> Verifying spellings <==="
 	GO=$(GO) $(CURDIR)/hack/verify-spelling.sh
+	@echo "===> Verifying Table of Contents <==="
+	GO=$(GO) $(CURDIR)/hack/verify-toc.sh
 	@echo "===> Verifying documentation formatting for website <==="
 	$(CURDIR)/hack/verify-docs-for-website.sh
+
+.PHONY: toc
+toc:
+	@echo "===> Generating Table of Contents for Antrea docs <==="
+	GO=$(GO) $(CURDIR)/hack/update-toc.sh
 
 .PHONE: markdownlint
 markdownlint:
 	@echo "===> Running markdownlint <==="
-	markdownlint -c .markdownlint-config.yml -i CHANGELOG/ -i CHANGELOG.md -i hack/netpol -i CODE_OF_CONDUCT.md .
+	markdownlint -c .markdownlint-config.yml -i CHANGELOG/ -i CHANGELOG.md .
 
 .PHONE: markdownlint-fix
 markdownlint-fix:
 	@echo "===> Running markdownlint <==="
-	markdownlint --fix -c .markdownlint-config.yml -i CHANGELOG/ -i CHANGELOG.md -i hack/netpol -i CODE_OF_CONDUCT.md .
+	markdownlint --fix -c .markdownlint-config.yml -i CHANGELOG/ -i CHANGELOG.md .
 
 .PHONY: spelling-fix
 spelling-fix:

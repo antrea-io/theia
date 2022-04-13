@@ -4827,7 +4827,7 @@ spec:
             secretKeyRef:
               key: admin-password
               name: grafana-secret
-        image: projects.registry.vmware.com/antrea/flow-visibility-grafana:8.3.3
+        image: projects.registry.vmware.com/antrea/theia-grafana:8.3.3
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3
@@ -4910,7 +4910,7 @@ spec:
     - name: pod-template
       spec:
         containers:
-        - image: projects.registry.vmware.com/antrea/flow-visibility-clickhouse-server:21.11
+        - image: projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11
           name: clickhouse
           volumeMounts:
           - mountPath: /docker-entrypoint-initdb.d
@@ -4934,7 +4934,7 @@ spec:
             value: default.flows
           - name: MV_NAMES
             value: default.flows_pod_view default.flows_node_view default.flows_policy_view
-          image: projects.registry.vmware.com/antrea/flow-visibility-clickhouse-monitor:latest
+          image: projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           imagePullPolicy: IfNotPresent
           name: clickhouse-monitor
         volumes:

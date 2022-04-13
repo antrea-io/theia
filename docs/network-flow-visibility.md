@@ -154,7 +154,7 @@ To stop the Grafana Flow Collector, run the following commands:
 
 ```shell
 kubectl delete -f flow-visibility.yml
-kubectl delete -f https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/clickhouse-operator-install-bundle.yaml -n kube-system
+kubectl delete -f https://raw.githubusercontent.com/antrea-io/theia/main/build/yamls/clickhouse-operator-install-bundle.yml -n kube-system
 ```
 
 ##### Credentials Configuration
@@ -420,7 +420,7 @@ by adding the file in the following section:
 1. Generate the new YAML manifest by running:
 
 ```bash
-./hack/generate-manifest-flow-visibility.sh > build/yamls/flow-visibility.yml
+./hack/generate-manifest.sh > build/yamls/flow-visibility.yml
 ```
 
 [flow_visibility_kustomization_yaml]: ../build/yamls/base/kustomization.yml

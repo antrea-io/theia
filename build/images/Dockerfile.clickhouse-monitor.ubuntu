@@ -2,7 +2,7 @@ ARG GO_VERSION
 FROM golang:${GO_VERSION} as clickhouse-monitor-build
 
 COPY . /theia
-WORKDIR /theia/plugins/clickhouse-monitor
+WORKDIR /theia
 
 # Statically links clickhouse-monitor-plugin binary.
 RUN CGO_ENABLED=0 make clickhouse-monitor-plugin
@@ -14,6 +14,6 @@ LABEL description="A docker image to deploy the ClickHouse monitor plugin."
 
 ENV USER root
 
-COPY --from=clickhouse-monitor-build /theia/plugins/clickhouse-monitor/* /
+COPY --from=clickhouse-monitor-build /theia/bin/clickhouse-monitor /
 
 ENTRYPOINT ["/clickhouse-monitor"]

@@ -7,6 +7,9 @@ GO_FILES           := $(shell find . -type d -name '.cache' -prune -o -type f -n
 GOPATH             ?= $$($(GO) env GOPATH)
 DOCKER_CACHE       := $(CURDIR)/.cache
 GO_VERSION         := $(shell head -n 1 build/images/deps/go-version)
+LDFLAGS                          :=
+GOFLAGS                          :=
+BINDIR                           ?= $(CURDIR)/bin
 
 DOCKER_BUILD_ARGS += --build-arg GO_VERSION=$(GO_VERSION)
 
@@ -145,3 +148,8 @@ clickhouse-monitor:
 	docker tag antrea/theia-clickhouse-monitor:$(DOCKER_IMG_VERSION) antrea/theia-clickhouse-monitor
 	docker tag antrea/theia-clickhouse-monitor:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-clickhouse-monitor
 	docker tag antrea/theia-clickhouse-monitor:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$(DOCKER_IMG_VERSION)
+
+.PHONY: clickhouse-monitor-plugin
+clickhouse-monitor-plugin:
+	@mkdir -p $(BINDIR)
+	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-monitor

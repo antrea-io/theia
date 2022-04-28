@@ -1,0 +1,9 @@
+- defaults:
+    name: global
+    ghpr_auth: 03bbfdca-4410-4910-b1fe-24c574a82032
+    theia_admin_list:
+      - hangyan
+    theia_org_list:
+      - vmware-tanzu
+    theia_white_list:
+     - '*'

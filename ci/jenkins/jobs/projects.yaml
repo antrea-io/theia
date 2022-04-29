@@ -1,0 +1,70 @@
+- project:
+    # ghpr_auth, antrea_admin_list, antrea_org_list and antrea_white_list
+    # should be defined as a global variable somewhere else
+    name: theia
+    git_credentials_id: THEIA_TEST_CRED
+    org_repo: hangyan/theia2
+    jobs:
+      - '{name}-{test_name}-for-pull-request':
+          test_name: e2e
+          node: 'antrea-test-node'
+          description: 'This is the {test_name} test for {name}.'
+          branches:
+          - ${{sha1}}
+          builders:
+            - builder-e2e
+          trigger_phrase: ^(?!Thanks for your PR).*/test-theia-(e2e|all).*
+          white_list_target_branches: []
+          allow_whitelist_orgs_as_admins: true
+          admin_list: '{theia_admin_list}'
+          org_list: '{theia_org_list}'
+          white_list: '{theia_white_list}'
+          only_trigger_phrase: true
+          trigger_permit_all: true
+          status_context: jenkins-e2e
+          status_url: --none--
+          success_status: Build finished.
+          failure_status: Failed. Add comment /test-theia-e2e to re-trigger.
+          error_status: Failed. Add comment /test-theia-e2e to re-trigger.
+          triggered_status: null
+          started_status: null
+          wrappers:
+          - credentials-binding:
+            - text:
+                credential-id: CODECOV_TOKEN # Jenkins secret that stores codecov token
+                variable: CODECOV_TOKEN
+          - timeout:
+              fail: true
+              timeout: 150
+              type: absolute
+          - credentials-binding:
+            - text:
+                credential-id: VMC_NETWORK_0
+                variable: VMC_NETWORK_0
+            - text:
+                credential-id: VMC_NETWORK_1
+                variable: VMC_NETWORK_1
+            - text:
+                credential-id: VCENTERNAME
+                variable: VCENTERNAME
+            - text:
+                credential-id: DATACENTERNAME
+                variable: DATACENTERNAME
+            - text:
+                credential-id: RESOURCEPOOLPATH
+                variable: RESOURCEPOOLPATH
+            - text:
+                credential-id: CAPVC_USERNAME
+                variable: CAPVC_USERNAME
+            - text:
+                credential-id: CAPVC_PASSWORD
+                variable: CAPVC_PASSWORD
+          publishers:
+          - archive:
+              allow-empty: true
+              artifacts: theia-test-logs.tar.gz, e2e-coverage.tar.gz
+              case-sensitive: true
+              default-excludes: true
+              fingerprint: false
+              only-if-success: false
+              admin_list: '{theia_admin_list}'

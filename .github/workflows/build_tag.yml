@@ -1,0 +1,35 @@
+name: Build and push a release image
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  get-version:
+    runs-on: [ubuntu-latest]
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+    - name: Extract version from Github ref
+      id: get-version
+      env:
+        TAG: ${{ github.ref }}
+      run: |
+        version=${TAG:10}
+        echo "::set-output name=version::$version"
+
+  build-clickhouse-monitor:
+    runs-on: [ubuntu-latest]
+    needs: get-version
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build clickhouse-monitor Docker image and push to registry
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        VERSION: ${{ needs.get-version.outputs.version }}
+      run: |
+        make clickhouse-monitor
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        docker push antrea/theia-clickhouse-monitor:"${VERSION}"

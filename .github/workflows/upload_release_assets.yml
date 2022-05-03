@@ -1,0 +1,31 @@
+name: Upload assets to release
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+    steps:
+    - name: Set up Go 1.17
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+    - uses: actions/checkout@v3
+    - name: Build assets
+      env:
+        TAG: ${{ github.ref }}
+      run: |
+        mkdir assets
+        VERSION="${TAG:10}" ./hack/release/prepare-assets.sh ./assets
+    - name: Upload flow-visibility.yml
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./assets/flow-visibility.yml
+        asset_name: flow-visibility.yml
+        asset_content_type: application/octet-stream

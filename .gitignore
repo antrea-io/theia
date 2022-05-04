@@ -1,3 +1,9 @@
 bin
 
 .DS_Store
+
+.vscode/
+
+plugins/grafana-custom-plugins/grafana-sankey-plugin/node_modules/
+plugins/grafana-custom-plugins/grafana-sankey-plugin/dist/
+plugins/grafana-custom-plugins/grafana-sankey-plugin/coverage/

@@ -387,11 +387,38 @@ and throughput is shown in the line graphs.
 #### Network-Policy Flows Dashboard
 
 Network-Policy Flows Dashboard visualizes the traffic with NetworkPolicies enforced.
-Currently we only support the visualization of NetworkPolicies with `Allow` action.
+The Chord diagram visualizes the cumulative bytes of all the traffic in the selected
+time range. We use green color ![#228B22](https://via.placeholder.com/15/228B22/000000?text=+)
+to highlight traffic with "Allow" NetworkPolicy enforced, red color
+![#EE4B2B](https://via.placeholder.com/15/EE4B2B/000000?text=+) to highlight
+traffic with "Deny" NetworkPolicy enforced. Specifically, "Deny" NetworkPolicy
+refers to NetworkPolicy with egressNetworkPolicyRuleAction or
+ingressNetworkPolicyRuleAction set to `Drop` or `Reject`. Unprotected traffic
+without NetworkPolicy enforced has the same color with its source Pod. Every
+link is in the shape of an arrow, pointing from source to destination. Line
+graphs show the evolution of traffic throughput with NetworkPolicy enforced.
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-np-1.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-0.png" width="900" alt="Network-Policy Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-np-2.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-1.png" width="900" alt="Network-Policy Flows Dashboard">
+
+We can filter on desired fields, e.g. for egress/ingressNetworkPolicyRuleAction
+value:
+
+- 0: No action
+- 1: Allow
+- 2: Drop
+- 3: Reject
+
+Here is an example if we filter on traffic with only ingressNetworkPolicyRuleAction
+equals to "Allow".
+
+<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-2.png" width="900" alt="Network-Policy Flows Dashboard">
+
+Mouse over or click on source/destination highlights only the related traffic.
+Mouse out or click on the background will bring all the traffic back.
+
+<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
 
 ### Dashboards Customization
 
@@ -423,7 +450,7 @@ by adding the file in the following section:
       - provisioning/dashboards/pod_to_service_dashboard.json
       - provisioning/dashboards/pod_to_external_dashboard.json
       - provisioning/dashboards/node_to_node_dashboard.json
-      - provisioning/dashboards/networkpolicy_allow_dashboard.json
+      - provisioning/dashboards/networkpolicy_dashboard.json
       - provisioning/dashboards/[new_dashboard_name].json
     ```
 

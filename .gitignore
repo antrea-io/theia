@@ -3,9 +3,13 @@ bin
 .DS_Store
 
 .vscode/
+.idea/
+
+ci/jenkins/jobs/defaults.yaml
 
 plugins/grafana-custom-plugins/grafana-sankey-plugin/node_modules/
 plugins/grafana-custom-plugins/grafana-sankey-plugin/dist/
 plugins/grafana-custom-plugins/grafana-sankey-plugin/coverage/
-ci/jenkins/jobs/defaults.yaml
-.idea/
+plugins/grafana-custom-plugins/grafana-chord-plugin/node_modules/
+plugins/grafana-custom-plugins/grafana-chord-plugin/dist/
+plugins/grafana-custom-plugins/grafana-chord-plugin/coverage/

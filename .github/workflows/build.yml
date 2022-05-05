@@ -43,3 +43,34 @@ jobs:
       run: |
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker push antrea/theia-clickhouse-monitor:latest
+
+  check-policy-recommendation-changes:
+    name: Check whether policy-recommendation image needs to be built based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: antrea-io/has-changes@v2
+      id: check_diff
+      with:
+        paths: plugins/policy-recommendation/* build/images/Dockerfile.policy-recommendation.ubuntu
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+
+  build-policy-recommendation:
+    needs: check-policy-recommendation-changes
+    if: ${{ needs.check-policy-recommendation-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build policy-recommendation Docker image
+      run: make policy-recommendation
+    - name: Push policy-recommendation Docker image to registry
+      if: ${{ github.repository == 'antrea-io/theia' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        docker push antrea/theia-policy-recommendation:latest

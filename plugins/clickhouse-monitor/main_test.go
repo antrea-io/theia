@@ -15,6 +15,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -23,13 +24,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMonitorMemoryWithDeletion(t *testing.T) {
+func TestMonitor(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
 	}
 	defer db.Close()
 
+	t.Run("testMonitorMemoryWithDeletion", func(t *testing.T) {
+		testMonitorMemoryWithDeletion(t, db, mock)
+	})
+	t.Run("testMonitorMemoryWithoutDeletion", func(t *testing.T) {
+		testMonitorMemoryWithoutDeletion(t, db, mock)
+	})
+	t.Run("testGetDeleteRowNum", func(t *testing.T) {
+		testGetDeleteRowNum(t, db, mock)
+	})
+}
+
+func testMonitorMemoryWithDeletion(t *testing.T, db *sql.DB, mock sqlmock.Sqlmock) {
 	baseTime := time.Now()
 	diskRow := sqlmock.NewRows([]string{"free_space", "total_space"}).AddRow(4, 10)
 	countRow := sqlmock.NewRows([]string{"count"}).AddRow(10)
@@ -52,13 +65,7 @@ func TestMonitorMemoryWithDeletion(t *testing.T) {
 
 }
 
-func TestMonitorMemoryWithoutDeletion(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-
+func testMonitorMemoryWithoutDeletion(t *testing.T, db *sql.DB, mock sqlmock.Sqlmock) {
 	diskRow := sqlmock.NewRows([]string{"free_space", "total_space"}).AddRow(6, 10)
 	mock.ExpectQuery("SELECT free_space, total_space FROM system.disks").WillReturnRows(diskRow)
 
@@ -69,13 +76,7 @@ func TestMonitorMemoryWithoutDeletion(t *testing.T) {
 	}
 }
 
-func TestGetDeleteRowNum(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-
+func testGetDeleteRowNum(t *testing.T, db *sql.DB, mock sqlmock.Sqlmock) {
 	countRow := sqlmock.NewRows([]string{"count"}).AddRow(10)
 	mock.ExpectQuery("SELECT COUNT() FROM flows").WillReturnRows(countRow)
 

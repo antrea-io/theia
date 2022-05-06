@@ -1,0 +1,68 @@
+name: Golicense
+on:
+  pull_request:
+    branches:
+    - main
+    - release-*
+    - feature/*
+  push:
+    branches:
+    - main
+    - release-*
+    - feature/*
+  release:
+    types:
+      - created
+
+jobs:
+  check-changes:
+    name: Check whether tests need to be run based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: antrea-io/has-changes@v2
+      id: check_diff
+      with:
+        paths-ignore: docs/* ci/jenkins/* *.md hack/.notableofcontents
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+
+  golicense:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' || github.event_name != 'pull_request' }}
+    runs-on: [ubuntu-latest]
+    steps:
+    - name: Set up Go 1.17
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+    - uses: actions/checkout@v3
+    - name: Cache licensing information for dependencies
+      uses: actions/cache@v3
+      id: cache
+      env:
+        cache-name: cache-lichen-deps-licensing-info
+      with:
+        path: license-reports
+        key: ${{ runner.os }}-${{ env.cache-name }}-${{ hashFiles('**/go.sum', 'ci/golicense/**') }}
+    - run: mkdir theia-bins
+    - name: Build assets
+      run: |
+        export VERSION="$(head VERSION)"
+        ./hack/release/prepare-assets.sh ./theia-bins
+    - name: Build Linux binaries
+      run: BINDIR=./theia-bins make bin
+    - name: Run lichen
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        mkdir license-reports
+        ./ci/golicense/run.sh ./theia-bins ./license-reports
+    - name: Upload licensing information
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v2
+      with:
+        name: licenses.deps
+        path: license-reports/ALL.deps.txt
+        retention-days: 90 # max value

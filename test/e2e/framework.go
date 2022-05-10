@@ -48,6 +48,7 @@ import (
 	"antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdclientset "antrea.io/antrea/pkg/client/clientset/versioned"
+
 	"antrea.io/theia/test/e2e/providers"
 )
 
@@ -66,6 +67,7 @@ const (
 	flowVisibilityNamespace  string = "flow-visibility"
 	testNamespace            string = "antrea-test"
 	iperfPort                int32  = 5201
+	clickHouseHTTPPort       string = "8123"
 	busyboxContainerName     string = "busybox"
 	defaultBridgeName        string = "br-int"
 	antreaYML                string = "antrea.yml"
@@ -73,19 +75,17 @@ const (
 	antreaDeployment         string = "antrea-controller"
 	flowAggregatorDeployment string = "flow-aggregator"
 	flowAggregatorYML        string = "flow-aggregator.yml"
-	flowAggregatorCovYML     string = "flow-aggregator-coverage.yml"
 	flowVisibilityYML        string = "flow-visibility.yml"
+	chOperatorYML            string = "clickhouse-operator-install-bundle.yml"
 	flowVisibilityCHPodName  string = "chi-clickhouse-clickhouse-0-0-0"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
-	busyboxImage  = "projects.registry.vmware.com/library/busybox"
+	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
 	perftoolImage = "projects.registry.vmware.com/antrea/perftool"
 
-	exporterActiveFlowExportTimeout     = 2 * time.Second
-	exporterIdleFlowExportTimeout       = 1 * time.Second
-	aggregatorActiveFlowRecordTimeout   = 3500 * time.Millisecond
-	aggregatorInactiveFlowRecordTimeout = 6 * time.Second
-	aggregatorClickHouseCommitInterval  = 1 * time.Second
+	exporterActiveFlowExportTimeout    = 2 * time.Second
+	aggregatorActiveFlowRecordTimeout  = 3500 * time.Millisecond
+	aggregatorClickHouseCommitInterval = 1 * time.Second
 )
 
 type ClusterNode struct {
@@ -143,15 +143,13 @@ type TestOptions struct {
 	providerConfigPath  string
 	logsExportDir       string
 	logsExportOnSuccess bool
-	enableCoverage      bool
-	coverageDir         string
 	skipCases           string
 }
 
 var testOptions TestOptions
 
 var (
-	pods, namespaces []string
+	namespaces []string
 )
 
 type PodIPs struct {
@@ -624,6 +622,11 @@ func (data *TestData) DeletePod(namespace, name string) error {
 	return nil
 }
 
+// GetService is a convenience function for getting Service
+func (data *TestData) GetService(namespace, name string) (*corev1.Service, error) {
+	return data.clientset.CoreV1().Services(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+}
+
 type PodCondition func(*corev1.Pod) (bool, error)
 
 // PodWaitFor polls the K8s apiserver until the specified Pod is found (in the test Namespace) and
@@ -717,6 +720,20 @@ func (data *TestData) podWaitForIPs(timeout time.Duration, name, namespace strin
 		}
 	}
 	return ips, nil
+}
+
+// podWaitForReady polls the k8s apiserver until the specified Pod is in the "Ready" status (or
+// until the provided timeout expires).
+func (data *TestData) podWaitForReady(timeout time.Duration, name, namespace string) error {
+	_, err := data.PodWaitFor(timeout, name, namespace, func(p *corev1.Pod) (bool, error) {
+		for _, condition := range p.Status.Conditions {
+			if condition.Type == corev1.PodReady {
+				return condition.Status == corev1.ConditionTrue, nil
+			}
+		}
+		return false, nil
+	})
+	return err
 }
 
 // getImageName gets the image name from the fully qualified URI.
@@ -1073,12 +1090,16 @@ func (data *TestData) getClickHouseOperator() (*corev1.Pod, error) {
 }
 
 // deployFlowVisibilityClickHouse deploys ClickHouse operator and DB.
-func (data *TestData) deployFlowVisibilityClickHouse() (*PodIPs, error) {
+func (data *TestData) deployFlowVisibilityClickHouse() (string, error) {
 	err := data.CreateNamespace(flowVisibilityNamespace, nil)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
+	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", chOperatorYML))
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when deploying the ClickHouse Operator YML; %s not available on the control-plane Node", chOperatorYML)
+	}
 	if err := wait.Poll(2*time.Second, 10*time.Second, func() (bool, error) {
 		rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", flowVisibilityYML))
 		if err != nil || rc != 0 {
@@ -1092,54 +1113,39 @@ func (data *TestData) deployFlowVisibilityClickHouse() (*PodIPs, error) {
 		}
 		return true, nil
 	}); err != nil {
-		return nil, err
+		return "", err
 	}
 
-	// check for clickhouse operator running
-	chOperator, err := data.getClickHouseOperator()
-	if err != nil {
-		return nil, fmt.Errorf("error when getting clickhouse-operator Pod: %v", err)
+	// check for clickhouse pod Ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
+	if err = data.podWaitForReady(2*defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace); err != nil {
+		return "", err
 	}
-	podName := chOperator.Name
-	_, err = data.PodWaitFor(defaultTimeout, podName, kubeNamespace, func(p *corev1.Pod) (bool, error) {
-		for _, condition := range p.Status.Conditions {
-			if condition.Type == corev1.PodReady {
-				return condition.Status == corev1.ConditionTrue, nil
-			}
+
+	// check clickhouse service http port for service connectivity
+	chSvc, err := data.GetService("flow-visibility", "clickhouse-clickhouse")
+	if err != nil {
+		return "", err
+	}
+	if err := wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		rc, stdout, stderr, err := testData.RunCommandOnNode(controlPlaneNodeName(),
+			fmt.Sprintf("curl -Ss %s:%s", chSvc.Spec.ClusterIP, clickHouseHTTPPort))
+		if rc != 0 || err != nil {
+			log.Infof("Failed to curl clickhouse Service: %s", strings.Trim(stderr, "\n"))
+			return false, nil
+		} else {
+			log.Infof("Successfully curl'ed clickhouse Service: %s", strings.Trim(stdout, "\n"))
+			return true, nil
 		}
-		return false, nil
-	})
-	if err != nil {
-		_, stdout, stderr, podErr := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl get po %s -n %s -o yaml", podName, kubeNamespace))
-		return nil, fmt.Errorf("error when waiting for ClickHouse Operator Ready: %v; stdout: %s, stderr: %s, %v", err, stdout, stderr, podErr)
+	}); err != nil {
+		return "", fmt.Errorf("timeout checking http port connectivity of clickhouse service: %v", err)
 	}
-	// check for clickhouse pod running
-	_, err = data.PodWaitFor(defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace, func(p *corev1.Pod) (bool, error) {
-		for _, condition := range p.Status.Conditions {
-			if condition.Type == corev1.PodReady {
-				return condition.Status == corev1.ConditionTrue, nil
-			}
-		}
-		return false, nil
-	})
-	if err != nil {
-		_, stdout, stderr, podErr := data.provider.RunCommandOnNode(controlPlaneNodeName(),
-			fmt.Sprintf("kubectl get po %s -n %s -o yaml", flowVisibilityCHPodName, flowVisibilityNamespace))
-		return nil, fmt.Errorf("error when waiting for ClickHouse Ready: %v; stdout: %s; stderr: %s; %v", err, stdout, stderr, podErr)
-	}
-	podIPs, err := data.podWaitForIPs(defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get clickhouse server IP %s: %v", flowVisibilityCHPodName, err)
-	}
-	return podIPs, nil
+
+	return chSvc.Spec.ClusterIP, nil
 }
 
 // deployFlowAggregator deploys the Flow Aggregator with ipfix collector and clickHouse address.
 func (data *TestData) deployFlowAggregator() error {
 	flowAggYaml := flowAggregatorYML
-	if testOptions.enableCoverage {
-		flowAggYaml = flowAggregatorCovYML
-	}
 	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", flowAggYaml))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deploying the Flow Aggregator; %s not available on the control-plane Node", flowAggYaml)

@@ -154,7 +154,7 @@ type testFlow struct {
 }
 
 func TestFlowAggregator(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestWithIPFIXCollector(t)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowAggregator(t)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
@@ -495,13 +495,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		}
 		podName := flowAggPod.Name
 		for _, args := range antctl.CommandList.GetDebugCommands(runtime.ModeFlowAggregator) {
-			command := []string{}
-			if testOptions.enableCoverage {
-				antctlCovArgs := antctlCoverageArgs("antctl-coverage")
-				command = append(antctlCovArgs, args...)
-			} else {
-				command = append([]string{"antctl", "-v"}, args...)
-			}
+			command := append([]string{"antctl", "-v"}, args...)
 			t.Logf("Run command: %s", command)
 
 			t.Run(strings.Join(command, " "), func(t *testing.T) {
@@ -534,14 +528,8 @@ func checkAntctlGetFlowRecordsJson(t *testing.T, data *TestData, podName string,
 	_, srcPort, dstPort := getBandwidthAndPorts(stdout)
 
 	// run antctl command on flow aggregator to get flow records
-	var command []string
 	args := []string{"get", "flowrecords", "-o", "json", "--srcip", srcIP, "--srcport", srcPort}
-	if testOptions.enableCoverage {
-		antctlCovArgs := antctlCoverageArgs("antctl-coverage")
-		command = append(antctlCovArgs, args...)
-	} else {
-		command = append([]string{"antctl"}, args...)
-	}
+	command := append([]string{"antctl"}, args...)
 	t.Logf("Run command: %s", command)
 	stdout, stderr, err := runAntctl(podName, command, data)
 	require.NoErrorf(t, err, "Error when running 'antctl get flowrecords -o json' from %s: %v\n%s", podName, err, antctlOutput(stdout, stderr))
@@ -791,22 +779,6 @@ func checkPodAndNodeDataClickHouse(t *testing.T, record *ClickHouseFullRow, srcP
 
 func checkFlowTypeClickHouse(t *testing.T, record *ClickHouseFullRow, flowType uint8) {
 	assert.Equal(t, record.FlowType, flowType, "Record does not have correct flowType")
-}
-
-func getUint64FieldFromRecord(t *testing.T, record string, field string) uint64 {
-	if strings.Contains(record, "TEMPLATE SET") {
-		return 0
-	}
-	splitLines := strings.Split(record, "\n")
-	for _, line := range splitLines {
-		if strings.Contains(line, field) {
-			lineSlice := strings.Split(line, ":")
-			value, err := strconv.ParseUint(strings.TrimSpace(lineSlice[1]), 10, 64)
-			require.NoError(t, err, "Error when converting %s to uint64 type", field)
-			return value
-		}
-	}
-	return 0
 }
 
 // getClickHouseOutput queries clickhouse with built-in client and checks if we have

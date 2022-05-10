@@ -55,31 +55,12 @@ func (tOptions *TestOptions) setupLogging() func() {
 	return func() {}
 }
 
-// setupCoverage checks if the directory provided by the user exists.
-func (tOptions *TestOptions) setupCoverage() func() {
-	if tOptions.coverageDir != "" {
-		fInfo, err := os.Stat(tOptions.coverageDir)
-		if err != nil {
-			log.Fatalf("Cannot stat provided directory '%s': %v", tOptions.coverageDir, err)
-		}
-		if !fInfo.Mode().IsDir() {
-			log.Fatalf("'%s' is not a valid directory", tOptions.coverageDir)
-		}
-
-	}
-	// no-op cleanup function
-	return func() {}
-
-}
-
 // testMain is meant to be called by TestMain and enables the use of defer statements.
 func testMain(m *testing.M) int {
 	flag.StringVar(&testOptions.providerName, "provider", "vagrant", "K8s test cluster provider")
 	flag.StringVar(&testOptions.providerConfigPath, "provider-cfg-path", "", "Optional config file for provider")
 	flag.StringVar(&testOptions.logsExportDir, "logs-export-dir", "", "Export directory for test logs")
 	flag.BoolVar(&testOptions.logsExportOnSuccess, "logs-export-on-success", false, "Export logs even when a test is successful")
-	flag.BoolVar(&testOptions.enableCoverage, "coverage", false, "Run tests and measure coverage")
-	flag.StringVar(&testOptions.coverageDir, "coverage-dir", "", "Directory for coverage data files")
 	flag.StringVar(&testOptions.skipCases, "skip", "", "Key words to skip cases")
 	flag.Parse()
 
@@ -123,7 +104,6 @@ func testMain(m *testing.M) int {
 		log.Fatalf("Error when getting antrea-config configmap: %v", err)
 	}
 	rand.Seed(time.Now().UnixNano())
-	defer testOptions.setupCoverage()
 	ret := m.Run()
 	return ret
 }

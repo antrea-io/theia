@@ -20,7 +20,6 @@ import (
 	"math/rand"
 	"os"
 	"strings"
-	"time"
 )
 
 const nameSuffixLength int = 8
@@ -59,12 +58,6 @@ func randSeq(n int) string {
 
 func randName(prefix string) string {
 	return prefix + randSeq(nameSuffixLength)
-}
-
-func antctlCoverageArgs(antctlPath string) []string {
-	const timeFormat = "20060102T150405Z0700"
-	timeStamp := time.Now().Format(timeFormat)
-	return []string{antctlPath, "-test.run=TestBincoverRunMain", fmt.Sprintf("-test.coverprofile=antctl-%s.out", timeStamp)}
 }
 
 // runAntctl runs antctl commands on antrea Pods, the controller, or agents.

@@ -3,7 +3,7 @@
     # should be defined as a global variable somewhere else
     name: theia
     git_credentials_id: THEIA_TEST_CRED
-    org_repo: hangyan/theia2
+    org_repo: antrea-io/theia
     jobs:
       - '{name}-{test_name}-for-pull-request':
           test_name: e2e

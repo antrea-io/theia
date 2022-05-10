@@ -4,20 +4,20 @@
 
 <!-- toc -->
 - [Overview](#overview)
-  - [Grafana Flow Collector](#grafana-flow-collector)
-    - [Purpose](#purpose)
-    - [About Grafana and ClickHouse](#about-grafana-and-clickhouse)
-    - [Deployment Steps](#deployment-steps)
-      - [Credentials Configuration](#credentials-configuration)
-      - [ClickHouse Configuration](#clickhouse-configuration)
-    - [Pre-built Dashboards](#pre-built-dashboards)
-      - [Flow Records Dashboard](#flow-records-dashboard)
-      - [Pod-to-Pod Flows Dashboard](#pod-to-pod-flows-dashboard)
-      - [Pod-to-External Flows Dashboard](#pod-to-external-flows-dashboard)
-      - [Pod-to-Service Flows Dashboard](#pod-to-service-flows-dashboard)
-      - [Node-to-Node Flows Dashboard](#node-to-node-flows-dashboard)
-      - [Network-Policy Flows Dashboard](#network-policy-flows-dashboard)
-    - [Dashboards Customization](#dashboards-customization)
+- [Grafana Flow Collector](#grafana-flow-collector)
+  - [Purpose](#purpose)
+  - [About Grafana and ClickHouse](#about-grafana-and-clickhouse)
+  - [Deployment Steps](#deployment-steps)
+    - [Credentials Configuration](#credentials-configuration)
+    - [ClickHouse Configuration](#clickhouse-configuration)
+  - [Pre-built Dashboards](#pre-built-dashboards)
+    - [Flow Records Dashboard](#flow-records-dashboard)
+    - [Pod-to-Pod Flows Dashboard](#pod-to-pod-flows-dashboard)
+    - [Pod-to-External Flows Dashboard](#pod-to-external-flows-dashboard)
+    - [Pod-to-Service Flows Dashboard](#pod-to-service-flows-dashboard)
+    - [Node-to-Node Flows Dashboard](#node-to-node-flows-dashboard)
+    - [Network-Policy Flows Dashboard](#network-policy-flows-dashboard)
+  - [Dashboards Customization](#dashboards-customization)
 <!-- /toc -->
 
 ## Overview
@@ -34,9 +34,9 @@ For visualizing the network flows, Antrea monitors the flows in Linux conntrack
 module. These flows are converted to flow records, and then flow records are post-processed
 before they are sent to the configured external flow collector.
 
-### Grafana Flow Collector
+## Grafana Flow Collector
 
-#### Purpose
+### Purpose
 
 Antrea supports sending IPFIX flow records through the Flow Exporter and Flow Aggregator
 feature described in [doc](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md).
@@ -46,7 +46,7 @@ records data from the Flow Aggregator and load the data to Grafana. This documen
 provides the guidelines for deploying the Grafana Flow Collector with support for
 Antrea-specific IPFIX fields in a Kubernetes cluster.
 
-#### About Grafana and ClickHouse
+### About Grafana and ClickHouse
 
 [Grafana](https://grafana.com/grafana/) is an open-source platform for monitoring
 and observability. Grafana allows you to query, visualize, alert on and understand
@@ -54,7 +54,7 @@ your metrics. [ClickHouse](https://clickhouse.com/) is an open-source, high perf
 columnar OLAP database management system for real-time analytics using SQL. We use
 ClickHouse as the data storage, and use Grafana as the data visualization and monitoring tool.
 
-#### Deployment Steps
+### Deployment Steps
 
 To deploy the Grafana Flow Collector, the first step is to install the ClickHouse
 Operator, which creates, configures and manages ClickHouse clusters. Check the [homepage](https://github.com/Altinity/clickhouse-operator)
@@ -158,7 +158,7 @@ kubectl delete -f flow-visibility.yml
 kubectl delete -f https://raw.githubusercontent.com/antrea-io/theia/main/build/yamls/clickhouse-operator-install-bundle.yml -n kube-system
 ```
 
-##### Credentials Configuration
+#### Credentials Configuration
 
 ClickHouse credentials are specified in `flow-visibility.yml` as a Secret named
 `clickhouse-secret`.
@@ -228,7 +228,7 @@ type: Opaque
 We recommend changing all the credentials above if you are going to run the Flow
 Collector in production.
 
-##### ClickHouse Configuration
+#### ClickHouse Configuration
 
 The ClickHouse database can be accessed through the Service `clickhouse-clickhouse`.
 The Pod exposes HTTP port at 8123 and TCP port at 9000 by default. The ports are
@@ -302,7 +302,7 @@ The time interval between the batch commits to the ClickHouse is specified in th
 as `commitInterval`. The ClickHouse throughput grows sightly when the commit interval
 grows from 1s to 8s. A commit interval larger than 8s provides little improvement on the throughput.
 
-#### Pre-built Dashboards
+### Pre-built Dashboards
 
 The following dashboards are pre-built and are recommended for Antrea flow
 visualization. They can be found in the Home page of Grafana, by clicking
@@ -318,7 +318,7 @@ ClickHouse and Grafana. If you want to stop filtering traffic like this, you
 will need to [customize dashboards](#dashboards-customization) and edit the
 ClickHouse SQL query for each individual panel.
 
-##### Flow Records Dashboard
+#### Flow Records Dashboard
 
 Flow Records Dashboard displays the number of flow records being captured in the
 selected time range. The detailed metadata of each of the records can be found
@@ -343,7 +343,7 @@ filters that apply to each table column.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-flow-records-4.png" width="900" alt="Flow Records Dashboard">
 
-##### Pod-to-Pod Flows Dashboard
+#### Pod-to-Pod Flows Dashboard
 
 Pod-to-Pod Flows Dashboard shows cumulative bytes and reverse bytes of Pod-to-Pod
 traffic in the selected time range, in the form of Sankey diagram. Corresponding
@@ -354,7 +354,7 @@ visualize the cumulative traffic grouped by source or destination Pod Namespace.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-pod-2.png" width="900" alt="Pod-to-Pod Flows Dashboard">
 
-##### Pod-to-External Flows Dashboard
+#### Pod-to-External Flows Dashboard
 
 Pod-to-External Flows Dashboard has similar visualization to Pod-to-Pod Flows
 Dashboard, visualizing the Pod-to-External flows. The destination of a traffic
@@ -364,7 +364,7 @@ flow is represented by the destination IP address.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-external-2.png" width="900" alt="Pod-to-External Flows Dashboard">
 
-##### Pod-to-Service Flows Dashboard
+#### Pod-to-Service Flows Dashboard
 
 Pod-to-Service Flows Dashboard shares the similar visualizations with Pod-to-Pod/External
 Flows Dashboard, visualizing the Pod-to-Service flows. The destination of a traffic
@@ -374,7 +374,7 @@ is represented by the destination Service metadata.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-service-2.png" width="900" alt="Pod-to-Service Flows Dashboard">
 
-##### Node-to-Node Flows Dashboard
+#### Node-to-Node Flows Dashboard
 
 Node-to-Node Flows Dashboard visualizes the Node-to-Node traffic, including intra-Node
 and inter-Node flows. Cumulative bytes are shown in the Sankey diagrams and pie charts,
@@ -384,7 +384,7 @@ and throughput is shown in the line graphs.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-node-to-node-2.png" width="900" alt="Node-to-Node Flows Dashboard">
 
-##### Network-Policy Flows Dashboard
+#### Network-Policy Flows Dashboard
 
 Network-Policy Flows Dashboard visualizes the traffic with NetworkPolicies enforced.
 Currently we only support the visualization of NetworkPolicies with `Allow` action.
@@ -393,7 +393,7 @@ Currently we only support the visualization of NetworkPolicies with `Allow` acti
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-np-2.png" width="900" alt="Network-Policy Flows Dashboard">
 
-#### Dashboards Customization
+### Dashboards Customization
 
 If you would like to make any changes to any of the pre-built dashboards, or build
 a new dashboard, please follow this [doc](https://grafana.com/docs/grafana/latest/dashboards/)

@@ -279,63 +279,6 @@ function setup_cluster() {
     fi
 }
 
-function copy_image {
-  filename=$1
-  image=$2
-  IP=$3
-  version=$4
-  need_cleanup=$5
-  ${SCP_WITH_ANTREA_CI_KEY} $filename capv@${IP}:/home/capv
-  if [ $TEST_OS == 'centos-7' ]; then
-      ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "sudo chmod 777 /run/containerd/containerd.sock"
-      if [[ $need_cleanup == 'true' ]]; then
-          ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "sudo crictl images | grep $image | awk '{print \$3}' | uniq | xargs -r crictl rmi"
-      fi
-      ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "ctr -n=k8s.io images import /home/capv/$filename ; ctr -n=k8s.io images tag $image:$version $image:latest --force"
-  else
-      if [[ $need_cleanup == 'true' ]]; then
-          ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "sudo crictl images | grep $image | awk '{print \$3}' | uniq | xargs -r crictl rmi"
-      fi
-      ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "sudo ctr -n=k8s.io images import /home/capv/$filename ; sudo ctr -n=k8s.io images tag $image:$version $image:latest --force"
-  fi
-  ${SSH_WITH_ANTREA_CI_KEY} -n capv@${IP} "sudo crictl images | grep '<none>' | awk '{print \$3}' | xargs -r crictl rmi"
-}
-
-# We run the function in a subshell with "set -e" to ensure that it exists in
-# case of error (e.g. integrity check), no matter the context in which the
-# function is called.
-function run_codecov { (set -e
-    flag=$1
-    file=$2
-    dir=$3
-    remote=$4
-    ip=$5
-
-    rm -f trustedkeys.gpg codecov
-    # This is supposed to be a one-time step, but there should be no harm in
-    # getting the key every time. It does not come from the codecov.io
-    # website. Anyway, this is needed when the VM is re-created for every test.
-    curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-    curl -Os https://uploader.codecov.io/latest/linux/codecov
-    curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-    curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-
-    # Check that the sha256 matches the signature
-    gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-    # Then check the integrity of the codecov binary
-    shasum -a 256 -c codecov.SHA256SUM
-
-    chmod +x codecov
-
-    if [[ $remote == true ]]; then
-        ${SCP_WITH_UTILS_KEY} codecov jenkins@${ip}:~
-        ${SSH_WITH_UTILS_KEY} -n jenkins@${ip} "~/codecov -c -t ${CODECOV_TOKEN} -F ${flag} -f ${file} -C ${GIT_COMMIT} -r antrea-io/antrea"
-    else
-        ./codecov -c -t ${CODECOV_TOKEN} -F ${flag} -f ${file} -s ${dir} -C ${GIT_COMMIT} -r antrea-io/antrea
-    fi
-    rm -f trustedkeys.gpg codecov
-)}
-
 
 
 function deliver_antrea {
@@ -360,35 +303,6 @@ function deliver_antrea {
 
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/build/yamls/*.yml capv@${control_plane_ip}:~
 
-}
-
-function run_integration {
-    flag=$1
-    VM_NAME="antrea-integration-0"
-    export GOVC_INSECURE=1
-    export GOVC_URL=${GOVC_URL}
-    export GOVC_USERNAME=${GOVC_USERNAME}
-    export GOVC_PASSWORD=${GOVC_PASSWORD}
-    VM_IP=$(govc vm.ip ${VM_NAME})
-    govc snapshot.revert -vm.ip ${VM_IP} initial
-    VM_IP=$(govc vm.ip ${VM_NAME}) # wait for VM to be on
-
-    set -x
-    if [[ ${flag} == "multicluster" ]];then
-      echo "===== Run Multi-cluster Integration tests ====="
-      # umask ensures that files are cloned with the correct permissions so that Docker caching can be leveraged
-      ${SSH_WITH_UTILS_KEY} -n jenkins@${VM_IP} "PATH=$PATH:/usr/local/go/bin && umask 0022 && git clone ${ghprbAuthorRepoGitUrl} antrea && cd antrea && git checkout ${GIT_BRANCH} && cd multicluster && NO_LOCAL=true make test-integration"
-      if [[ "$COVERAGE" == true ]]; then
-        run_codecov "mc-integration-tests" "antrea/multicluster/.coverage/coverage-integration.txt" "" true ${VM_IP}
-      fi
-    else
-      echo "===== Run Integration tests ====="
-      # umask ensures that files are cloned with the correct permissions so that Docker caching can be leveraged
-      ${SSH_WITH_UTILS_KEY} -n jenkins@${VM_IP} "umask 0022 && git clone ${ghprbAuthorRepoGitUrl} antrea && cd antrea && git checkout ${GIT_BRANCH} && DOCKER_REGISTRY=${DOCKER_REGISTRY} ./build/images/ovs/build.sh --pull && NO_PULL=${NO_PULL} make docker-test-integration"
-      if [[ "$COVERAGE" == true ]]; then
-        run_codecov "integration-tests" "antrea/.coverage/coverage-integration.txt" "" true ${VM_IP}
-      fi
-    fi
 }
 
 function run_e2e {
@@ -426,15 +340,10 @@ function run_e2e {
     mkdir -p ${GIT_CHECKOUT_DIR}/theia-test-logs
     go version
     go mod tidy -compat=1.17
-    if [[ "$COVERAGE" == true ]]; then
-        rm -rf ${GIT_CHECKOUT_DIR}/e2e-coverage
-        mkdir -p ${GIT_CHECKOUT_DIR}/e2e-coverage
-        # HACK: see https://github.com/antrea-io/antrea/issues/2292
-        go test -v -timeout=100m antrea.io/theia/test/e2e --logs-export-dir ${GIT_CHECKOUT_DIR}/theia-test-logs  --coverage --coverage-dir ${GIT_CHECKOUT_DIR}/e2e-coverage --provider remote --remote.sshconfig "${CLUSTER_SSHCONFIG}" --remote.kubeconfig "${CLUSTER_KUBECONFIG}"
-    else
-        # HACK: see https://github.com/antrea-io/antrea/issues/2292
-        go test -v -timeout=100m antrea.io/theia/test/e2e --logs-export-dir ${GIT_CHECKOUT_DIR}/theia-test-logs --provider remote --remote.sshconfig "${CLUSTER_SSHCONFIG}" --remote.kubeconfig "${CLUSTER_KUBECONFIG}"
-    fi
+
+    # HACK: see https://github.com/antrea-io/antrea/issues/2292
+    go test -v -timeout=100m antrea.io/theia/test/e2e --logs-export-dir ${GIT_CHECKOUT_DIR}/theia-test-logs --provider remote --remote.sshconfig "${CLUSTER_SSHCONFIG}" --remote.kubeconfig "${CLUSTER_KUBECONFIG}"
+
 
     test_rc=$?
     set -e
@@ -446,75 +355,8 @@ function run_e2e {
         echo "=== TEST SUCCESS !!! ==="
     fi
 
-    tar -zcf ${GIT_CHECKOUT_DIR}/antrea-test-logs.tar.gz ${GIT_CHECKOUT_DIR}/antrea-test-logs
-    if [[ "$COVERAGE" == true ]]; then
-        tar -zcf ${GIT_CHECKOUT_DIR}/e2e-coverage.tar.gz ${GIT_CHECKOUT_DIR}/e2e-coverage
-        run_codecov "e2e-tests" "*.cov.out*" "${GIT_CHECKOUT_DIR}/e2e-coverage" false ""
-    fi
-}
+    tar -zcf ${GIT_CHECKOUT_DIR}/theia-test-logs.tar.gz ${GIT_CHECKOUT_DIR}/theia-test-logs
 
-function run_conformance {
-    echo "====== Running Antrea Conformance Tests ======"
-
-    export GO111MODULE=on
-    export GOPATH=$WORKDIR/go
-    export GOROOT=/usr/local/go
-    export GOCACHE=$WORKDIR/.cache/go-build
-    export PATH=$GOROOT/bin:$PATH
-    export KUBECONFIG=$GIT_CHECKOUT_DIR/jenkins/out/kubeconfig
-
-    antrea_yml="antrea.yml"
-    if [[ "$COVERAGE" == true ]]; then
-        antrea_yml="antrea-coverage.yml"
-    fi
-
-    if [[ "$TESTCASE" == "all-features-conformance" ]]; then
-      if [[ "$COVERAGE" == true ]]; then
-        $GIT_CHECKOUT_DIR/hack/generate-manifest.sh --mode dev --all-features --coverage > $GIT_CHECKOUT_DIR/build/yamls/antrea-all-coverage.yml
-        antrea_yml="antrea-all-coverage.yml"
-      else
-        $GIT_CHECKOUT_DIR/hack/generate-manifest.sh --mode dev --all-features --verbose-log > $GIT_CHECKOUT_DIR/build/yamls/antrea-all.yml
-        antrea_yml="antrea-all.yml"
-      fi
-    fi
-
-    kubectl apply -f $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
-    kubectl rollout restart deployment/coredns -n kube-system
-    kubectl rollout status --timeout=8m deployment/coredns -n kube-system
-    kubectl rollout status --timeout=5m deployment.apps/antrea-controller -n kube-system
-    kubectl rollout status --timeout=5m daemonset/antrea-agent -n kube-system
-
-    control_plane_ip="$(kubectl get nodes -o wide --no-headers=true | awk -v role="$CONTROL_PLANE_NODE_ROLE" '$3 ~ role {print $6}')"
-    echo "=== Move kubeconfig to control-plane Node ==="
-    ${SSH_WITH_ANTREA_CI_KEY} -n capv@${control_plane_ip} "if [ ! -d ".kube" ]; then mkdir .kube; fi"
-    ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/jenkins/out/kubeconfig capv@${control_plane_ip}:~/.kube/config
-
-    if [[ "$TESTCASE" == "conformance" ]]; then
-        ${GIT_CHECKOUT_DIR}/ci/run-k8s-e2e-tests.sh --e2e-conformance --log-mode ${MODE} --kubeconfig ${GIT_CHECKOUT_DIR}/jenkins/out/kubeconfig > ${GIT_CHECKOUT_DIR}/vmc-test.log
-    elif [[ "$TESTCASE" == "all-features-conformance" ]]; then
-        ${GIT_CHECKOUT_DIR}/ci/run-k8s-e2e-tests.sh --e2e-conformance --log-mode ${MODE} --kubeconfig ${GIT_CHECKOUT_DIR}/jenkins/out/kubeconfig > ${GIT_CHECKOUT_DIR}/vmc-test.log
-    elif [[ "$TESTCASE" == "whole-conformance" ]]; then
-        ${GIT_CHECKOUT_DIR}/ci/run-k8s-e2e-tests.sh --e2e-whole-conformance --log-mode ${MODE} --kubeconfig ${GIT_CHECKOUT_DIR}/jenkins/out/kubeconfig > ${GIT_CHECKOUT_DIR}/vmc-test.log
-    else
-        ${GIT_CHECKOUT_DIR}/ci/run-k8s-e2e-tests.sh --e2e-network-policy --log-mode ${MODE} --kubeconfig ${GIT_CHECKOUT_DIR}/jenkins/out/kubeconfig > ${GIT_CHECKOUT_DIR}/vmc-test.log
-    fi
-
-    cat ${GIT_CHECKOUT_DIR}/vmc-test.log
-    if grep -Fxq "Failed tests:" ${GIT_CHECKOUT_DIR}/vmc-test.log
-    then
-        echo "Failed cases exist."
-        TEST_FAILURE=true
-    else
-        echo "All tests passed."
-    fi
-
-    if [[ "$COVERAGE" == true ]]; then
-        rm -rf ${GIT_CHECKOUT_DIR}/conformance-coverage
-        mkdir -p ${GIT_CHECKOUT_DIR}/conformance-coverage
-        collect_coverage
-        tar -zcf ${GIT_CHECKOUT_DIR}/$TESTCASE-coverage.tar.gz ${GIT_CHECKOUT_DIR}/conformance-coverage
-        run_codecov "e2e-tests" "*antrea*" "${GIT_CHECKOUT_DIR}/conformance-coverage" false ""
-    fi
 }
 
 function collect_coverage() {
@@ -621,8 +463,6 @@ fi
 if [[ "$RUN_TEST_ONLY" == true ]]; then
     if [[ "$TESTCASE" == "e2e" ]]; then
         run_e2e
-    else
-        run_conformance
     fi
     if [[ "$TEST_FAILURE" == true ]]; then
         exit 1
@@ -630,25 +470,14 @@ if [[ "$RUN_TEST_ONLY" == true ]]; then
     exit 0
 fi
 
-if [[ "$TESTCASE" == "integration" ]]; then
-    run_integration
-    exit 0
-fi
 
-if [[ "$TESTCASE" == "multicluster-integration" ]]; then
-    run_integration "multicluster"
-    exit 0
-fi
 
 trap cleanup_cluster EXIT
 if [[ "$TESTCASE" == "e2e" ]]; then
     setup_cluster
     deliver_antrea
     run_e2e
-else
-    setup_cluster
-    deliver_antrea
-    run_conformance
+
 fi
 
 if [[ "$TEST_FAILURE" == true ]]; then

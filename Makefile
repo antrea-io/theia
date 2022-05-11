@@ -157,4 +157,3 @@ clickhouse-monitor:
 clickhouse-monitor-plugin:
 	@mkdir -p $(BINDIR)
 	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-monitor
-	

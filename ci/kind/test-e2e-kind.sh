@@ -39,7 +39,7 @@ function print_usage {
 TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
 YML_DIR=$(dirname $0)"/../../build/yamls"
 FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh"
-CH_OPERATOR_YML=$(dirname $0)"/../../build/yamls/clickhouse-operator-install-bundle.yml"
+CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
 
 function quit {
   result=$?
@@ -151,7 +151,7 @@ function run_test {
 
   docker exec -i kind-control-plane dd of=/root/antrea.yml < $TMP_DIR/antrea.yml
   docker exec -i kind-control-plane dd of=/root/flow-aggregator.yml < $TMP_DIR/flow-aggregator.yml
-  docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yml < $CH_OPERATOR_YML
+  docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < $CH_OPERATOR_YML
   $FLOW_VISIBILITY_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility.yml
   rm -rf $TMP_DIR
   sleep 1

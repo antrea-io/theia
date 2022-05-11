@@ -18,21 +18,17 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog/v2"
 )
 
 const (
-	// The storage percentage at which the monitor starts to delete old records. By default, if the storage usage is larger than 50%, it starts to delete the old records.
-	threshold = 0.5
-	// The percentage of records in ClickHouse that will be deleted when the storage grows above threshold.
-	deletePercentage = 0.5
-	// The monitor stops for 3 intervals after a deletion to wait for the ClickHouse MergeTree Engine to release memory.
-	skipRoundsNum = 3
 	// Connection to ClickHouse times out if it fails for 1 minute.
 	connTimeout = time.Minute
 	// Retry connection to ClickHouse every 10 seconds if it fails.
@@ -43,23 +39,65 @@ const (
 	queryRetryInterval = 1 * time.Second
 	// Time format for timeInserted
 	timeFormat = "2006-01-02 15:04:05"
-	// The monitor runs every minute.
-	monitorExecInterval = 1 * time.Minute
 )
 
 var (
+	// Storage size allocated for the ClickHouse in number of bytes
+	allocatedSpace uint64
 	// The name of the table to store the flow records
 	tableName = os.Getenv("TABLE_NAME")
 	// The names of the materialized views
 	mvNames = strings.Split(os.Getenv("MV_NAMES"), " ")
 	// The remaining number of rounds to be skipped
 	remainingRoundsNum = 0
+	// The storage percentage at which the monitor starts to delete old records.
+	threshold float64
+	// The percentage of records in ClickHouse that will be deleted when the storage grows above threshold.
+	deletePercentage float64
+	// The number of rounds for the monitor to stop after a deletion to wait for the ClickHouse MergeTree Engine to release memory.
+	skipRoundsNum int
+	// The time interval between two round of monitoring.
+	monitorExecInterval time.Duration
 )
 
 func main() {
 	// Check environment variables
-	if len(tableName) == 0 || len(mvNames) == 0 {
-		klog.ErrorS(nil, "Unable to load environment variables, TABLE_NAME and MV_NAMES must be defined")
+	allocatedSpaceStr := os.Getenv("STORAGE_SIZE")
+	thresholdStr := os.Getenv("THRESHOLD")
+	deletePercentageStr := os.Getenv("DELETE_PERCENTAGE")
+	skipRoundsNumStr := os.Getenv("SKIP_ROUNDS_NUM")
+	monitorExecIntervalStr := os.Getenv("EXEC_INTERVAL")
+
+	if len(tableName) == 0 || len(mvNames) == 0 || len(allocatedSpaceStr) == 0 || len(thresholdStr) == 0 || len(deletePercentageStr) == 0 || len(skipRoundsNumStr) == 0 || len(monitorExecIntervalStr) == 0 {
+		klog.ErrorS(nil, "Unable to load environment variables, TABLE_NAME, MV_NAMES, STORAGE_SIZE, THRESHOLD, DELETE_PERCENTAGE, SKIP_ROUNDS_NUM, and EXEC_INTERVAL must be defined")
+		return
+	}
+	var err error
+	quantity, err := resource.ParseQuantity(allocatedSpaceStr)
+	if err != nil {
+		klog.ErrorS(err, "Error when parsing STORAGE_SIZE")
+		return
+	}
+	allocatedSpace = uint64(quantity.Value())
+
+	threshold, err = strconv.ParseFloat(thresholdStr, 64)
+	if err != nil {
+		klog.ErrorS(err, "Error when parsing THRESHOLD")
+		return
+	}
+	deletePercentage, err = strconv.ParseFloat(deletePercentageStr, 64)
+	if err != nil {
+		klog.ErrorS(err, "Error when parsing DELETE_PERCENTAGE")
+		return
+	}
+	skipRoundsNum, err = strconv.Atoi(skipRoundsNumStr)
+	if err != nil {
+		klog.ErrorS(err, "Error when parsing SKIP_ROUNDS_NUM")
+		return
+	}
+	monitorExecInterval, err = time.ParseDuration(monitorExecIntervalStr)
+	if err != nil {
+		klog.ErrorS(err, "Error when parsing EXEC_INTERVAL")
 		return
 	}
 
@@ -68,6 +106,7 @@ func main() {
 		klog.ErrorS(err, "Error when connecting to ClickHouse")
 		os.Exit(1)
 	}
+	checkStorageCondition(connect)
 	wait.Forever(func() {
 		// The monitor stops working for several rounds after a deletion
 		// as the release of memory space by the ClickHouse MergeTree engine requires time
@@ -118,28 +157,69 @@ func connectLoop() (*sql.DB, error) {
 	return connect, nil
 }
 
-// Checks the memory usage in the ClickHouse, and deletes records when it exceeds the threshold.
-func monitorMemory(connect *sql.DB) {
+// Check if ClickHouse shares storage space with other software
+func checkStorageCondition(connect *sql.DB) {
 	var (
 		freeSpace  uint64
+		usedSpace  uint64
 		totalSpace uint64
 	)
-	// Get memory usage from ClickHouse system table
+	getDiskUsage(connect, &freeSpace, &totalSpace)
+	getClickHouseUsage(connect, &usedSpace)
+	availablePercentage := float64(freeSpace+usedSpace) / float64(totalSpace)
+	klog.InfoS("Low available percentage implies ClickHouse does not save data on a dedicated disk", "availablePercentage", availablePercentage)
+}
+
+func getDiskUsage(connect *sql.DB, freeSpace *uint64, totalSpace *uint64) {
+	// Get free space from ClickHouse system table
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
-		if err := connect.QueryRow("SELECT free_space, total_space FROM system.disks").Scan(&freeSpace, &totalSpace); err != nil {
-			klog.ErrorS(err, "Failed to get memory usage for ClickHouse")
+		if err := connect.QueryRow("SELECT free_space, total_space FROM system.disks").Scan(freeSpace, totalSpace); err != nil {
+			klog.ErrorS(err, "Failed to get the disk usage")
 			return false, nil
 		} else {
 			return true, nil
 		}
 	}); err != nil {
-		klog.ErrorS(err, "Failed to get memory usage for ClickHouse", "timeout", queryTimeout)
+		klog.ErrorS(err, "Failed to get the disk usage", "timeout", queryTimeout)
 		return
+	}
+}
+
+func getClickHouseUsage(connect *sql.DB, usedSpace *uint64) {
+	// Get space usage from ClickHouse system table
+	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
+		if err := connect.QueryRow("SELECT SUM(bytes) FROM system.parts").Scan(usedSpace); err != nil {
+			klog.ErrorS(err, "Failed to get the used space size by the ClickHouse")
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}); err != nil {
+		klog.ErrorS(err, "Failed to get the used space size by the ClickHouse", "timeout", queryTimeout)
+		return
+	}
+}
+
+// Checks the memory usage in the ClickHouse, and deletes records when it exceeds the threshold.
+func monitorMemory(connect *sql.DB) {
+	var (
+		freeSpace  uint64
+		usedSpace  uint64
+		totalSpace uint64
+	)
+	getDiskUsage(connect, &freeSpace, &totalSpace)
+	getClickHouseUsage(connect, &usedSpace)
+
+	// Total space for ClickHouse is the smaller one of the user allocated space size and the actual space size on the disk
+	if (freeSpace + usedSpace) < allocatedSpace {
+		totalSpace = freeSpace + usedSpace
+	} else {
+		totalSpace = allocatedSpace
 	}
 
 	// Calculate the memory usage
-	usagePercentage := float64(totalSpace-freeSpace) / float64(totalSpace)
-	klog.InfoS("Memory usage", "total", totalSpace, "used", totalSpace-freeSpace, "percentage", usagePercentage)
+	usagePercentage := float64(usedSpace) / float64(totalSpace)
+	klog.InfoS("Memory usage", "total", totalSpace, "used", usedSpace, "percentage", usagePercentage)
 	// Delete records when memory usage is larger than threshold
 	if usagePercentage > threshold {
 		timeBoundary, err := getTimeBoundary(connect)
@@ -169,7 +249,7 @@ func getTimeBoundary(connect *sql.DB) (time.Time, error) {
 	if err != nil {
 		return timeBoundary, err
 	}
-	command := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET %d", tableName, deleteRowNum)
+	command := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET %d", tableName, deleteRowNum-1)
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
 		if err := connect.QueryRow(command).Scan(&timeBoundary); err != nil {
 			klog.ErrorS(err, "Failed to get timeInserted boundary", "table name", tableName)

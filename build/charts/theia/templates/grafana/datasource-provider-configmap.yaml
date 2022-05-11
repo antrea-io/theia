@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-provider
+  namespace: {{ .Release.Namespace }}
+data:
+  datasource_provider.yaml: |-
+{{ tpl (.Files.Get "provisioning/datasources/datasource_provider.yaml") . | indent 4}}

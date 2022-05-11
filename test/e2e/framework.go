@@ -76,7 +76,7 @@ const (
 	flowAggregatorDeployment string = "flow-aggregator"
 	flowAggregatorYML        string = "flow-aggregator.yml"
 	flowVisibilityYML        string = "flow-visibility.yml"
-	chOperatorYML            string = "clickhouse-operator-install-bundle.yml"
+	chOperatorYML            string = "clickhouse-operator-install-bundle.yaml"
 	flowVisibilityCHPodName  string = "chi-clickhouse-clickhouse-0-0-0"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"

@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: {{ .Release.Namespace }}
+data:
+  dashboard_provider.yaml: |-
+{{ .Files.Get "provisioning/dashboards/dashboard_provider.yaml" | indent 4}}

@@ -2,7 +2,7 @@
     # ghpr_auth, antrea_admin_list, antrea_org_list and antrea_white_list
     # should be defined as a global variable somewhere else
     name: theia
-    git_credentials_id: THEIA_TEST_CRED
+    git_credentials_id: ANTREA_GIT_CREDENTIAL
     org_repo: antrea-io/theia
     jobs:
       - '{name}-{test_name}-for-pull-request':

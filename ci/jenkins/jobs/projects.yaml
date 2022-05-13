@@ -13,7 +13,7 @@
           - ${{sha1}}
           builders:
             - builder-e2e
-          trigger_phrase: ^(?!Thanks for your PR).*/test-theia-(e2e|all).*
+          trigger_phrase: ^(?!Thanks for your PR).*/theia-test-(e2e|all).*
           white_list_target_branches: []
           allow_whitelist_orgs_as_admins: true
           admin_list: '{theia_admin_list}'
@@ -24,8 +24,8 @@
           status_context: jenkins-e2e
           status_url: --none--
           success_status: Build finished.
-          failure_status: Failed. Add comment /test-theia-e2e to re-trigger.
-          error_status: Failed. Add comment /test-theia-e2e to re-trigger.
+          failure_status: Failed. Add comment /theia-test-e2e to re-trigger.
+          error_status: Failed. Add comment /theia-test-e2e to re-trigger.
           triggered_status: null
           started_status: null
           wrappers:
@@ -59,6 +59,12 @@
             - text:
                 credential-id: CAPVC_PASSWORD
                 variable: CAPVC_PASSWORD
+            - text:
+                credential-id: DATASTORE
+                variable: DATASTORE
+            - text:
+                credential-id: VMFOLDERNAME
+                variable: VMFOLDERNAME
           publishers:
           - archive:
               allow-empty: true

@@ -44,9 +44,9 @@ spec:
     spec:
       cloneMode: linkedClone
       datacenter: DATACENTERNAME
-      datastore: 208.1-20TB-NFS
+      datastore: DATASTORE
       diskGiB: 25
-      folder: CI
+      folder: VMFOLDERNAME
       memoryMiB: 8192
       network:
         devices:

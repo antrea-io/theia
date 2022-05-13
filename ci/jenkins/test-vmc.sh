@@ -220,6 +220,12 @@ function setup_cluster() {
     sed -i "s/CONTROLVIP/${CONTROL_VIP}/g" ${GIT_CHECKOUT_DIR}/jenkins/out/cluster.yaml
     sed -i "s/CLUSTERNAMESPACE/${CLUSTER}/g" ${GIT_CHECKOUT_DIR}/jenkins/out/namespace.yaml
 
+
+    # replace some common vc settings for all cluster.
+    sed -i "s/DATASTORE/$DATASTORE/g" ${GIT_CHECKOUT_DIR}/jenkins/out/cluster.yaml
+    sed -i "s/VMFOLDERNAME/$VMFOLDERNAME/g" ${GIT_CHECKOUT_DIR}/jenkins/out/cluster.yaml
+
+
     echo "=== network spec value substitution==="
     index="$(($BUILD_NUMBER % 2))"
     cluster_defaults="${WORKDIR}/utils/CLUSTERDEFAULTS-${index}"
@@ -315,7 +321,9 @@ function deliver_antrea {
     sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
 
     wget -c https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/flow-aggregator.yml -O ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-    sed -i '215s/.*/      enable: true/' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+
+    # sed -i '215s/.*/      enable: true/' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+    perl -0777 -i.original -pe 's/    clickHouse:\n      # Enable is the switch to enable exporting flow records to ClickHouse.\n      #enable: false/    clickHouse:\n      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: true/igs' $GIT_CHECKOUT_DIR/build/yamls/flow-aggregator.yml
     sed -i -e "s/      #podLabels: false/      podLabels: true/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
     sed -i -e "s/      #commitInterval: \"8s\"/      commitInterval: \"1s\"/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
     sed -i -e "s/    #activeFlowRecordTimeout: 60s/    activeFlowRecordTimeout: 3500ms/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
@@ -394,6 +402,7 @@ function run_e2e {
     go version
     go mod tidy -compat=1.17
 
+    set +e
     # HACK: see https://github.com/antrea-io/antrea/issues/2292
     go test -v -timeout=100m antrea.io/theia/test/e2e --logs-export-dir ${GIT_CHECKOUT_DIR}/theia-test-logs --provider remote --remote.sshconfig "${CLUSTER_SSHCONFIG}" --remote.kubeconfig "${CLUSTER_KUBECONFIG}"
 
@@ -491,7 +500,7 @@ if [[ "$RUN_CLEANUP_ONLY" == true ]]; then
     exit 0
 fi
 
-if [[ "$TESTCASE" != "e2e" && "$TESTCASE" != "conformance" && "$TESTCASE" != "all-features-conformance" && "$TESTCASE" != "whole-conformance" && "$TESTCASE" != "networkpolicy" && "$TESTCASE" != "integration" && "$TESTCASE" != "multicluster-integration" ]]; then
+if [[ "$TESTCASE" != "e2e" ]]; then
     echoerr "testcase should be e2e, integration, multicluster-integration, conformance, whole-conformance or networkpolicy"
     exit 1
 fi

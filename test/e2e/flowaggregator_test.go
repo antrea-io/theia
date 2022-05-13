@@ -160,10 +160,6 @@ func TestFlowAggregator(t *testing.T) {
 	}
 	defer teardownTest(t, data)
 
-	if err != nil {
-		t.Fatalf("Error when creating Kubernetes utils client: %v", err)
-	}
-
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
 	if err != nil {
 		t.Fatalf("Error when creating perftest Pods: %v", err)

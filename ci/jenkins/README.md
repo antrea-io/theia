@@ -7,11 +7,9 @@ multiple nodes and offers better environment setup options.
 
 ## List of Jobs
 
-| Job Name | Description                                    | Trigger Phase   | 
-|----------|------------------------------------------------|-----------------| 
+| Job Name | Description                                    | Trigger Phase   |
+|----------|------------------------------------------------|-----------------|
 |  theia-e2e-for-pull-request | Run e2e test for pull request                  | `/theia-test-e2e` |
-
-
 
 ## Requirements
 
@@ -43,7 +41,6 @@ Run the command to apply these jobs.
 ```bash
 jenkins-jobs update -r ci/jenkins/jobs
 ```
-
 
 ## Tips for Developer
 

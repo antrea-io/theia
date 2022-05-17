@@ -322,12 +322,14 @@ function deliver_antrea {
 
     wget -c https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/flow-aggregator.yml -O ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
 
-    # sed -i '215s/.*/      enable: true/' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-    perl -0777 -i.original -pe 's/    clickHouse:\n      # Enable is the switch to enable exporting flow records to ClickHouse.\n      #enable: false/    clickHouse:\n      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: true/igs' $GIT_CHECKOUT_DIR/build/yamls/flow-aggregator.yml
-    sed -i -e "s/      #podLabels: false/      podLabels: true/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-    sed -i -e "s/      #commitInterval: \"8s\"/      commitInterval: \"1s\"/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-    sed -i -e "s/    #activeFlowRecordTimeout: 60s/    activeFlowRecordTimeout: 3500ms/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-    sed -i -e "s/    #inactiveFlowRecordTimeout: 90s/    inactiveFlowRecordTimeout: 6s/g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+
+    # install yq if not present on local disk
+    mkdir -p ~/bin
+    test -f ~/bin/yq || wget -qO ~/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+    chmod a+x ~/bin/yq
+
+    NEW_FA_CONFIG=$(~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml  | ~/bin/yq e   '.clickHouse.enable=true | .clickHouse.commitInterval="1s" | .recordContents.podLabels=true | .activeFlowRecordTimeout="3500ms" | .inactiveFlowRecordTimeout="6s"') ~/bin/yq -i e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf" |= strenv(NEW_FA_CONFIG)' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+
 
     control_plane_ip="$(kubectl get nodes -o wide --no-headers=true | awk -v role="$CONTROL_PLANE_NODE_ROLE" '$3 ~ role {print $6}')"
 

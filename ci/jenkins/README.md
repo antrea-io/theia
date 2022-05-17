@@ -44,4 +44,4 @@ jenkins-jobs update -r ci/jenkins/jobs
 
 ## Tips for Developer
 
-* [macro.yaml](/ci/jenkins/jobs/macros.yaml): Use "{{}}" instead of "{}" in "builder-list-tests" and "builder-conformance".
+* [macro.yaml](/ci/jenkins/jobs/macros.yaml): Use "{{}}" instead of "{}" in your builder when you pass jenkins-job variable to the builder from projects.yaml

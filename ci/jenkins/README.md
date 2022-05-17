@@ -28,6 +28,22 @@ setup, please notice the following requirements:
   [defaults](https://docs.openstack.org/infra/jenkins-job-builder/definition.html#defaults)
   variables in a separate file
 
+### Credentials
+
+The following credentials on jenkins server should also be present for the jobs to work:
+
+| Name         | Description                         |
+|--------------|-------------------------------------|
+| VMC_NETWORK_0 | CI NSX network on VC for VMC node   |
+ | VMC_NETWORK_1 | CI NSX network on VC for VMC node   |
+ | VCENTERNAME  | Vcenter IP address                  |
+ | DATACENTERNAME | Datacenter name                     |
+ | RESOURCEPOOLPATH | CI resource pool path               |
+ | CAPVC_USERNAME | Username of CAPV VC                 |
+ | CAPVC_PASSWORD | Password of CAPV VC                 |
+| DATASTORE | Datastore name                      |
+| VMFOLDERNAME | Folder name for VM                  |
+
 ### Apply the jobs
 
 Run the command to test if jobs can be generated correctly.  

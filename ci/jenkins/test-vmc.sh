@@ -328,7 +328,10 @@ function deliver_antrea {
     test -f ~/bin/yq || wget -qO ~/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
     chmod a+x ~/bin/yq
 
-    NEW_FA_CONFIG=$(~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml  | ~/bin/yq e   '.clickHouse.enable=true | .clickHouse.commitInterval="1s" | .recordContents.podLabels=true | .activeFlowRecordTimeout="3500ms" | .inactiveFlowRecordTimeout="6s"') ~/bin/yq -i e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf" |= strenv(NEW_FA_CONFIG)' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+    NEW_FA_CONFIG=$(~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml \
+                        | ~/bin/yq e  \
+                                   '.clickHouse.enable=true | .clickHouse.commitInterval="1s" | .recordContents.podLabels=true | .activeFlowRecordTimeout="3500ms" | .inactiveFlowRecordTimeout="6s"') \
+                 ~/bin/yq -i e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf" |= strenv(NEW_FA_CONFIG)' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
 
 
     control_plane_ip="$(kubectl get nodes -o wide --no-headers=true | awk -v role="$CONTROL_PLANE_NODE_ROLE" '$3 ~ role {print $6}')"

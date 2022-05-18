@@ -34,13 +34,13 @@ The following credentials on jenkins server should also be present for the jobs 
 
 | Name         | Description                         |
 |--------------|-------------------------------------|
-| VMC_NETWORK_0 | CI NSX network on VC for VMC node   |
- | VMC_NETWORK_1 | CI NSX network on VC for VMC node   |
- | VCENTERNAME  | Vcenter IP address                  |
+| VMC_NETWORK_0 | vSphere Network name for VMs.   |
+ | VMC_NETWORK_1 | vSphere Network name for VMs.   |
+ | VCENTERNAME  | vCenter IP address                  |
  | DATACENTERNAME | Datacenter name                     |
  | RESOURCEPOOLPATH | CI resource pool path               |
- | CAPVC_USERNAME | Username of CAPV VC                 |
- | CAPVC_PASSWORD | Password of CAPV VC                 |
+ | CAPVC_USERNAME | vCenter username                |
+ | CAPVC_PASSWORD | vCenter password                |
 | DATASTORE | Datastore name                      |
 | VMFOLDERNAME | Folder name for VM                  |
 

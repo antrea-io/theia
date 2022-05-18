@@ -32,17 +32,17 @@ setup, please notice the following requirements:
 
 The following credentials on jenkins server should also be present for the jobs to work:
 
-| Name         | Description                         |
-|--------------|-------------------------------------|
-| VMC_NETWORK_0 | vSphere Network name for VMs.   |
- | VMC_NETWORK_1 | vSphere Network name for VMs.   |
- | VCENTERNAME  | vCenter IP address                  |
- | DATACENTERNAME | Datacenter name                     |
- | RESOURCEPOOLPATH | CI resource pool path               |
- | CAPVC_USERNAME | vCenter username                |
- | CAPVC_PASSWORD | vCenter password                |
-| DATASTORE | Datastore name                      |
-| VMFOLDERNAME | Folder name for VM                  |
+| Name         | Description                       |
+|--------------|-----------------------------------|
+| VMC_NETWORK_0 | vSphere Network name for VMs  |
+ | VMC_NETWORK_1 | vSphere Network name for VMs  |
+ | VCENTERNAME  | vCenter IP address                |
+ | DATACENTERNAME | Datacenter name                   |
+ | RESOURCEPOOLPATH | CI resource pool path             |
+ | CAPVC_USERNAME | vCenter username              |
+ | CAPVC_PASSWORD | vCenter password              |
+| DATASTORE | Datastore name                    |
+| VMFOLDERNAME | Folder name for VM                |
 
 ### Apply the jobs
 

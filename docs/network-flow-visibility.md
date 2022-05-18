@@ -63,7 +63,7 @@ for more information about the ClickHouse Operator. Current checked-in yaml is b
 will install ClickHouse Operator into `kube-system` Namespace.
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/antrea-io/theia/main/build/yamls/clickhouse-operator-install-bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/antrea-io/theia/main/build/yamls/clickhouse-operator-install-bundle.yml
 ```
 
 To deploy a released version of the Grafana Flow Collector, find a deployment manifest

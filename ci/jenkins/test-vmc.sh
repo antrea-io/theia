@@ -434,21 +434,7 @@ function garbage_collection() {
     echo "=== Auto cleanup starts ==="
     export KUBECONFIG=$KUBECONFIG_PATH
 
-    kubectl get ns -l antrea-ci -o custom-columns=Name:.metadata.name,DATE:.metadata.creationTimestamp --no-headers=true | awk '{cmd="echo $(( $(date +%s) - $(date -d "$2" +%s) ))"; cmd | getline t ; print $1, t}' | awk '$1 ~ "matrix" && $2 > 36000 {print $1}' | while read cluster; do
-        # Matrix tests
-        echo "=== Currently ${cluster} has been live for more than 10h ==="
-        kubectl delete ns ${cluster}
-        echo "=== Old namespace ${cluster} has been deleted !!! ==="
-    done
-
-    kubectl get ns -l antrea-ci -o custom-columns=Name:.metadata.name,DATE:.metadata.creationTimestamp --no-headers=true | awk '{cmd="echo $(( $(date +%s) - $(date -d "$2" +%s) ))"; cmd | getline t ; print $1, t}' | awk '$1 ~ "whole-conformance" && $2 > 14400 {print $1}' | while read cluster; do
-        # Whole-conformance test
-        echo "=== Currently ${cluster} has been live for more than 4h ==="
-        kubectl delete ns ${cluster}
-        echo "=== Old namespace ${cluster} has been deleted !!! ==="
-    done
-
-    kubectl get ns -l antrea-ci -o custom-columns=Name:.metadata.name,DATE:.metadata.creationTimestamp --no-headers=true | awk '{cmd="echo $(( $(date +%s) - $(date -d "$2" +%s) ))"; cmd | getline t ; print $1, t}' | awk '$1 !~ "matrix" && $1 !~ "whole-conformance" && $2 > 9000 {print $1}' | while read cluster; do
+    kubectl get ns -l theia-ci -o custom-columns=Name:.metadata.name,DATE:.metadata.creationTimestamp --no-headers=true | awk '{cmd="echo $(( $(date +%s) - $(date -d "$2" +%s) ))"; cmd | getline t ; print $1, t}' | awk '$2 > 9000 {print $1}' | while read cluster; do
         # e2e, conformance, networkpolicy tests
         echo "=== Currently ${cluster} has been live for more than 2.5h ==="
         kubectl delete ns ${cluster}
@@ -461,7 +447,6 @@ function garbage_collection() {
 function clean_tmp() {
     echo "===== Clean up stale files & folders older than 7 days under /tmp ====="
     CLEAN_LIST=(
-        "*codecov*"
         "kustomize-*"
         "*antrea*"
         "go-build*"

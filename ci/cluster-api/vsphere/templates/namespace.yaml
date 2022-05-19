@@ -4,7 +4,7 @@
   "metadata": {
     "name": "CLUSTERNAMESPACE",
     "labels": {
-      "antrea-ci": "true"
+      "theia-ci": "true"
     }
   }
 }

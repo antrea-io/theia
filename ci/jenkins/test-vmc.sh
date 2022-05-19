@@ -29,10 +29,10 @@ MODE="report"
 RUN_GARBAGE_COLLECTION=false
 RUN_SETUP_ONLY=false
 RUN_CLEANUP_ONLY=false
-COVERAGE=false
+
 RUN_TEST_ONLY=false
 TESTCASE=""
-CODECOV_TOKEN=""
+
 SECRET_EXIST=false
 TEST_FAILURE=false
 CLUSTER_READY=false
@@ -42,7 +42,7 @@ CONTROL_PLANE_NODE_ROLE="master"
 
 _usage="Usage: $0 [--cluster-name <VMCClusterNameToUse>] [--kubeconfig <KubeconfigSavePath>] [--workdir <HomePath>]
                   [--log-mode <SonobuoyResultLogLevel>] [--testcase <e2e|conformance|all-features-conformance|whole-conformance|networkpolicy>]
-                  [--garbage-collection] [--setup-only] [--cleanup-only] [--coverage] [--test-only] [--registry]
+                  [--garbage-collection] [--setup-only] [--cleanup-only]  [--test-only] [--registry]
 
 Setup a VMC cluster to run K8s e2e community tests (E2e, Conformance, all features Conformance, whole Conformance & Network Policy).
 
@@ -54,9 +54,7 @@ Setup a VMC cluster to run K8s e2e community tests (E2e, Conformance, all featur
         --garbage-collection     Do garbage collection to clean up some unused testbeds.
         --setup-only             Only perform setting up the cluster and run test.
         --cleanup-only           Only perform cleaning up the cluster.
-        --coverage               Run e2e with coverage.
         --test-only              Only run test on current cluster. Not set up/clean up the cluster.
-        --codecov-token          Token used to upload coverage report(s) to Codecov.
         --registry               Using private registry to pull images."
 
 function print_usage {
@@ -120,17 +118,9 @@ case $key in
     RUN_CLEANUP_ONLY=true
     shift
     ;;
-    --coverage)
-    COVERAGE=true
-    shift
-    ;;
     --test-only)
     RUN_TEST_ONLY=true
     shift
-    ;;
-    --codecov-token)
-    CODECOV_TOKEN="$2"
-    shift 2
     ;;
     -h|--help)
     print_usage
@@ -156,8 +146,8 @@ export NO_PULL
 
 function saveLogs() {
     echo "=== Truncate old logs ==="
-    mkdir -p $WORKDIR/antrea_logs
-    LOG_DIR=$WORKDIR/antrea_logs
+    mkdir -p $WORKDIR/theia_logs
+    LOG_DIR=$WORKDIR/theia_logs
     find ${LOG_DIR}/* -type d -mmin +10080 | xargs -r rm -rf
 
     CLUSTER_LOG_DIR="${LOG_DIR}/${CLUSTER}"
@@ -328,10 +318,13 @@ function deliver_antrea {
     test -f ~/bin/yq || wget -qO ~/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
     chmod a+x ~/bin/yq
 
-    NEW_FA_CONFIG=$(~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml \
-                        | ~/bin/yq e  \
-                                   '.clickHouse.enable=true | .clickHouse.commitInterval="1s" | .recordContents.podLabels=true | .activeFlowRecordTimeout="3500ms" | .inactiveFlowRecordTimeout="6s"') \
-                 ~/bin/yq -i e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf" |= strenv(NEW_FA_CONFIG)' ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+    FA_YAML=${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+    flow_aggregator_conf=$(
+        ~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' $FA_YAML \
+            | ~/bin/yq e  \
+                       '.clickHouse.enable=true | .clickHouse.commitInterval="1s" | .recordContents.podLabels=true | .activeFlowRecordTimeout="3500ms" | .inactiveFlowRecordTimeout="6s"'
+                        )
+    NEW_FA_CONFIG="$flow_aggregator_conf" ~/bin/yq -i e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf" |= strenv(NEW_FA_CONFIG)' $FA_YAML
 
 
     control_plane_ip="$(kubectl get nodes -o wide --no-headers=true | awk -v role="$CONTROL_PLANE_NODE_ROLE" '$3 ~ role {print $6}')"
@@ -402,7 +395,7 @@ function run_e2e {
     ${SSH_WITH_ANTREA_CI_KEY} -n capv@${control_plane_ip} "if [ ! -d ".kube" ]; then mkdir .kube; fi"
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/jenkins/out/kubeconfig capv@${control_plane_ip}:~/.kube/config
 
-    set +e
+
     mkdir -p ${GIT_CHECKOUT_DIR}/theia-test-logs
     go version
     go mod tidy -compat=1.17

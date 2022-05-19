@@ -68,7 +68,7 @@
           publishers:
           - archive:
               allow-empty: true
-              artifacts: theia-test-logs.tar.gz, e2e-coverage.tar.gz
+              artifacts: theia-test-logs.tar.gz
               case-sensitive: true
               default-excludes: true
               fingerprint: false

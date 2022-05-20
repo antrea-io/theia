@@ -40,6 +40,27 @@ pushd $THIS_DIR/../.. > /dev/null
 mkdir -p "$1"
 OUTPUT_DIR=$(cd "$1" && pwd)
 
+THEIA_BUILDS=(
+    "linux amd64 linux-x86_64"
+    "linux arm64 linux-arm64"
+    "linux arm linux-arm"
+    "windows amd64 windows-x86_64.exe"
+    "darwin amd64 darwin-x86_64"
+)
+
+for build in "${THEIA_BUILDS[@]}"; do
+    args=($build)
+    os="${args[0]}"
+    arch="${args[1]}"
+    suffix="${args[2]}"
+
+    # cgo is disabled by default when cross-compiling, but enabled by default
+    # for native builds. We ensure it is always disabled for portability since
+    # these binaries will be distributed as release assets.
+    GOOS=$os GOARCH=$arch CGO_ENABLED=0 THEIA_BINARY_NAME="theia-$suffix" BINDIR="$OUTPUT_DIR"/ make theia-release
+done
+
+
 export IMG_TAG=$VERSION
 
 export IMG_NAME=projects.registry.vmware.com/antrea/theia-clickhouse-monitor

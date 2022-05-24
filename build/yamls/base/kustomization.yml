@@ -24,7 +24,7 @@ configMapGenerator:
    - provisioning/dashboards/pod_to_service_dashboard.json
    - provisioning/dashboards/pod_to_external_dashboard.json
    - provisioning/dashboards/node_to_node_dashboard.json
-   - provisioning/dashboards/networkpolicy_allow_dashboard.json
+   - provisioning/dashboards/networkpolicy_dashboard.json
 
 # CLICKHOUSE_CONFIG_MAP_NAME exports the value in `metadata.name` from `ConfigMap` named `clickhouse-mounted-configmap`,
 # which is used for inserting the value to a CRD for an object of kind `ClickHouseInstallation`

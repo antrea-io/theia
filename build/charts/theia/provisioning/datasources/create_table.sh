@@ -14,6 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- $ttl := split " " .Values.clickhouse.ttl }}
+{{- $ttlTimeout := 14400 }}
+{{- if eq $ttl._1 "SECOND" }}
+{{- $ttlTimeout = min $ttl._0 $ttlTimeout }}
+{{- else if eq $ttl._1 "MINUTE" }}
+{{- $ttlTimeout = min (mul $ttl._0 60) $ttlTimeout }}
+{{- else if eq $ttl._1 "HOUR" }}
+{{- $ttlTimeout = min (mul $ttl._0 60 60) $ttlTimeout }}
+{{- end }}
+
 set -e
 clickhouse client -n -h 127.0.0.1 <<-EOSQL
 
@@ -69,8 +79,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         trusted UInt8 DEFAULT 0
     ) engine=MergeTree
     ORDER BY (timeInserted, flowEndSeconds)
-    TTL timeInserted + INTERVAL 1 HOUR
-    SETTINGS merge_with_ttl_timeout = 3600;
+    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
+    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }};
 
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view
     ENGINE = SummingMergeTree
@@ -86,8 +96,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         flowType,
         sourcePodNamespace,
         destinationPodNamespace)
-    TTL timeInserted + INTERVAL 1 HOUR
-    SETTINGS merge_with_ttl_timeout = 3600
+    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
+    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,
@@ -132,8 +142,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationNodeName,
         sourcePodNamespace,
         destinationPodNamespace)
-    TTL timeInserted + INTERVAL 1 HOUR
-    SETTINGS merge_with_ttl_timeout = 3600
+    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
+    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,
@@ -185,8 +195,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePort,
         destinationServicePortName,
         destinationIP)
-    TTL timeInserted + INTERVAL 1 HOUR
-    SETTINGS merge_with_ttl_timeout = 3600
+    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
+    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,

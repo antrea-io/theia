@@ -1,0 +1,27 @@
+{{- if eq .Values.clickhouse.storage.createPersistentVolume.type "Local" }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: clickhouse-pv
+spec:
+  storageClassName: clickhouse-storage
+  capacity:
+    storage: {{ .Values.clickhouse.storage.size }}
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  local:
+    path: {{ .Values.clickhouse.storage.createPersistentVolume.local.path }}
+  nodeAffinity:
+  {{- if .Values.clickhouse.storage.createPersistentVolume.local.affinity }}
+  {{- with .Values.clickhouse.storage.createPersistentVolume.local.affinity }}
+    {{- toYaml . | trim | nindent 4 }}
+  {{- end }}
+  {{- else }}
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: antrea.io/clickhouse-data-node
+          operator: Exists
+  {{- end }}
+{{- end }}

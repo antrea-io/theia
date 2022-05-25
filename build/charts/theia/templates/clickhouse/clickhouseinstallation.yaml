@@ -1,0 +1,108 @@
+{{- $enablePV := or .Values.clickhouse.storage.createPersistentVolume.type .Values.clickhouse.storage.persistentVolumeClaimSpec }}
+apiVersion: "clickhouse.altinity.com/v1"
+kind: "ClickHouseInstallation"
+metadata:
+  name: clickhouse
+  labels:
+    app: clickhouse
+  namespace: {{ .Release.Namespace }}
+spec:
+  configuration:
+    users:
+      {{ .Values.clickhouse.connectionSecret.username }}/k8s_secret_password: {{ .Release.Namespace }}/clickhouse-secret/password
+      {{ .Values.clickhouse.connectionSecret.username }}/networks/ip: "::/0"
+    clusters:
+      - name: "clickhouse"
+        layout:
+          shardsCount: 1
+          replicasCount: 1
+  defaults:
+    templates:
+      podTemplate: pod-template
+      serviceTemplate: service-template
+      {{- if $enablePV }}
+      dataVolumeClaimTemplate: clickhouse-storage-template
+      {{- end }}
+  templates:
+    serviceTemplates:
+      - name: service-template
+        spec:
+          type: {{ .Values.clickhouse.service.type }}
+          ports:
+            - name: http
+              port: {{ .Values.clickhouse.service.httpPort }}
+            - name: tcp
+              port: {{ .Values.clickhouse.service.tcpPort }}
+    podTemplates:
+      - name: pod-template
+        spec:
+          containers:
+            - name: clickhouse
+              image: {{ .Values.clickhouse.image.repository }}:{{ .Values.clickhouse.image.tag }}
+              imagePullPolicy: {{ .Values.clickhouse.image.pullPolicy }}
+              volumeMounts:
+                - name: clickhouse-configmap-volume
+                  mountPath: /docker-entrypoint-initdb.d
+                {{- if not $enablePV }}
+                - name: clickhouse-storage-volume
+                  mountPath: /var/lib/clickhouse
+                {{- end }}
+            {{- if .Values.clickhouse.monitor.enable}}
+            - name: clickhouse-monitor
+              image: {{ .Values.clickhouse.monitor.image.repository }}:{{ .Values.clickhouse.monitor.image.tag }}
+              imagePullPolicy: {{ .Values.clickhouse.monitor.image.pullPolicy }}
+              env:
+                - name: CLICKHOUSE_USERNAME
+                  valueFrom:
+                    secretKeyRef: 
+                      name: clickhouse-secret
+                      key: username
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-secret
+                      key: password
+                - name: DB_URL
+                  value: "tcp://localhost:9000"
+                - name: TABLE_NAME
+                  value: "default.flows"
+                - name: MV_NAMES
+                  value: "default.flows_pod_view default.flows_node_view default.flows_policy_view"
+                - name: STORAGE_SIZE
+                  value: {{ .Values.clickhouse.storage.size | quote }}
+                - name: THRESHOLD
+                  value: {{ .Values.clickhouse.monitor.threshold | quote }}
+                - name: DELETE_PERCENTAGE
+                  value: {{ .Values.clickhouse.monitor.deletePercentage | quote }}
+                - name: EXEC_INTERVAL
+                  value: {{ .Values.clickhouse.monitor.execInterval }}
+                - name: SKIP_ROUNDS_NUM
+                  value: {{ .Values.clickhouse.monitor.skipRoundsNum | quote }}
+            {{- end}}
+          volumes:
+            - name: clickhouse-configmap-volume
+              configMap:
+                name: clickhouse-mounted-configmap
+            {{- if not $enablePV }}
+            - name: clickhouse-storage-volume
+              emptyDir:
+                medium: Memory
+                sizeLimit: {{ .Values.clickhouse.storage.size }}
+            {{- end }}
+    {{- if $enablePV }}
+    volumeClaimTemplates: 
+      - name: clickhouse-storage-template
+        spec:
+          {{- if .Values.clickhouse.storage.createPersistentVolume.type }}
+          storageClassName: clickhouse-storage
+          {{- else }}
+          {{- with .Values.clickhouse.storage.persistentVolumeClaimSpec }}
+          {{- toYaml . | trim | nindent 10 }}
+          {{- end }}
+          {{- end }}
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ .Values.clickhouse.storage.size }}
+    {{- end }}

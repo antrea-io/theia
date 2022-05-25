@@ -53,7 +53,7 @@ func (provider *KindProvider) GetKubeconfigPath() (string, error) {
 	}
 	kubeconfigPath := path.Join(homeDir, ".kube", "config")
 	if _, err := os.Stat(kubeconfigPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("Kubeconfig file not found at expected location '%s'", kubeconfigPath)
+		return "", fmt.Errorf("kubeconfig file not found at expected location '%s'", kubeconfigPath)
 	}
 	return kubeconfigPath, nil
 }

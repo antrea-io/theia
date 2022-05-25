@@ -161,9 +161,9 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 	// runKubectl runs the provided kubectl command on the control-plane Node and returns the
 	// output. It returns an empty string in case of error.
 	runKubectl := func(cmd string) string {
-		rc, stdout, _, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 		if err != nil || rc != 0 {
-			tb.Errorf("Error when running this kubectl command on control-plane Node: %s", cmd)
+			tb.Errorf("Error when running kubectl command on control-plane Node, cmd:%s\nstdout:%s\nstderr:%s", cmd, stdout, stderr)
 			return ""
 		}
 		return stdout
@@ -277,7 +277,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	return testData, nil
 }
 
-func setupTestForFlowAggregator(tb testing.TB) (*TestData, bool, bool, error) {
+func setupTestForFlowAggregator(tb testing.TB, withSparkOperator bool) (*TestData, bool, bool, error) {
 	v4Enabled := clusterInfo.podV4NetworkCIDR != ""
 	v6Enabled := clusterInfo.podV6NetworkCIDR != ""
 	testData, err := setupTest(tb)
@@ -285,8 +285,8 @@ func setupTestForFlowAggregator(tb testing.TB) (*TestData, bool, bool, error) {
 		return testData, v4Enabled, v6Enabled, err
 	}
 
-	tb.Logf("Deploying ClickHouse")
-	chSvcIP, err := testData.deployFlowVisibilityClickHouse()
+	tb.Logf("Applying flow visibility YAML")
+	chSvcIP, err := testData.deployFlowVisibility(withSparkOperator)
 	if err != nil {
 		return testData, v4Enabled, v6Enabled, err
 	}

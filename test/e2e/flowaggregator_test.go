@@ -1,4 +1,4 @@
-// Copyright 2020 Antrea Authors
+// Copyright 2022 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -154,11 +154,14 @@ type testFlow struct {
 }
 
 func TestFlowAggregator(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowAggregator(t)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowAggregator(t, false)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
-	defer teardownTest(t, data)
+	defer func() {
+		teardownTest(t, data)
+		teardownFlowAggregator(t, data, false)
+	}()
 
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
 	if err != nil {

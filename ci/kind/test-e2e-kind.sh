@@ -38,8 +38,12 @@ function print_usage {
 
 TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
 YML_DIR=$(dirname $0)"/../../build/yamls"
-FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh"
+FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana"
+FLOW_VISIBILITY_WITH_SPARK_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --spark-operator"
 CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
+
+make theia-linux
+THEIACTL_BIN=$(dirname $0)"/../../bin/theia-linux"
 
 function quit {
   result=$?
@@ -98,7 +102,6 @@ fi
 
 trap "quit" INT EXIT
 
-
 COMMON_IMAGES_LIST=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                     "projects.registry.vmware.com/antrea/busybox"  \
                     "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
@@ -109,7 +112,9 @@ COMMON_IMAGES_LIST=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                     "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest" \
-                    "projects.registry.vmware.com/antrea/theia-grafana:8.3.3")
+                    "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
+                    "projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1" \
+                    "projects.registry.vmware.com/antrea/theia-policy-recommendation:latest")
 
 for image in "${COMMON_IMAGES_LIST[@]}"; do
     for i in `seq 3`; do
@@ -154,6 +159,10 @@ function run_test {
   docker exec -i kind-control-plane dd of=/root/flow-aggregator.yml < $TMP_DIR/flow-aggregator.yml
   docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < $CH_OPERATOR_YML
   $FLOW_VISIBILITY_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility.yml
+  $FLOW_VISIBILITY_WITH_SPARK_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility-with-spark.yml
+
+  docker exec -i kind-control-plane dd of=/root/theia < $THEIACTL_BIN
+
   rm -rf $TMP_DIR
   sleep 1
 
@@ -165,5 +174,7 @@ if [[ $test_only == "false" ]];then
   setup_cluster "--images \"$COMMON_IMAGES\""
 fi
 run_test
+
+rm -rf $PWD/bin
 
 exit 0

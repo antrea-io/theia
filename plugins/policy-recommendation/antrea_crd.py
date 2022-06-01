@@ -102,10 +102,10 @@ class NetworkPolicySpec(object):
 class NetworkPolicyPeer(object):
     attribute_types = {
       "ip_block": "IPBlock",
-      "pod_selector": "kubernete.client.V1LabelSelector",
-      "namespace_selector": "kubernete.client.V1LabelSelector",
+      "pod_selector": "kubernetes.client.V1LabelSelector",
+      "namespace_selector": "kubernetes.client.V1LabelSelector",
       "namespaces": "PeerNamespaces",
-      "external_entity_selector": "kubernete.client.V1LabelSelector",
+      "external_entity_selector": "kubernetes.client.V1LabelSelector",
       "group": "string",
       "FQDN": "string"
     }
@@ -217,7 +217,7 @@ class Rule(object):
       "to_services": "list[NamespacedName]",
       "name": "string",
       "enable_logging": "bool",
-      "applied_to": "ist[NetworkPolicyPeer]"
+      "applied_to": "list[NetworkPolicyPeer]"
     }
 
     def __init__(self, action=None, ports=None, _from=None, to=None, to_services=None, name=None, enable_logging=None, applied_to=None):
@@ -332,11 +332,11 @@ class ClusterGroup(object):
 
 class GroupSpec(object):
     attribute_types = {
-        "pod_selector": "kubernete.client.V1LabelSelector",
-        "namespace_selector": "kubernete.client.V1LabelSelector",
+        "pod_selector": "kubernetes.client.V1LabelSelector",
+        "namespace_selector": "kubernetes.client.V1LabelSelector",
         "ip_blocks": "list[IPBlock]",
         "service_reference": "ServiceReference",
-        "external_entity_selector": "kubernete.client.V1LabelSelector",
+        "external_entity_selector": "kubernetes.client.V1LabelSelector",
         "child_groups": "list[string]"
     }
 

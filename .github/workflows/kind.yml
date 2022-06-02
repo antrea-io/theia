@@ -49,8 +49,17 @@ jobs:
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
           chmod +x ./kind
           sudo mv kind /usr/local/bin
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Run e2e tests
+        env:
+          TEST_SECRET: ${{ secrets.TEST_SECRET }}
         run: |
+         [[ ! -z "$TEST_SECRET" ]] && echo "TEST SECRET HAS VALUE" || echo "TEST SECRET NO VALUE!!!"
+         [[ "$TEST_SECRET" -gt "100" ]] && echo "TEST SECRET > 100" || echo "TEST SECRET <= 100"
           mkdir log
           ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh
       - name: Tar log files

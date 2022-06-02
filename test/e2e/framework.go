@@ -179,7 +179,11 @@ func (data *TestData) deployAntreaCommon(yamlFile string, extraOptions string, w
 	}
 	rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s rollout status deploy/%s --timeout=%v", antreaNamespace, antreaDeployment, defaultTimeout))
 	if err != nil || rc != 0 {
-		return fmt.Errorf("error when waiting for antrea-controller rollout to complete - rc: %v - stdout: %v - stderr: %v - err: %v", rc, stdout, stderr, err)
+        rc2, stdout2, stderr2, err2 := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s describe deployment %s --timeout=%v", antreaNamespace, antreaDeployment, defaultTimeout))
+        if err2 != nil {
+            stdout2 = fmt.Sprintf("There was an error while fetching additional info: %v - %s (%v)", err2, stderr2, rc2)
+        }
+        return fmt.Errorf("error when waiting for antrea-controller rollout to complete - rc: %v - stdout: %v - stderr: %v - err: %v. Other info: %s", rc, stdout, stderr, err, stdout2)
 	}
 	if waitForAgentRollout {
 		rc, stdout, stderr, err = data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s rollout status ds/%s --timeout=%v", antreaNamespace, antreaDaemonSet, defaultTimeout))

@@ -11,6 +11,7 @@ FROM scratch
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy the ClickHouse monitor plugin."
+LABEL test="I just want to trigger an image build"
 
 ENV USER root
 

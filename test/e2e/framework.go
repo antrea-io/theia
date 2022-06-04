@@ -365,6 +365,15 @@ func (data *TestData) collectClusterInfo() error {
 	workerIdx := 1
 	clusterInfo.nodes = make(map[int]ClusterNode)
 	clusterInfo.nodesOS = make(map[string]string)
+
+	// retrieve K8s server version
+
+	serverVersion, err := testData.clientset.Discovery().ServerVersion()
+	if err != nil {
+		return err
+	}
+	clusterInfo.k8sServerVersion = serverVersion.String()
+
 	for _, node := range nodes.Items {
 		isControlPlaneNode := func() bool {
 			_, ok := node.Labels[labelNodeRoleControlPlane()]
@@ -499,14 +508,6 @@ func (data *TestData) collectClusterInfo() error {
 	}
 	clusterInfo.svcV4NetworkCIDR = svcCIDRs[0]
 	clusterInfo.svcV6NetworkCIDR = svcCIDRs[1]
-
-	// retrieve K8s server version
-
-	serverVersion, err := testData.clientset.Discovery().ServerVersion()
-	if err != nil {
-		return err
-	}
-	clusterInfo.k8sServerVersion = serverVersion.String()
 
 	// Retrieve kubernetes Service host and Port
 	svc, err := testData.clientset.CoreV1().Services("default").Get(context.TODO(), "kubernetes", metav1.GetOptions{})
@@ -771,12 +772,19 @@ func workerNodeName(idx int) string {
 	return node.name
 }
 
-func controlPlaneNoScheduleToleration() corev1.Toleration {
-	// the Node taint still uses "master" in K8s v1.20
-	return corev1.Toleration{
-		Key:      "node-role.kubernetes.io/master",
-		Operator: corev1.TolerationOpExists,
-		Effect:   corev1.TaintEffectNoSchedule,
+func controlPlaneNoScheduleTolerations() []corev1.Toleration {
+	// Use both "old" and "new" label for NoSchedule Toleration
+	return []corev1.Toleration{
+		{
+			Key:      "node-role.kubernetes.io/master",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+		{
+			Key:      "node-role.kubernetes.io/control-plane",
+			Operator: corev1.TolerationOpExists,
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
 	}
 }
 
@@ -806,8 +814,7 @@ func (data *TestData) CreatePodOnNodeInNamespace(name, ns string, nodeName, ctrN
 	}
 	if nodeName == controlPlaneNodeName() {
 		// tolerate NoSchedule taint if we want Pod to run on control-plane Node
-		noScheduleToleration := controlPlaneNoScheduleToleration()
-		podSpec.Tolerations = []corev1.Toleration{noScheduleToleration}
+		podSpec.Tolerations = controlPlaneNoScheduleTolerations()
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{

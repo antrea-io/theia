@@ -25,6 +25,7 @@ Generate a YAML manifest for the Clickhouse-Grafana Flow-visibility Solution, us
 Kustomize, and print it to stdout.
         --mode (dev|release)  Choose the configuration variant that you need (default is 'dev')
         --spark-operator      Generate a manifest with Spark Operator enabled.
+        --no-grafana          Generate a manifest with Grafana disabled.
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
 to generate manifests for Antrea. You can set the HELM and KUSTOMIZE environment variable to
 the path of the helm and kustomize binary you want us to use. Otherwise we will download the
@@ -41,6 +42,7 @@ function print_help {
 
 MODE="dev"
 SPARK_OP=false
+GRAFANA=true
 
 while [[ $# -gt 0 ]]
 do
@@ -53,6 +55,10 @@ case $key in
     ;;
     --spark-operator)
     SPARK_OP=true
+    shift 1
+    ;;
+    --no-grafana)
+    GRAFANA=false
     shift 1
     ;;
     -h|--help)
@@ -113,6 +119,9 @@ if [ "$MODE" == "release" ]; then
 fi
 if $SPARK_OP; then
     HELM_VALUES+=("sparkOperator.enable=true")
+fi
+if [ "$GRAFANA" == false ]; then
+    HELM_VALUES+=("grafana.enable=false")
 fi
 
 delim=""

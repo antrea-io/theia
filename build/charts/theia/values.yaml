@@ -1,5 +1,5 @@
 clickhouse:
-  # -- Container image to use for ClickHouse.
+  # -- Container image used by ClickHouse.
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-clickhouse-server"
     pullPolicy: "IfNotPresent"
@@ -20,7 +20,7 @@ clickhouse:
     # -- The number of rounds for the monitor to stop after a deletion to wait for
     # the ClickHouse MergeTree Engine to release memory.
     skipRoundsNum: 3
-    # -- Container image to use for the ClickHouse Monitor.
+    # -- Container image used by the ClickHouse Monitor.
     image:
       repository: "projects.registry.vmware.com/antrea/theia-clickhouse-monitor"
       pullPolicy: "IfNotPresent"
@@ -71,7 +71,9 @@ clickhouse:
       # storageClassName: ""
       # volumeName: ""
 grafana:
-  # -- Container image to use for Grafana.
+  # -- Determine whether to install Grafana. It is used as a data visualization and monitoring tool.  
+  enable: true
+  # -- Container image used by Grafana.
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-grafana"
     pullPolicy: "IfNotPresent"
@@ -100,11 +102,11 @@ grafana:
     - node_to_node_dashboard.json
     - networkpolicy_dashboard.json
 sparkOperator:
-  # -- Install Spark Operator. It is required to run Network Policy Recommendation jobs.
+  # -- Determine whether to install Spark Operator. It is required to run Network Policy Recommendation jobs.
   enable: false
   # -- Name of Spark Operator.
   name: "policy-recommendation"
-  # -- Container image to use for Spark Operator.
+  # -- Container image used by Spark Operator.
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-spark-operator"
     pullPolicy: "IfNotPresent"

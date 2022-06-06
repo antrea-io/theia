@@ -103,7 +103,7 @@ COMMON_IMAGES_LIST=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                     "projects.registry.vmware.com/antrea/busybox"  \
                     "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
                     "projects.registry.vmware.com/antrea/perftool" \
-                    "projects.registry.vmware.com/antrea/antrea-ubuntu:latest" \
+                    "antrea/antrea-ubuntu:latest" \
                     "projects.registry.vmware.com/antrea/flow-aggregator:latest" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
@@ -137,6 +137,7 @@ function setup_cluster {
 function run_test {
   TMP_DIR=$(mktemp -d $(dirname $0)/tmp.XXXXXXXX)
   curl -o $TMP_DIR/antrea.yml https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/antrea.yml
+  sed -i -e "s|image: \"projects.registry.vmware.com/antrea/antrea-ubuntu:latest\"|image: \"antrea/antrea-ubuntu:latest\"|g" $TMP_DIR/antrea.yml
   sed -i -e "s/#  FlowExporter: false/  FlowExporter: true/g" $TMP_DIR/antrea.yml
   sed -i -e "s/flowPollInterval: \"5s\"/flowPollInterval: \"1s\"/g" $TMP_DIR/antrea.yml
   sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $TMP_DIR/antrea.yml

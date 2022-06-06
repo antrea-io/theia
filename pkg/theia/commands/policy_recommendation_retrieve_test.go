@@ -25,33 +25,122 @@ import (
 )
 
 func TestGetClickHouseSecret(t *testing.T) {
-	var fakeClientset = fake.NewSimpleClientset(
-		&v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "clickhouse-secret",
-				Namespace: flowVisibilityNS,
-			},
-			Data: map[string][]byte{
-				"password": []byte("clickhouse_operator_password"),
-				"username": []byte("clickhouse_operator"),
-			},
+	testCases := []struct {
+		name             string
+		fakeClientset    *fake.Clientset
+		expectedUsername string
+		expectedPassword string
+		expectedErrorMsg string
+	}{
+		{
+			name: "valid case",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "clickhouse-secret",
+						Namespace: flowVisibilityNS,
+					},
+					Data: map[string][]byte{
+						"username": []byte("clickhouse_operator"),
+						"password": []byte("clickhouse_operator_password"),
+					},
+				},
+			),
+			expectedUsername: "clickhouse_operator",
+			expectedPassword: "clickhouse_operator_password",
+			expectedErrorMsg: "",
 		},
-	)
-	username, password, err := getClickHouseSecret(fakeClientset)
-	assert.NoError(t, err)
-	assert.Equal(t, "clickhouse_operator", string(username))
-	assert.Equal(t, "clickhouse_operator_password", string(password))
+		{
+			name:             "clickhouse secret not found",
+			fakeClientset:    fake.NewSimpleClientset(),
+			expectedUsername: "",
+			expectedPassword: "",
+			expectedErrorMsg: `error secrets "clickhouse-secret" not found when finding the ClickHouse secret, please check the deployment of ClickHouse`,
+		},
+		{
+			name: "username not found",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "clickhouse-secret",
+						Namespace: flowVisibilityNS,
+					},
+					Data: map[string][]byte{
+						"password": []byte("clickhouse_operator_password"),
+					},
+				},
+			),
+			expectedUsername: "",
+			expectedPassword: "",
+			expectedErrorMsg: "error when getting the ClickHouse username",
+		},
+		{
+			name: "password not found",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "clickhouse-secret",
+						Namespace: flowVisibilityNS,
+					},
+					Data: map[string][]byte{
+						"username": []byte("clickhouse_operator"),
+					},
+				},
+			),
+			expectedUsername: "clickhouse_operator",
+			expectedPassword: "",
+			expectedErrorMsg: "error when getting the ClickHouse password",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			username, password, err := getClickHouseSecret(tt.fakeClientset)
+			if tt.expectedErrorMsg != "" {
+				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
+			}
+			assert.Equal(t, tt.expectedUsername, string(username))
+			assert.Equal(t, tt.expectedPassword, string(password))
+		})
+	}
 }
 
 func TestGetResultFromClickHouse(t *testing.T) {
-	recoID := "db2134ea-7169-46f8-b56d-d643d4751d1d"
-	expectedResult := "recommend-allow-acnp-kube-system-rpeal"
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	assert.NoError(t, err)
-	defer db.Close()
-	resultRow := sqlmock.NewRows([]string{"yamls"}).AddRow(expectedResult)
-	mock.ExpectQuery("SELECT yamls FROM recommendations WHERE id = (?);").WithArgs(recoID).WillReturnRows(resultRow)
-	result, err := getResultFromClickHouse(db, recoID)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedResult, result)
+	testCases := []struct {
+		name             string
+		recommendationID string
+		expectedResult   string
+		expectedErrorMsg string
+	}{
+		{
+			name:             "valid case",
+			recommendationID: "db2134ea-7169-46f8-b56d-d643d4751d1d",
+			expectedResult:   "recommend-allow-acnp-kube-system-rpeal",
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "no result given recommendation ID",
+			recommendationID: "db2134ea-7169",
+			expectedResult:   "",
+			expectedErrorMsg: "failed to get recommendation result with id db2134ea-7169: sql: no rows in result set",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			assert.NoError(t, err)
+			defer db.Close()
+			resultRow := &sqlmock.Rows{}
+			if tt.expectedResult != "" {
+				resultRow = sqlmock.NewRows([]string{"yamls"}).AddRow(tt.expectedResult)
+			}
+			mock.ExpectQuery("SELECT yamls FROM recommendations WHERE id = (?);").WithArgs(tt.recommendationID).WillReturnRows(resultRow)
+			result, err := getResultFromClickHouse(db, tt.recommendationID)
+			if tt.expectedErrorMsg != "" {
+				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
 }

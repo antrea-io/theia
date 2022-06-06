@@ -144,7 +144,7 @@ func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig st
 	}
 	recoResult, err = getResultFromClickHouse(connect, recoID)
 	if err != nil {
-		return "", fmt.Errorf("error when connecting to ClickHouse, %v", err)
+		return "", fmt.Errorf("error when getting result from ClickHouse, %v", err)
 	}
 	if filePath != "" {
 		if err := ioutil.WriteFile(filePath, []byte(recoResult), 0600); err != nil {

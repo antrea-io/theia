@@ -35,7 +35,7 @@ import (
 const (
 	flowVisibilityNS        = "flow-visibility"
 	k8sQuantitiesReg        = "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
-	sparkImage              = "antrea/theia-policy-recommendation:latest"
+	sparkImage              = "projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"
 	sparkImagePullPolicy    = "IfNotPresent"
 	sparkAppFile            = "local:///opt/spark/work-dir/policy_recommendation_job.py"
 	sparkServiceAccount     = "policy-recommendation-spark"

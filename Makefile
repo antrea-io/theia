@@ -74,7 +74,7 @@ add-copyright:
 .linux-test-unit:
 	@echo
 	@echo "==> Running unit tests <=="
-	$(GO) test -race -covermode=atomic -cover antrea.io/theia/plugins/... 
+	$(GO) test -race -covermode=atomic -cover antrea.io/theia/plugins/... antrea.io/theia/pkg/... 
 
 .PHONY: tidy
 tidy:

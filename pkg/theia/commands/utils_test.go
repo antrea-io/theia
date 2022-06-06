@@ -23,50 +23,121 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-var fakeClientset = fake.NewSimpleClientset(
-	&v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse",
-			Namespace: flowVisibilityNS,
-			Labels:    map[string]string{"app": "clickhouse"},
-		},
-		Status: v1.PodStatus{
-			Phase: v1.PodRunning,
-		},
-	},
-	&v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "spark-operator",
-			Namespace: flowVisibilityNS,
-			Labels: map[string]string{
-				"app.kubernetes.io/instance": "policy-recommendation",
-				"app.kubernetes.io/name":     "spark-operator",
-			},
-		},
-		Status: v1.PodStatus{
-			Phase: v1.PodRunning,
-		},
-	},
-	&v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse-clickhouse",
-			Namespace: flowVisibilityNS,
-		},
-		Spec: v1.ServiceSpec{
-			Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000}},
-			ClusterIP: "10.98.208.26",
-		},
-	},
-)
-
 func TestGetServiceAddr(t *testing.T) {
-	ip, port, err := GetServiceAddr(fakeClientset, "clickhouse-clickhouse")
-	assert.NoError(t, err)
-	assert.Equal(t, 9000, port)
-	assert.Equal(t, "10.98.208.26", ip)
+	testCases := []struct {
+		name             string
+		fakeClientset    *fake.Clientset
+		serviceName      string
+		expectedIP       string
+		expectedPort     int
+		expectedErrorMsg string
+	}{
+		{
+			name: "valid case",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "clickhouse-clickhouse",
+						Namespace: flowVisibilityNS,
+					},
+					Spec: v1.ServiceSpec{
+						Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000}},
+						ClusterIP: "10.98.208.26",
+					},
+				},
+			),
+			serviceName:      "clickhouse-clickhouse",
+			expectedIP:       "10.98.208.26",
+			expectedPort:     9000,
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "service not found",
+			fakeClientset:    fake.NewSimpleClientset(),
+			serviceName:      "clickhouse-clickhouse",
+			expectedIP:       "",
+			expectedPort:     0,
+			expectedErrorMsg: `error when finding the Service clickhouse-clickhouse: services "clickhouse-clickhouse" not found`,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ip, port, err := GetServiceAddr(tt.fakeClientset, tt.serviceName)
+			if tt.expectedErrorMsg != "" {
+				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
+			}
+			assert.Equal(t, tt.expectedIP, ip)
+			assert.Equal(t, tt.expectedPort, port)
+		})
+	}
 }
 
 func TestPolicyRecoPreCheck(t *testing.T) {
-	err := PolicyRecoPreCheck(fakeClientset)
-	assert.NoError(t, err)
+	testCases := []struct {
+		name             string
+		fakeClientset    *fake.Clientset
+		expectedErrorMsg string
+	}{
+		{
+			name: "valid case",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "clickhouse",
+						Namespace: flowVisibilityNS,
+						Labels:    map[string]string{"app": "clickhouse"},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+					},
+				},
+				&v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "spark-operator",
+						Namespace: flowVisibilityNS,
+						Labels: map[string]string{
+							"app.kubernetes.io/name": "spark-operator",
+						},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+					},
+				},
+			),
+			expectedErrorMsg: "",
+		},
+		{
+			name:             "spark operator pod not found",
+			fakeClientset:    fake.NewSimpleClientset(),
+			expectedErrorMsg: "can't find the policy-recommendation-spark-operator Pod, please check the deployment of the Spark Operator",
+		},
+		{
+			name: "clickhouse pod not found",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "spark-operator",
+						Namespace: flowVisibilityNS,
+						Labels: map[string]string{
+							"app.kubernetes.io/name": "spark-operator",
+						},
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
+					},
+				},
+			),
+			expectedErrorMsg: "can't find the ClickHouse Pod, please check the deployment of ClickHouse",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := PolicyRecoPreCheck(tt.fakeClientset)
+			if tt.expectedErrorMsg != "" {
+				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

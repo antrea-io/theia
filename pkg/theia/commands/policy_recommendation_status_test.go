@@ -27,31 +27,88 @@ import (
 
 func TestGetPolicyRecommendationProgress(t *testing.T) {
 	sparkAppID := "spark-0fa6cc19ae23439794747a306d5ad705"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch strings.TrimSpace(r.URL.Path) {
-		case "/api/v1/applications":
-			responses := []map[string]interface{}{
-				{"id": sparkAppID},
+	testCases := []struct {
+		name             string
+		testServer       *httptest.Server
+		expectedProgress string
+		expectedErrorMsg string
+	}{
+		{
+			name: "valid case",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case "/api/v1/applications":
+					responses := []map[string]interface{}{
+						{"id": sparkAppID},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(responses)
+				case fmt.Sprintf("/api/v1/applications/%s/stages", sparkAppID):
+					responses := []map[string]interface{}{
+						{"status": "COMPLETE"},
+						{"status": "COMPLETE"},
+						{"status": "SKIPPED"},
+						{"status": "PENDING"},
+						{"status": "ACTIVE"},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(responses)
+				}
+			})),
+			expectedProgress: ": 3/5 (60%) stages completed",
+			expectedErrorMsg: "",
+		},
+		{
+			name: "found more than one spark application",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case "/api/v1/applications":
+					responses := []map[string]interface{}{
+						{"id": sparkAppID},
+						{"id": sparkAppID},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(responses)
+				}
+			})),
+			expectedProgress: "",
+			expectedErrorMsg: "wrong Spark Application number, expected 1, got 2",
+		},
+		{
+			name: "no spark application stage found",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case "/api/v1/applications":
+					responses := []map[string]interface{}{
+						{"id": sparkAppID},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(responses)
+				case fmt.Sprintf("/api/v1/applications/%s/stages", sparkAppID):
+					responses := []map[string]interface{}{}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(responses)
+				}
+			})),
+			expectedProgress: "",
+			expectedErrorMsg: "wrong Spark Application stages number, expected at least 1, got 0",
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			defer tt.testServer.Close()
+			progress, err := getPolicyRecommendationProgress(tt.testServer.URL)
+			if tt.expectedErrorMsg != "" {
+				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
+			} else {
+				assert.NoError(t, err)
 			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(responses)
-		case fmt.Sprintf("/api/v1/applications/%s/stages", sparkAppID):
-			responses := []map[string]interface{}{
-				{"status": "COMPLETE"},
-				{"status": "COMPLETE"},
-				{"status": "SKIPPED"},
-				{"status": "PENDING"},
-				{"status": "ACTIVE"},
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(responses)
-		}
-	}))
-	defer server.Close()
-	expectedProgress := ": 3/5 (60%) stages completed"
-	progress, err := getPolicyRecommendationProgress(server.URL)
-	assert.NoError(t, err)
-	assert.Equal(t, expectedProgress, progress)
+			assert.Equal(t, tt.expectedProgress, progress)
+		})
+	}
 }

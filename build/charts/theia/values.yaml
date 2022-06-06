@@ -99,3 +99,13 @@ grafana:
     - pod_to_external_dashboard.json
     - node_to_node_dashboard.json
     - networkpolicy_dashboard.json
+sparkOperator:
+  # -- Install Spark Operator. It is required to run Network Policy Recommendation jobs.
+  enable: false
+  # -- Name of Spark Operator.
+  name: "policy-recommendation"
+  # -- Container image to use for Spark Operator.
+  image: 
+    repository: "projects.registry.vmware.com/antrea/theia-spark-operator"
+    pullPolicy: "IfNotPresent"
+    tag: "v1beta2-1.3.3-3.1.1"

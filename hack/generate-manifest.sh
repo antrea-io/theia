@@ -24,6 +24,7 @@ _usage="Usage: $0 [--mode (dev|release)] [--keep] [--help|-h]
 Generate a YAML manifest for the Clickhouse-Grafana Flow-visibility Solution, using Helm and
 Kustomize, and print it to stdout.
         --mode (dev|release)  Choose the configuration variant that you need (default is 'dev')
+        --spark-operator      Generate a manifest with Spark Operator enabled.
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
 to generate manifests for Antrea. You can set the HELM and KUSTOMIZE environment variable to
 the path of the helm and kustomize binary you want us to use. Otherwise we will download the
@@ -39,6 +40,7 @@ function print_help {
 }
 
 MODE="dev"
+SPARK_OP=false
 
 while [[ $# -gt 0 ]]
 do
@@ -48,6 +50,10 @@ case $key in
     --mode)
     MODE="$2"
     shift 2
+    ;;
+    --spark-operator)
+    SPARK_OP=true
+    shift 1
     ;;
     -h|--help)
     print_usage
@@ -100,9 +106,23 @@ elif ! $KUSTOMIZE version > /dev/null 2>&1; then
     exit 1
 fi
 
-EXTRA_VALUES=""
+HELM_VALUES=()
+
 if [ "$MODE" == "release" ]; then
-    EXTRA_VALUES="--set clickhouse.monitorImage.repository=$IMG_NAME,clickhouse.monitorImage.tag=$IMG_TAG"
+    HELM_VALUES+=("clickhouse.monitorImage.repository=$IMG_NAME" "clickhouse.monitorImage.tag=$IMG_TAG")
+fi
+if $SPARK_OP; then
+    HELM_VALUES+=("sparkOperator.enable=true")
+fi
+
+delim=""
+HELM_VALUES_OPTION=""
+for v in "${HELM_VALUES[@]}"; do
+    HELM_VALUES_OPTION="$HELM_VALUES_OPTION$delim$v"
+    delim=","
+done
+if [ "$HELM_VALUES_OPTION" != "" ]; then
+    HELM_VALUES_OPTION="--set $HELM_VALUES_OPTION"
 fi
 
 THEIA_CHART=$THIS_DIR/../build/charts/theia
@@ -113,14 +133,31 @@ MANIFEST=$KUSTOMIZATION_DIR/base/manifest.yaml
 # by throwing away related warnings.
 $HELM template \
       --namespace flow-visibility \
-      $EXTRA_VALUES \
+      $HELM_VALUES_OPTION \
       "$THEIA_CHART"\
       2> >(grep -v 'This is insecure' >&2)\
       > $MANIFEST
 
 # Add flow-visibility Namespace resource with Kustomize
 cd $KUSTOMIZATION_DIR/base
+
+# Add Spark Operator CRDs with Kustomize
+if $SPARK_OP; then
+    CRDS_DIR=$THIS_DIR/../build/charts/theia/crds
+    TMP_DIR=$(mktemp -d $KUSTOMIZATION_DIR/overlays.XXXXXXXX)
+    pushd $TMP_DIR > /dev/null
+    mkdir sparkop && cd sparkop
+    cp $CRDS_DIR/spark-operator-crds.yaml spark-operator-crds.yaml
+    touch kustomization.yml
+    $KUSTOMIZE edit add base ../../base
+    $KUSTOMIZE edit add base spark-operator-crds.yaml
+fi
+
 $KUSTOMIZE build
 
 # clean
+if $SPARK_OP; then
+    rm -rf $TMP_DIR
+    popd > /dev/null
+fi
 rm -rf $MANIFEST

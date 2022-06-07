@@ -559,7 +559,10 @@ filter out Pod traffic for which the source or destination Namespace is one of
 `kube-system`, `flow-visibility`, or `flow-aggregator`. The primary motivation
 for this is to avoid showing the connections between the Antrea Agents and the
 Flow Aggregator, between the Flow Aggregator and ClickHouse, and between
-ClickHouse and Grafana.
+ClickHouse and Grafana. If you choose to install the Grafana Flow Collector
+into a different Namespace other than `flow-visibility`, to filter out Pod
+traffic in that Namespace, you will need to edit the query to replace
+`flow-visibility` by the Namespace you choose.
 
 - Also note that we limit the number of values displayed on panels. For table
 panel on the Flow Records Dashboard, the limit is set to 10000. For Sankey
@@ -569,10 +572,11 @@ large, we want to keep the charts readable and avoid consuming too much time
 and resources to render them.
 
 If you want to stop filtering traffic by Namespace, or edit the panel limit,
-you will need to edit the ClickHouse SQL query for each individual panel. Please
-follow the [dashboards customization](#dashboards-customization) section for
-more information. As a special case, to edit the panel limit for pie charts,
-instead of editing the query, please follow the [doc](https://grafana.com/docs/grafana/latest/visualizations/pie-chart-panel/#limit)
+you will need to edit the ClickHouse SQL query for each panel. Please follow
+the [dashboards customization](#dashboards-customization) section for more
+information. As a special case, to edit the panel limit for pie charts, instead
+of editing the query, please follow the
+[doc](https://grafana.com/docs/grafana/latest/visualizations/pie-chart-panel/#limit)
 to edit `Value options - Limit`.
 
 #### Flow Records Dashboard

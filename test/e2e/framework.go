@@ -1005,9 +1005,9 @@ func (data *TestData) deleteService(namespace, name string) error {
 	return nil
 }
 
-func (data *TestData) WaitNetworkPolicyRealize(policyRules int) error {
+func (data *TestData) WaitNetworkPolicyRealize(nodeName string, table *openflow.Table, policyRules int) error {
 	return wait.PollImmediate(50*time.Millisecond, realizeTimeout, func() (bool, error) {
-		return data.checkRealize(policyRules)
+		return data.checkRealize(nodeName, table, policyRules)
 	})
 }
 
@@ -1017,13 +1017,13 @@ func (data *TestData) WaitNetworkPolicyRealize(policyRules int) error {
 // IngressRule. checkRealize returns true when the number of flows exceeds the number of CIDR, because each table has a
 // default flow entry which is used for default matching.
 // Since the check is done over SSH, the time measurement is not completely accurate.
-func (data *TestData) checkRealize(policyRules int) (bool, error) {
-	antreaPodName, err := data.getAntreaPodOnNode(controlPlaneNodeName())
+func (data *TestData) checkRealize(nodeName string, table *openflow.Table, policyRules int) (bool, error) {
+	antreaPodName, err := data.getAntreaPodOnNode(nodeName)
 	if err != nil {
 		return false, err
 	}
 	// table IngressRule is the ingressRuleTable where the rules in workload network policy is being applied to.
-	cmd := []string{"ovs-ofctl", "dump-flows", defaultBridgeName, fmt.Sprintf("table=%s", openflow.IngressRuleTable.GetName())}
+	cmd := []string{"ovs-ofctl", "dump-flows", defaultBridgeName, fmt.Sprintf("table=%s", table.GetName())}
 	stdout, _, err := data.RunCommandFromPod(antreaNamespace, antreaPodName, "antrea-agent", cmd)
 	if err != nil {
 		return false, err

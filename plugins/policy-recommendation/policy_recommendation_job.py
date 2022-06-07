@@ -747,7 +747,7 @@ def main(argv):
     Options:
     -h, --help: Show help message.
     -t, --type=initial: {initial|subsequent} Indicates this recommendation is an initial recommendion or a subsequent recommendation job.
-    -d, --db_jdbc_url=None: The JDBC URL used by Spark jobs connect to the ClickHouse database for reading flow records and writing results.
+    -d, --db_jdbc_url=None: The JDBC URL used by Spark jobs connect to the ClickHouse database for reading flow records and writing result.
         jdbc:clickhouse://clickhouse-clickhouse.flow-visibility.svc:8123 is the ClickHouse JDBC URL used by default.
     -l, --limit=0: The limit on the number of flow records read from the database. 0 means no limit.
     -o, --option=1: Option of network isolation preference in policy recommendation.

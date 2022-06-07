@@ -1,3 +1,4 @@
+{{- if .Values.grafana.enable }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -10,3 +11,4 @@ spec:
     - ReadWriteOnce
   hostPath:
     path: "/data/grafana"
+{{- end }}

@@ -7,7 +7,6 @@ visibility capabilities.
 
 <!-- toc -->
 - [Installation](#installation)
-- [Compilation](#compilation)
 - [Usage](#usage)
 <!-- /toc -->
 
@@ -35,32 +34,14 @@ Move-Item .\theia.exe c:\some-dir-in-your-PATH\theia.exe
 theia help
 ```
 
-## Compilation
-
-In order to compile `theia` the following commands should be run from
-Theia's main directory:
-
-On Linux:
-
-```bash
-make theia-linux
-./bin/theia-linux help
-```
-
-On Mac:
-
-```bash
-make theia-darwin
-./bin/theia-darwin help
-```
-
 ## Usage
 
-To see the list of available commands and options, run `theia help`.
-Currently, we have 3 commands for the NetworkPolicy Recommendation feature:
+To see the list of available commands and options, run `theia help`. Currently,
+we have 3 commands for the NetworkPolicy Recommendation feature:
 
 - `theia policy-recommendation run`
 - `theia policy-recommendation status`
 - `theia policy-recommendation retrieve`
 
-For details, please refer to [NetworkPolicy recommendation doc](./network-policy-recommendation.md)
+For details, please refer to [NetworkPolicy recommendation doc](
+networkpolicy-recommendation.md)

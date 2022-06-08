@@ -302,6 +302,9 @@ def generate_anp_egress_rule(egress):
     return egress_rule
 
 def generate_anp_ingress_rule(ingress):
+    if len(ingress.split(ROW_DELIMITER)) != 4:
+        logger.fatal("Ingress tuple {} has wrong format".format(ingress))
+        sys.exit(1)
     ns, labels, port, protocolIdentifier = ingress.split(ROW_DELIMITER)
     try:
         labels_dict = json.loads(labels)

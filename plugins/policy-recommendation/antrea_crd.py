@@ -253,6 +253,13 @@ class Rule(object):
                 result[attr] = value
 
         return result
+    
+    def __eq__(self, other):
+        """Returns true if both objects are equal"""
+        if not isinstance(other, Rule):
+            return False
+
+        return self.to_dict() == other.to_dict()
 
 class NetworkPolicyPort(object):
     attribute_types = {

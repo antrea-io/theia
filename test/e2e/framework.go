@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/containernetworking/plugins/pkg/ip"
@@ -61,23 +62,25 @@ const (
 	defaultInterval = 1 * time.Second
 	realizeTimeout  = 5 * time.Minute
 
-	antreaNamespace          string = "kube-system"
-	kubeNamespace            string = "kube-system"
-	flowAggregatorNamespace  string = "flow-aggregator"
-	flowVisibilityNamespace  string = "flow-visibility"
-	testNamespace            string = "antrea-test"
-	iperfPort                int32  = 5201
-	clickHouseHTTPPort       string = "8123"
-	busyboxContainerName     string = "busybox"
-	defaultBridgeName        string = "br-int"
-	antreaYML                string = "antrea.yml"
-	antreaDaemonSet          string = "antrea-agent"
-	antreaDeployment         string = "antrea-controller"
-	flowAggregatorDeployment string = "flow-aggregator"
-	flowAggregatorYML        string = "flow-aggregator.yml"
-	flowVisibilityYML        string = "flow-visibility.yml"
-	chOperatorYML            string = "clickhouse-operator-install-bundle.yaml"
-	flowVisibilityCHPodName  string = "chi-clickhouse-clickhouse-0-0-0"
+	antreaNamespace            string = "kube-system"
+	kubeNamespace              string = "kube-system"
+	flowAggregatorNamespace    string = "flow-aggregator"
+	flowVisibilityNamespace    string = "flow-visibility"
+	testNamespace              string = "antrea-test"
+	iperfPort                  int32  = 5201
+	clickHouseHTTPPort         string = "8123"
+	busyboxContainerName       string = "busybox"
+	defaultBridgeName          string = "br-int"
+	antreaYML                  string = "antrea.yml"
+	antreaDaemonSet            string = "antrea-agent"
+	antreaDeployment           string = "antrea-controller"
+	flowAggregatorDeployment   string = "flow-aggregator"
+	flowAggregatorYML          string = "flow-aggregator.yml"
+	flowVisibilityYML          string = "flow-visibility.yml"
+	flowVisibilityWithSparkYML string = "flow-visibility-with-spark.yml"
+	chOperatorYML              string = "clickhouse-operator-install-bundle.yaml"
+	flowVisibilityCHPodName    string = "chi-clickhouse-clickhouse-0-0-0"
+	policyOutputYML            string = "output.yaml"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
@@ -1073,42 +1076,19 @@ func (data *TestData) createTestNamespace() error {
 	return data.CreateNamespace(testNamespace, nil)
 }
 
-// getClickHouseOperator retrieves the name of the clickhouse operator Pod (clickhouse-operator-*).
-func (data *TestData) getClickHouseOperator() (*corev1.Pod, error) {
-	listOptions := metav1.ListOptions{
-		LabelSelector: "app=clickhouse-operator",
+// deployFlowVisibility deploys ClickHouse Operator and DB. If withSparkOperator
+// is set to true, it also deploys Spark Operator.
+func (data *TestData) deployFlowVisibility(withSparkOperator bool) (string, error) {
+	flowVisibilityManifest := flowVisibilityYML
+	if withSparkOperator {
+		flowVisibilityManifest = flowVisibilityWithSparkYML
 	}
-	var pod *corev1.Pod
-	if err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
-		pods, err := data.clientset.CoreV1().Pods(kubeNamespace).List(context.TODO(), listOptions)
-		if err != nil {
-			return false, fmt.Errorf("failed to list ClickHouse Operator Pod: %v", err)
-		}
-		if len(pods.Items) == 0 {
-			return false, nil
-		}
-		pod = &pods.Items[0]
-		return true, nil
-	}); err != nil {
-		return nil, err
-	}
-
-	return pod, nil
-}
-
-// deployFlowVisibilityClickHouse deploys ClickHouse operator and DB.
-func (data *TestData) deployFlowVisibilityClickHouse() (string, error) {
-	err := data.CreateNamespace(flowVisibilityNamespace, nil)
-	if err != nil {
-		return "", err
-	}
-
 	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", chOperatorYML))
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when deploying the ClickHouse Operator YML; %s not available on the control-plane Node", chOperatorYML)
 	}
 	if err := wait.Poll(2*time.Second, 10*time.Second, func() (bool, error) {
-		rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", flowVisibilityYML))
+		rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", flowVisibilityManifest))
 		if err != nil || rc != 0 {
 			// ClickHouseInstallation CRD from ClickHouse Operator install bundle applied soon before
 			// applying CR. Sometimes apiserver validation fails to recognize resource of
@@ -1116,31 +1096,41 @@ func (data *TestData) deployFlowVisibilityClickHouse() (string, error) {
 			if strings.Contains(stderr, "ClickHouseInstallation") || strings.Contains(stdout, "ClickHouseInstallation") {
 				return false, nil
 			}
-			return false, fmt.Errorf("error when deploying the flow visibility YML %s: %s, %s, %v", flowVisibilityYML, stdout, stderr, err)
+			return false, fmt.Errorf("error when deploying the flow visibility YML %s: %s, %s, %v", flowVisibilityManifest, stdout, stderr, err)
 		}
 		return true, nil
 	}); err != nil {
 		return "", err
 	}
 
-	// check for clickhouse pod Ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
+	if withSparkOperator {
+		sparkOperatorPodName, err := data.getSparkOperator()
+		if err != nil {
+			return "", fmt.Errorf("error when getting the Spark Operator Pod name: %v", err)
+		}
+
+		// check for Spark Operator Pod ready.
+		if err = data.podWaitForReady(defaultTimeout, sparkOperatorPodName, flowVisibilityNamespace); err != nil {
+			return "", err
+		}
+	}
+
+	// check for ClickHouse Pod ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
 	if err = data.podWaitForReady(2*defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace); err != nil {
 		return "", err
 	}
 
-	// check clickhouse service http port for service connectivity
+	// check ClickHouse Service http port for Service connectivity
 	chSvc, err := data.GetService("flow-visibility", "clickhouse-clickhouse")
 	if err != nil {
 		return "", err
 	}
 	if err := wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
-		rc, stdout, stderr, err := testData.RunCommandOnNode(controlPlaneNodeName(),
+		rc, _, _, err := testData.RunCommandOnNode(controlPlaneNodeName(),
 			fmt.Sprintf("curl -Ss %s:%s", chSvc.Spec.ClusterIP, clickHouseHTTPPort))
 		if rc != 0 || err != nil {
-			log.Infof("Failed to curl clickhouse Service: %s", strings.Trim(stderr, "\n"))
 			return false, nil
 		} else {
-			log.Infof("Successfully curl'ed clickhouse Service: %s", strings.Trim(stdout, "\n"))
 			return true, nil
 		}
 	}); err != nil {
@@ -1182,6 +1172,79 @@ func (data *TestData) deployFlowAggregator() error {
 		return fmt.Errorf("error when waiting for flow-aggregator Ready: %v; stdout %s, stderr: %s, %v", err, stdout, stderr, podErr)
 	}
 	return nil
+}
+
+// getSparkOperator retrieves the name of the Spark Operator Pod (policy-recommendation-spark-operator-*).
+func (data *TestData) getSparkOperator() (string, error) {
+	listOptions := metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=spark-operator",
+	}
+	var pod *corev1.Pod
+	if err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
+		pods, err := data.clientset.CoreV1().Pods(flowVisibilityNamespace).List(context.TODO(), listOptions)
+		if err != nil {
+			return false, fmt.Errorf("failed to list Spark Operator Pod: %v", err)
+		}
+		if len(pods.Items) == 0 {
+			return false, nil
+		}
+		pod = &pods.Items[0]
+		return true, nil
+	}); err != nil {
+		return "", err
+	}
+
+	return pod.Name, nil
+}
+
+func (data *TestData) deleteClickHouseOperator() error {
+	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s -n kube-system", chOperatorYML))
+	if err != nil || rc != 0 {
+		return fmt.Errorf("error when deleting ClickHouse operator: %v", err)
+	}
+	return nil
+}
+
+func teardownFlowAggregator(tb testing.TB, data *TestData, withSparkOperator bool) {
+	if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
+		tb.Logf("Error when tearing down flow aggregator: %v", err)
+	}
+	if err := data.deleteFlowVisibility(withSparkOperator); err != nil {
+		tb.Logf("Error when deleting K8s resources created by flow visibility: %v", err)
+	}
+	if err := data.deleteClickHouseOperator(); err != nil {
+		tb.Logf("Error when deleting ClickHouse Operator: %v", err)
+	}
+}
+
+func (data *TestData) deleteFlowVisibility(withSparkOperator bool) error {
+	flowVisibilityManifest := flowVisibilityYML
+	if withSparkOperator {
+		flowVisibilityManifest = flowVisibilityWithSparkYML
+	}
+	startTime := time.Now()
+	defer func() {
+		log.Infof("Deleting K8s resources created by flow visibility YAML took %v", time.Since(startTime))
+	}()
+	rc, _, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s", flowVisibilityManifest))
+	if err != nil || rc != 0 {
+		return fmt.Errorf("error when deleting K8s resources created by flow visibility YAML: %v, stderr: %s", err, stderr)
+	}
+	return nil
+}
+
+func deleteRecommendedPolicies(tb testing.TB, data *TestData) {
+	startTime := time.Now()
+	defer func() {
+		log.Infof("Deleting recommended policies took %v", time.Since(startTime))
+	}()
+	// We do not check rc here as rc will not be 0. It will report the NetworkPolicies
+	// under the testNamespace not found, as they have already been deleted along with
+	// the testNamespace.
+	_, _, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s", policyOutputYML))
+	if err != nil {
+		tb.Logf("Error when deleting recommended policies: %v, stderr: %s", err, stderr)
+	}
 }
 
 // DeleteACNP is a convenience function for deleting ACNP by name.

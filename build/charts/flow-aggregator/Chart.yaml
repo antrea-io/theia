@@ -1,0 +1,18 @@
+apiVersion: v2
+name: flow-aggregator
+type: application
+displayName: flow-aggregator
+home: https://antrea.io/
+version: 1.7.0-dev
+appVersion: 1.7.0-dev
+kubeVersion: ">= 1.16.0-0"
+icon: https://raw.githubusercontent.com/antrea-io/antrea/main/docs/assets/logo/antrea_logo.svg
+description: Antrea Network Flow Aggregator
+keywords:
+  - Kubernetes
+  - CNCF
+  - Networking
+  - CNI
+  - Security
+sources:
+  - https://github.com/antrea-io/theia

@@ -26,15 +26,8 @@ their applications according to Zero Trust principles.
 
 ## Prerequisite
 
-- [Antrea Flow Exporter](
-https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#flow-exporter)
-is enabled
-- [Antrea Flow Aggregator](
-https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#flow-aggregator)
-is deployed and configured to store Pod labels
-- [Theia](
-https://github.com/antrea-io/theia/blob/main/docs/network-flow-visibility.md)
-is deployed and Spark Operator is enabled
+Please follow [Getting Started](network-flow-visibility.md#getting-started) to
+install Antrea Flow Aggregator and Theia.
 
 ## Perform NetworkPolicy Recommendation
 

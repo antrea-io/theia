@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go"
@@ -244,4 +245,19 @@ func setupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string
 		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}
 	return connect, portForward, nil
+}
+
+func TableOutput(table [][]string) {
+	writer := tabwriter.NewWriter(os.Stdout, 15, 0, 1, ' ', 0)
+	for _, line := range table {
+		fmt.Fprintln(writer, strings.Join(line, "\t")+"\t")
+	}
+	writer.Flush()
+}
+
+func FormatTimestamp(timestamp time.Time) string {
+	if timestamp.IsZero() {
+		return "N/A"
+	}
+	return timestamp.UTC().Format("2006-01-02 15:04:05")
 }

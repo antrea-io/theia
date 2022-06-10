@@ -38,6 +38,7 @@ function print_usage {
 
 TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
 YML_DIR=$(dirname $0)"/../../build/yamls"
+FLOW_AGGREGATOR_CMD=$(dirname $0)"/../../hack/generate-manifest-flow-aggregator.sh"
 FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana"
 FLOW_VISIBILITY_WITH_SPARK_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --spark-operator"
 CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
@@ -148,12 +149,12 @@ function run_test {
   sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $TMP_DIR/antrea.yml
   sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $TMP_DIR/antrea.yml
 
-  curl -o $TMP_DIR/flow-aggregator.yml https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/flow-aggregator.yml
-  perl -i -p0e 's/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      #enable: false/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: true/' $TMP_DIR/flow-aggregator.yml
-  sed -i -e "s/    #activeFlowRecordTimeout: 60s/    activeFlowRecordTimeout: 3500ms/g" $TMP_DIR/flow-aggregator.yml
-  sed -i -e "s/    #inactiveFlowRecordTimeout: 90s/    inactiveFlowRecordTimeout: 6s/g" $TMP_DIR/flow-aggregator.yml
-  sed -i -e "s/      #podLabels: false/      podLabels: true/g" $TMP_DIR/flow-aggregator.yml
-  sed -i -e "s/      #commitInterval: \"8s\"/      commitInterval: \"1s\"/g" $TMP_DIR/flow-aggregator.yml
+  $FLOW_AGGREGATOR_CMD > $TMP_DIR/flow-aggregator.yml
+  perl -i -p0e 's/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: false/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: true/' $TMP_DIR/flow-aggregator.yml
+  sed -i -e "s/    activeFlowRecordTimeout: 60s/    activeFlowRecordTimeout: 3500ms/g" $TMP_DIR/flow-aggregator.yml
+  sed -i -e "s/    inactiveFlowRecordTimeout: 90s/    inactiveFlowRecordTimeout: 6s/g" $TMP_DIR/flow-aggregator.yml
+  sed -i -e "s/      podLabels: false/      podLabels: true/g" $TMP_DIR/flow-aggregator.yml
+  sed -i -e "s/      commitInterval: \"8s\"/      commitInterval: \"1s\"/g" $TMP_DIR/flow-aggregator.yml
 
   docker exec -i kind-control-plane dd of=/root/antrea.yml < $TMP_DIR/antrea.yml
   docker exec -i kind-control-plane dd of=/root/flow-aggregator.yml < $TMP_DIR/flow-aggregator.yml

@@ -1,0 +1,1 @@
+Flow Aggregator has been successfully installed.

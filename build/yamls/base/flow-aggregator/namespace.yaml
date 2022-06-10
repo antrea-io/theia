@@ -1,0 +1,7 @@
+# Create a namespace for Flow Aggregator service
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app: flow-aggregator
+  name: flow-aggregator

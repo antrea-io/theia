@@ -317,8 +317,7 @@ function deliver_antrea {
     sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
     sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
 
-    wget -c https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/flow-aggregator.yml -O ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
-
+    ${GIT_CHECKOUT_DIR}/hack/generate-manifest-flow-aggregator.sh > ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
 
     # install yq if not present on local disk
     mkdir -p ~/bin

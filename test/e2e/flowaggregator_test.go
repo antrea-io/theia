@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"antrea.io/antrea/pkg/agent/openflow"
 	"antrea.io/antrea/pkg/antctl"
 	"antrea.io/antrea/pkg/antctl/runtime"
 	secv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
@@ -134,7 +135,11 @@ const (
 	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
 	// (default unlimited for TCP), to reduce the variances caused by network performance
 	// during 12s, and make the throughput test more stable.
-	iperfBandwidth = "10m"
+	iperfBandwidth                  = "10m"
+	antreaEgressTableInitFlowCount  = 3
+	antreaIngressTableInitFlowCount = 6
+	ingressTableInitFlowCount       = 1
+	egressTableInitFlowCount        = 1
 )
 
 var (
@@ -215,7 +220,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to destination Pod (one reject rule, one drop rule) and their flow information is exported as IPFIX flow records.
 	// perftest-a -> perftest-b (Ingress reject), perftest-a -> perftest-d (Ingress drop)
 	t.Run("IntraNodeDenyConnIngressANP", func(t *testing.T) {
-		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-b", "perftest-d", true)
+		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-b", "perftest-d", controlPlaneNodeName(), controlPlaneNodeName(), true)
 		defer func() {
 			if anp1 != nil {
 				if err = data.deleteAntreaNetworkpolicy(anp1); err != nil {
@@ -249,7 +254,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to source Pods (one reject rule, one drop rule) and their flow information is exported as IPFIX flow records.
 	// perftest-a (Egress reject) -> perftest-b , perftest-a (Egress drop) -> perftest-d
 	t.Run("IntraNodeDenyConnEgressANP", func(t *testing.T) {
-		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-b", "perftest-d", false)
+		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-b", "perftest-d", controlPlaneNodeName(), controlPlaneNodeName(), false)
 		defer func() {
 			if anp1 != nil {
 				if err = data.deleteAntreaNetworkpolicy(anp1); err != nil {
@@ -283,7 +288,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to one destination Pod, one source Pod, respectively and their flow information is exported as IPFIX flow records.
 	// perftest-a -> perftest-b (Ingress deny), perftest-d (Egress deny) -> perftest-a
 	t.Run("IntraNodeDenyConnNP", func(t *testing.T) {
-		np1, np2 := deployDenyNetworkPolicies(t, data, "perftest-b", "perftest-d")
+		np1, np2 := deployDenyNetworkPolicies(t, data, "perftest-b", "perftest-d", controlPlaneNodeName(), controlPlaneNodeName())
 		defer func() {
 			if np1 != nil {
 				if err = data.deleteNetworkpolicy(np1); err != nil {
@@ -317,7 +322,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// and their flow information is exported as IPFIX flow records.
 	// Antrea network policies are being tested here.
 	t.Run("InterNodeFlows", func(t *testing.T) {
-		anp1, anp2 := deployAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c")
+		anp1, anp2 := deployAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c", controlPlaneNodeName(), workerNodeName(1))
 		defer func() {
 			if anp1 != nil {
 				data.DeleteANP(testNamespace, anp1.Name)
@@ -337,7 +342,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to destination Pod (one reject rule, one drop rule) and their flow information is exported as IPFIX flow records.
 	// perftest-a -> perftest-c (Ingress reject), perftest-a -> perftest-e (Ingress drop)
 	t.Run("InterNodeDenyConnIngressANP", func(t *testing.T) {
-		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c", "perftest-e", true)
+		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c", "perftest-e", controlPlaneNodeName(), workerNodeName(1), true)
 		defer func() {
 			if anp1 != nil {
 				if err = data.deleteAntreaNetworkpolicy(anp1); err != nil {
@@ -371,7 +376,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to source Pod (one reject rule, one drop rule) and their flow information is exported as IPFIX flow records.
 	// perftest-a (Egress reject) -> perftest-c, perftest-a (Egress drop)-> perftest-e
 	t.Run("InterNodeDenyConnEgressANP", func(t *testing.T) {
-		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c", "perftest-e", false)
+		anp1, anp2 := deployDenyAntreaNetworkPolicies(t, data, "perftest-a", "perftest-c", "perftest-e", controlPlaneNodeName(), workerNodeName(1), false)
 		defer func() {
 			if anp1 != nil {
 				if err = data.deleteAntreaNetworkpolicy(anp1); err != nil {
@@ -405,7 +410,7 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// applied to one destination Pod, one source Pod, respectively and their flow information is exported as IPFIX flow records.
 	// perftest-a -> perftest-c (Ingress deny), perftest-b (Egress deny) -> perftest-e
 	t.Run("InterNodeDenyConnNP", func(t *testing.T) {
-		np1, np2 := deployDenyNetworkPolicies(t, data, "perftest-c", "perftest-b")
+		np1, np2 := deployDenyNetworkPolicies(t, data, "perftest-c", "perftest-b", workerNodeName(1), controlPlaneNodeName())
 		defer func() {
 			if np1 != nil {
 				if err = data.deleteNetworkpolicy(np1); err != nil {
@@ -878,14 +883,17 @@ func deployK8sNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod strin
 		t.Errorf("Error when creating Network Policy: %v", err)
 	}
 	// Wait for network policies to be realized.
-	if err := data.WaitNetworkPolicyRealize(2); err != nil {
-		t.Errorf("Error when waiting for Network Policy to be realized: %v", err)
+	if err := data.WaitNetworkPolicyRealize(controlPlaneNodeName(), openflow.IngressRuleTable, ingressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for ingress Network Policy to be realized: %v", err)
+	}
+	if err := data.WaitNetworkPolicyRealize(controlPlaneNodeName(), openflow.IngressRuleTable, egressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for egress Network Policy to be realized: %v", err)
 	}
 	t.Log("Network Policies are realized.")
 	return np1, np2
 }
 
-func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod string) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
+func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, srcNode, dstNode string) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
 	builder1 := &utils.AntreaNetworkPolicySpecBuilder{}
 	// apply anp to dstPod, allow ingress from srcPod
 	builder1 = builder1.SetName(testNamespace, ingressAntreaNetworkPolicyName).
@@ -913,17 +921,23 @@ func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod st
 	}
 
 	// Wait for network policies to be realized.
-	if err := data.WaitNetworkPolicyRealize(2); err != nil {
-		t.Errorf("Error when waiting for Antrea Network Policy to be realized: %v", err)
+	if err := data.WaitNetworkPolicyRealize(dstNode, openflow.AntreaPolicyIngressRuleTable, antreaIngressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for Antrea ingress Network Policy to be realized: %v", err)
+	}
+	if err := data.WaitNetworkPolicyRealize(srcNode, openflow.AntreaPolicyEgressRuleTable, antreaEgressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for Antrea egress Network Policy to be realized: %v", err)
 	}
 	t.Log("Antrea Network Policies are realized.")
 	return anp1, anp2
 }
 
-func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podReject, podDrop string, isIngress bool) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
+func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podReject, podDrop string, srcNode, dstNode string, isIngress bool) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
 	var err error
 	builder1 := &utils.AntreaNetworkPolicySpecBuilder{}
 	builder2 := &utils.AntreaNetworkPolicySpecBuilder{}
+	var table *openflow.Table
+	var flowCount int
+	var nodeName string
 	if isIngress {
 		// apply reject and drop ingress rule to destination pods
 		builder1 = builder1.SetName(testNamespace, ingressRejectANPName).
@@ -936,6 +950,9 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": podDrop}}})
 		builder2 = builder2.AddIngress(corev1.ProtocolTCP, nil, nil, nil, nil, map[string]string{"antrea-e2e": srcPod}, map[string]string{},
 			nil, nil, nil, secv1alpha1.RuleActionDrop, testIngressRuleName)
+		table = openflow.AntreaPolicyIngressRuleTable
+		flowCount = antreaIngressTableInitFlowCount + 2
+		nodeName = dstNode
 	} else {
 		// apply reject and drop egress rule to source pod
 		builder1 = builder1.SetName(testNamespace, egressRejectANPName).
@@ -948,6 +965,9 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
 		builder2 = builder2.AddEgress(corev1.ProtocolTCP, nil, nil, nil, nil, map[string]string{"antrea-e2e": podDrop}, map[string]string{},
 			nil, nil, nil, secv1alpha1.RuleActionDrop, testEgressRuleName)
+		table = openflow.AntreaPolicyEgressRuleTable
+		flowCount = antreaEgressTableInitFlowCount + 2
+		nodeName = srcNode
 	}
 	anp1 = builder1.Get()
 	anp1, err = data.CreateOrUpdateANP(anp1)
@@ -960,14 +980,14 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 		failOnError(fmt.Errorf("Error when creating Antrea Network Policy: %v", err), t, data)
 	}
 	// Wait for Antrea NetworkPolicy to be realized.
-	if err := data.WaitNetworkPolicyRealize(2); err != nil {
+	if err := data.WaitNetworkPolicyRealize(nodeName, table, flowCount); err != nil {
 		t.Errorf("Error when waiting for Antrea Network Policy to be realized: %v", err)
 	}
 	t.Log("Antrea Network Policies are realized.")
 	return anp1, anp2
 }
 
-func deployDenyNetworkPolicies(t *testing.T, data *TestData, pod1, pod2 string) (np1 *networkingv1.NetworkPolicy, np2 *networkingv1.NetworkPolicy) {
+func deployDenyNetworkPolicies(t *testing.T, data *TestData, pod1, pod2 string, node1, node2 string) (np1 *networkingv1.NetworkPolicy, np2 *networkingv1.NetworkPolicy) {
 	np1, err := data.createNetworkPolicy(ingressDenyNPName, &networkingv1.NetworkPolicySpec{
 		PodSelector: metav1.LabelSelector{
 			MatchLabels: map[string]string{
@@ -993,8 +1013,11 @@ func deployDenyNetworkPolicies(t *testing.T, data *TestData, pod1, pod2 string) 
 		t.Errorf("Error when creating Network Policy: %v", err)
 	}
 	// Wait for NetworkPolicy to be realized.
-	if err := data.WaitNetworkPolicyRealize(2); err != nil {
-		t.Errorf("Error when waiting for Network Policies to be realized: %v", err)
+	if err := data.WaitNetworkPolicyRealize(node1, openflow.IngressRuleTable, ingressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for ingress Network Policies to be realized: %v", err)
+	}
+	if err := data.WaitNetworkPolicyRealize(node2, openflow.EgressRuleTable, egressTableInitFlowCount+1); err != nil {
+		t.Errorf("Error when waiting for egress Network Policies to be realized: %v", err)
 	}
 	t.Log("Network Policies are realized.")
 	return np1, np2

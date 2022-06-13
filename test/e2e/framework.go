@@ -1262,7 +1262,12 @@ func (data *TestData) deleteFlowVisibility(withSparkOperator bool, withGrafana b
 	defer func() {
 		log.Infof("Deleting K8s resources created by flow visibility YAML took %v", time.Since(startTime))
 	}()
-	rc, _, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s", flowVisibilityManifest))
+	rc, _, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n %s", flowVisibilityNamespace))
+	if err != nil || rc != 0 {
+		return fmt.Errorf("error when deleting ClickHouse StatefulSet: %v, stderr: %s", err, stderr)
+	}
+
+	rc, _, stderr, err = data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s --ignore-not-found=true", flowVisibilityManifest))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting K8s resources created by flow visibility YAML: %v, stderr: %s", err, stderr)
 	}

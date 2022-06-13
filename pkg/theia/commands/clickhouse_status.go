@@ -43,8 +43,8 @@ type tableInfo struct {
 	shard      string
 	database   string
 	tableName  string
-	totalRows  string
-	totalBytes string
+	totalRows  sql.NullString
+	totalBytes sql.NullString
 	totalCols  string
 }
 
@@ -242,26 +242,30 @@ func getDataFromClickHouse(connect *sql.DB, query int) ([][]string, error) {
 	var data [][]string
 	data = append(data, columnName)
 	for result.Next() {
+		var err error
 		switch query {
 		case diskQuery:
 			var res diskInfo
-			result.Scan(&res.shard, &res.name, &res.path, &res.freeSpace, &res.totalSpace, &res.usedPercentage)
+			err = result.Scan(&res.shard, &res.name, &res.path, &res.freeSpace, &res.totalSpace, &res.usedPercentage)
 			data = append(data, []string{res.shard, res.name, res.path, res.freeSpace, res.totalSpace, res.usedPercentage + " %"})
 		case tableInfoQuery:
 			res := tableInfo{}
-			result.Scan(&res.shard, &res.database, &res.tableName, &res.totalRows, &res.totalBytes, &res.totalCols)
-			if !strings.Contains(res.tableName, "inner") && res.tableName != "flows" {
+			err = result.Scan(&res.shard, &res.database, &res.tableName, &res.totalRows, &res.totalBytes, &res.totalCols)
+			if !res.totalRows.Valid || !res.totalBytes.Valid {
 				continue
 			}
-			data = append(data, []string{res.shard, res.database, res.tableName, res.totalRows, res.totalBytes, res.totalCols})
+			data = append(data, []string{res.shard, res.database, res.tableName, res.totalRows.String, res.totalBytes.String, res.totalCols})
 		case insertRateQuery:
 			res := insertRate{}
-			result.Scan(&res.shard, &res.rowsPerSec, &res.bytesPerSec)
+			err = result.Scan(&res.shard, &res.rowsPerSec, &res.bytesPerSec)
 			data = append(data, []string{res.shard, res.rowsPerSec, res.bytesPerSec})
 		case stackTracesQuery:
 			res := stackTraces{}
-			result.Scan(&res.shard, &res.traceFunctions, &res.count)
+			err = result.Scan(&res.shard, &res.traceFunctions, &res.count)
 			data = append(data, []string{res.shard, res.traceFunctions, res.count})
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse the data returned by database: %v", err)
 		}
 	}
 	if len(data) <= 1 {

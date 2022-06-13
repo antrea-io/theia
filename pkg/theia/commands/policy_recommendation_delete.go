@@ -131,7 +131,7 @@ func deletePolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig
 	if err != nil {
 		return err
 	}
-	query := "ALTER TABLE recommendations DELETE WHERE id = (?);"
+	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);"
 	_, err = connect.Exec(query, recoID)
 	if err != nil {
 		return fmt.Errorf("failed to delete recommendation result with id %s: %v", recoID, err)

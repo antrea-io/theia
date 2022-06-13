@@ -107,6 +107,8 @@ var tableColumnNumberMap = map[string]string{
 	".inner.flows_policy_view_local": "27",
 	"flows":                          "49",
 	"flows_local":                    "49",
+	"recommendations":                "4",
+	"recommendations_local":          "4",
 }
 
 func TestTheiaClickHouseStatusCommand(t *testing.T) {
@@ -176,6 +178,7 @@ func testTheiaGetClickHouseDiskInfo(t *testing.T, data *TestData) {
 // 1              default        .inner.flows_pod_view    48000          4.72 MiB       20
 // 1              default        .inner.flows_policy_view 48000          7.16 MiB       27
 // 1              default        flows                    50000          13.09 MiB      49
+// 1              default        recommendations          10             2.34 KiB       4
 func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.DB) {
 	// send 10000 records to clickhouse
 	commitNum := 10
@@ -205,6 +208,7 @@ func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.
 	assert.Containsf(stdout, ".inner.flows_pod_view", "stdout: %s", stdout)
 	assert.Containsf(stdout, ".inner.flows_policy_view", "stdout: %s", stdout)
 	assert.Containsf(stdout, "flows", "stdout: %s", stdout)
+	assert.Containsf(stdout, "recommendations", "stdout: %s", stdout)
 
 	flowNum := 0
 	for i := 1; i < length; i++ {

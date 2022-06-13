@@ -10,6 +10,7 @@
   - [Deployment Steps](#deployment-steps)
   - [Configuration](#configuration)
     - [With Helm](#with-helm)
+      - [ClickHouse Cluster](#clickhouse-cluster)
     - [With Standalone Manifest](#with-standalone-manifest)
       - [Grafana Configuration](#grafana-configuration)
         - [Service Customization](#service-customization)
@@ -153,6 +154,15 @@ You should be able to see a Grafana login page. Login credentials:
 - username: admin
 - password: admin
 
+From Theia 0.2, Theia supports ClickHouse clustering in lieu of the non-clustered
+mode supported in v0.1. To stop the Grafana Flow Collector, please run the
+following command first. Refer to [ClickHouse Cluster](#clickhouse-cluster) for more
+information.
+
+```bash
+kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n flow-visibility
+```
+
 To stop the Grafana Flow Collector, run the following commands if you deploy it
 by Helm:
 
@@ -202,30 +212,69 @@ helm install theia build/charts/theia -n flow-visibility --create-namespace \
   --set=clickhouse.storageSize="2Gi"
 ```
 
-The ClickHouse TCP service is used by the Flow Aggregator. If you have changed the TCP port,
-please update the `databaseURL` following
-[Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1).
+The ClickHouse TCP Service is used by the Flow Aggregator. If you have changed
+the TCP port, please update the `clickHouse.databaseURL` in the Flow Aggregator
+Helm Chart values.
 
-The ClickHouse credentials are used in the Flow Aggregator. Them are also specified
-in `flow-aggregator.yml` as a Secret named `clickhouse-secret` as shown below.
-Please make the corresponding changes if you change the ClickHouse credentials.
+The ClickHouse credentials are used in the Flow Aggregator. If you have changed
+the ClickHouse credentials, please update the `clickHouse.connectionSecret` in the
+Flow Aggregator Helm Chart values.
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
-    app: flow-aggregator
-  name: clickhouse-secret
-  namespace: flow-aggregator
-stringData:
-  password: clickhouse_operator_password
-  username: clickhouse_operator
-type: Opaque
+Please refer to the Flow Aggregator Helm Chart
+[README](https://github.com/antrea-io/antrea/blob/main/build/charts/flow-aggregator/README.md)
+and [Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1)
+to learn more about ClickHouse configuration options in Flow Aggregator.
+
+##### ClickHouse Cluster
+
+In v0.1, Theia deploys ClickHouse in a non-cluster mode, which cannot switch to
+ClickHouse cluster directly. You need to uninstall ClickHouse, delete related
+data if you use PersistenVolume and redeploy it when upgrading or downgrading
+between v0.1 and v0.2.
+
+Starting with v0.2, Theia supports ClickHouse clustering in lieu of the
+non-clustered mode supported in v0.1. A ClickHouse cluster consists of one or more
+shards. Shards refer to the servers that contain different parts of the data. You
+can deploy multiple shards to scale the cluster horizontally. Each shard consists
+of one or more replica hosts. Replicas indicate storing the same data on multiple
+Pods to improve data availability and accessibility. You can deploy multiple
+replicas in a shard to ensure reliability.
+
+By default, Theia deploys a 1-shard-1-replica ClickHouse cluster and a 1-replica
+ZooKeeper. To scale the ClickHouse cluster, please set `clickhouse.cluster.shards`
+and `clickhouse.cluster.replicas` per your requirement.
+
+ClickHouse uses [Apache ZooKeeper](https://zookeeper.apache.org/) for storing
+replicas meta information. When scaling the ClickHouse cluster, please set
+`clickhouse.cluster.installZookeeper.replicas` to at least 3 to ensure fault
+tolerance. Each replica is expected to be deployed on a different Node. To
+leverage a user-provided ZooKeeper cluster, please refer to the
+[ZooKeeper setup instructions for ClickHouse](https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md)
+and set `clickhouse.cluster.zookeeperHosts` to your ZooKeeper hosts.
+
+When stopping the ClickHouse cluster, please ensure it is stopped before ZooKeeper,
+as ClickHouse relies on ZooKeeper to stop correctly. You can run the following
+command to stop the ClickHouse cluster.
+
+```bash
+kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n flow-visibility
 ```
 
-Please refer to the [Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1)
-to learn about more ClickHouse configuration options in Flow Aggregator.
+The default affinity allows only one ClickHouse instance per Node. Each replica
+is expected to be deployed on a different Node with this affinity. To change the
+affinity, please set `clickhouse.cluster.podDistribution` per your requirement.
+
+We recommend using Persistent Volumes if you are going to use ClickHouse cluster
+in production. ClickHouse cluster with in memory deployment is mainly for test
+purpose, as when a Pod accidentally restarts, the memory will be cleared, which
+will lead to a complete data loss. In that case, please refer to the
+[ClickHouse document](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replication/#recovery-after-complete-data-loss)
+to recover the data.
+
+ClickHouse cluster can be deployed with default Local PV or NFS PV by setting
+`clickhouse.storage.createPersistentVolume`. To have more flexibility in the
+PV creation, you can configure a customized `StorageClass` in
+`clickhouse.storage.persistentVolumeClaimSpec`.
 
 #### With Standalone Manifest
 

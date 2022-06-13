@@ -339,6 +339,10 @@ function deliver_antrea {
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --spark-operator > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
 
+    # policy/v1beta1 is deprecated in v1.21+, unavailable in v1.25+, while policy/v1 is available in v1.21+
+    sed -i -e "s|apiVersion: policy/v1|apiVersion: policy/v1beta1|g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility.yml
+    sed -i -e "s|apiVersion: policy/v1|apiVersion: policy/v1beta1|g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
+    sed -i -e "s|apiVersion: policy/v1|apiVersion: policy/v1beta1|g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
 
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml capv@${control_plane_ip}:~
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/build/yamls/*.yml capv@${control_plane_ip}:~
@@ -351,9 +355,11 @@ function deliver_antrea {
     docker pull projects.registry.vmware.com/antrea/antrea-ubuntu:latest
     docker pull projects.registry.vmware.com/antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
+    docker pull projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
     docker save -o antrea-ubuntu.tar projects.registry.vmware.com/antrea/antrea-ubuntu:latest
     docker save -o flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator:latest
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
+    docker save -o theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
 
     (cd $GIT_CHECKOUT_DIR && make policy-recommendation)
     docker save -o theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
@@ -377,6 +383,7 @@ function deliver_antrea {
         copy_image flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator ${IPs[$i]} latest  true
         copy_image theia-clickhouse-operator.tar projects.registry.vmware.com/antrea/theia-clickhouse-operator  ${IPs[$i]} $image_tag true
         copy_image theia-metrics-exporter.tar projects.registry.vmware.com/antrea/theia-metrics-exporter  ${IPs[$i]} $image_tag true
+        copy_image theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper  ${IPs[$i]} 3.8.0 true
         copy_image theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator ${IPs[$i]} v1beta2-1.3.3-3.1.1 true
         copy_image theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation ${IPs[$i]} latest true
     done

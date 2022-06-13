@@ -98,6 +98,7 @@ func testMain(m *testing.M) int {
 	log.Printf("Num nodes: %d", clusterInfo.numNodes)
 	err = ensureAntreaRunning(testData)
 	if err != nil {
+		exportLogs(&testing.T{}, testData, "beforeTeardown", true, true)
 		log.Fatalf("Error when deploying Antrea: %v", err)
 	}
 	if err != nil {

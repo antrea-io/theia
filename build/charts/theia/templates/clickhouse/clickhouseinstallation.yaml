@@ -14,8 +14,39 @@ spec:
     clusters:
       - name: "clickhouse"
         layout:
+          {{- if .Values.clickhouse.cluster.enable }}
+          shards:
+            {{- range $i, $_ := until (int .Values.clickhouse.cluster.shards) }}
+              - name: {{ $i | quote }}
+                replicasCount: {{ $.Values.clickhouse.cluster.replicas }}
+                replicas:
+                  {{- range $j, $_ := until (int $.Values.clickhouse.cluster.replicas) }}
+                    - name: {{ $i }}-{{ $j }}
+                      templates:
+                      {{- if eq $j (sub $.Values.clickhouse.cluster.replicas 1) }}
+                        podTemplate: pod-template
+                      {{- else }}
+                        podTemplate: pod-template-without-monitor
+                      {{- end }}
+                  {{- end }}
+            {{- end }}
+          shardsCount: {{ .Values.clickhouse.cluster.shards }}
+          replicasCount: {{ .Values.clickhouse.cluster.replicas }}
+          {{- else }}
           shardsCount: 1
           replicasCount: 1
+          {{- end }}
+    {{- if .Values.clickhouse.cluster.enable }}
+    zookeeper:
+      nodes:
+      {{- if eq (len .Values.clickhouse.cluster.zookeeperHosts) 0 }}
+      - host: zookeeper.{{ .Release.Namespace }}
+      {{- else }}
+      {{- range $host := .Values.clickhouse.cluster.zookeeper.zookeeperHosts }}
+      - host: {{ $host }}
+      {{- end }}
+      {{- end }}
+    {{- end }}
   defaults:
     templates:
       podTemplate: pod-template
@@ -34,61 +65,35 @@ spec:
             - name: tcp
               port: {{ .Values.clickhouse.service.tcpPort }}
     podTemplates:
+      {{- if .Values.clickhouse.cluster.enable }}
+      - name: pod-template-without-monitor
+        spec:
+          containers:
+            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV) | indent 12 }}
+          volumes:
+            {{- include "clickhouse.volume" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV) | indent 12 }}
+        {{- if .Values.clickhouse.cluster.podDistribution }}
+        podDistribution:
+        {{- with .Values.clickhouse.cluster.podDistribution }}
+          {{ toJson . | trim }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
       - name: pod-template
         spec:
           containers:
-            - name: clickhouse
-              image: {{ .Values.clickhouse.image.repository }}:{{ .Values.clickhouse.image.tag }}
-              imagePullPolicy: {{ .Values.clickhouse.image.pullPolicy }}
-              volumeMounts:
-                - name: clickhouse-configmap-volume
-                  mountPath: /docker-entrypoint-initdb.d
-                {{- if not $enablePV }}
-                - name: clickhouse-storage-volume
-                  mountPath: /var/lib/clickhouse
-                {{- end }}
-            {{- if .Values.clickhouse.monitor.enable}}
-            - name: clickhouse-monitor
-              image: {{ .Values.clickhouse.monitor.image.repository }}:{{ default .Chart.AppVersion .Values.clickhouse.monitor.image.tag }}
-              imagePullPolicy: {{ .Values.clickhouse.monitor.image.pullPolicy }}
-              env:
-                - name: CLICKHOUSE_USERNAME
-                  valueFrom:
-                    secretKeyRef: 
-                      name: clickhouse-secret
-                      key: username
-                - name: CLICKHOUSE_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: clickhouse-secret
-                      key: password
-                - name: DB_URL
-                  value: "tcp://localhost:9000"
-                - name: TABLE_NAME
-                  value: "default.flows"
-                - name: MV_NAMES
-                  value: "default.flows_pod_view default.flows_node_view default.flows_policy_view"
-                - name: STORAGE_SIZE
-                  value: {{ .Values.clickhouse.storage.size | quote }}
-                - name: THRESHOLD
-                  value: {{ .Values.clickhouse.monitor.threshold | quote }}
-                - name: DELETE_PERCENTAGE
-                  value: {{ .Values.clickhouse.monitor.deletePercentage | quote }}
-                - name: EXEC_INTERVAL
-                  value: {{ .Values.clickhouse.monitor.execInterval }}
-                - name: SKIP_ROUNDS_NUM
-                  value: {{ .Values.clickhouse.monitor.skipRoundsNum | quote }}
-            {{- end}}
-          volumes:
-            - name: clickhouse-configmap-volume
-              configMap:
-                name: clickhouse-mounted-configmap
-            {{- if not $enablePV }}
-            - name: clickhouse-storage-volume
-              emptyDir:
-                medium: Memory
-                sizeLimit: {{ .Values.clickhouse.storage.size }}
+            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV) | indent 12 }}
+            {{- if .Values.clickhouse.monitor.enable }}
+            {{- include "clickhouse.monitor.container" (dict "clickhouse" .Values.clickhouse "version" .Chart.AppVersion) | indent 12 }}
             {{- end }}
+          volumes:
+            {{- include "clickhouse.volume" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV) | indent 12 }}
+        {{- if and .Values.clickhouse.cluster.enable .Values.clickhouse.cluster.podDistribution }}
+        podDistribution:
+        {{- with .Values.clickhouse.cluster.podDistribution }}
+          {{ toJson . | trim }}
+        {{- end }}
+        {{- end }}
     {{- if $enablePV }}
     volumeClaimTemplates: 
       - name: clickhouse-storage-template

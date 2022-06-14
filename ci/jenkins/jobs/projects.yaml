@@ -52,6 +52,12 @@
            - text:
                credential-id: VMFOLDERNAME
                variable: VMFOLDERNAME
+           - text:
+               credential-id: THEIA_DOCKERHUB_USERNAME
+               variable: DOCKERHUB_USERNAME
+           - text:
+               credential-id: THEIA_DOCKERHUB_TOKEN
+               variable: DOCKERHUB_TOKEN
       - '{name}-{test_name}-no-scm':
          test_name: e2e-pending-label
          node: null

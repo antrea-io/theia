@@ -374,7 +374,7 @@ function deliver_antrea {
     for i in "${!IPs[@]}"
     do
         ssh-keygen -f "/var/lib/jenkins/.ssh/known_hosts" -R ${IPs[$i]}
-        copy_image antrea-ubuntu.tar antrea/antrea-ubuntu ${IPs[$i]} latest true
+        copy_image antrea-ubuntu.tar docker.io/antrea/antrea-ubuntu ${IPs[$i]} latest true
         copy_image flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator ${IPs[$i]} latest  true
         copy_image theia-clickhouse-operator.tar projects.registry.vmware.com/antrea/theia-clickhouse-operator  ${IPs[$i]} $image_tag true
         copy_image theia-metrics-exporter.tar projects.registry.vmware.com/antrea/theia-metrics-exporter  ${IPs[$i]} $image_tag true

@@ -26,15 +26,15 @@ their applications according to Zero Trust principles.
 
 ## Prerequisite
 
-Please follow [Getting Started](network-flow-visibility.md#getting-started) to
-install Antrea Flow Aggregator and Theia.
+Please follow the [Getting Started](getting-started.md) guide to install Antrea
+Flow Aggregator and Theia.
 
 ## Perform NetworkPolicy Recommendation
 
 Users can leverage Theia's NetworkPolicy Recommendation feature through `theia`
 CLI. `theia` is the command-line tool which provides access to Theia network
 flow visibility capabilities. To get more information about `theia`, please
-refer to this [doc](theia.md).
+refer to its [user guide](theia-cli.md).
 
 There are 3 `theia` commands for the NetworkPolicy Recommendation feature:
 

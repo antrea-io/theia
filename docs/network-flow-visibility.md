@@ -1,13 +1,9 @@
-# Theia: Network Flow Visibility for Antrea
+# Network Flow Visibility with Theia
 
 ## Table of Contents
 
 <!-- toc -->
 - [Overview](#overview)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Theia Installation](#theia-installation)
-  - [Additional information](#additional-information)
 - [Grafana Flow Collector](#grafana-flow-collector)
   - [Purpose](#purpose)
   - [About Grafana and ClickHouse](#about-grafana-and-clickhouse)
@@ -22,7 +18,8 @@
         - [Credentials Configuration](#credentials-configuration-1)
         - [Service Customization](#service-customization-1)
         - [Performance Configuration](#performance-configuration)
-      - [Persistent Volumes](#persistent-volumes)
+        - [Persistent Volumes](#persistent-volumes)
+- [Grafana Dashboards](#grafana-dashboards)
   - [Pre-built Dashboards](#pre-built-dashboards)
     - [Flow Records Dashboard](#flow-records-dashboard)
     - [Pod-to-Pod Flows Dashboard](#pod-to-pod-flows-dashboard)
@@ -30,77 +27,30 @@
     - [Pod-to-Service Flows Dashboard](#pod-to-service-flows-dashboard)
     - [Node-to-Node Flows Dashboard](#node-to-node-flows-dashboard)
     - [Network-Policy Flows Dashboard](#network-policy-flows-dashboard)
-  - [Dashboards Customization](#dashboards-customization)
+  - [Dashboard Customization](#dashboard-customization)
 <!-- /toc -->
 
 ## Overview
 
-[Antrea](https://github.com/antrea-io/antrea/blob/main/docs/design/architecture.md)
-is a Kubernetes network plugin that provides network connectivity and security
-features for Pod workloads. Considering the scale and dynamism of Kubernetes
-workloads in a cluster, Network Flow Visibility helps in the management and
-configuration of Kubernetes resources such as Network Policy, Services, Pods
-etc., and thereby provides opportunities to enhance the performance and security
-aspects of Pod workloads.
-
-For visualizing the network flows, Antrea monitors the flows in Linux conntrack
-module. These flows are converted to flow records, and then flow records are post-processed
-before they are sent to the configured external flow collector.
-
-## Getting Started
-
-### Prerequisites
-
-To install Theia, ensure the Flow Exporter feature is enabled in Antrea deployment
-manifest, in the following way:
-
-```yaml
-  antrea-agent.conf: |
-    ...
-    featureGates:
-      ...
-      FlowExporter: true
-```
-
-### Theia Installation
-
-To enable both Grafana Flow Collector and
-[NetworkPolicy Recommendation](networkpolicy-recommendation.md), please install
-Theia and Flow Aggregator by runnning the following commands:
-
-```bash
-git clone https://github.com/antrea-io/theia.git
-helm install flow-aggregator theia/build/charts/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
-helm install theia theia/build/charts/theia --set sparkOperator.enable=true -n flow-visibility --create-namespace
-```
-
-To enable only Grafana Flow Collector, please install Theia and Flow Aggregator
-by runnning the following commands:
-
-```bash
-git clone https://github.com/antrea-io/theia.git
-helm install flow-aggregator theia/build/charts/flow-aggregator --set clickHouse.enable=true -n flow-aggregator --create-namespace
-helm install theia theia/build/charts/theia -n flow-visibility --create-namespace
-```
-
-### Additional information
-
-Refer to Antrea documentation to learn more about
-[Flow Exporter](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#flow-exporter),
-[Flow Aggregator](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#flow-aggregator)
-and their advanced configurations.
+Theia is a network observability and analytics platform for Kubernetes, built
+on top of [Antrea](https://github.com/antrea-io/antrea). It supports network
+flow visualization and monitoring with Grafana. This document describes the
+Grafana Flow Collector and network flow visualization functionality of Theia.
 
 ## Grafana Flow Collector
 
 ### Purpose
 
-Antrea supports sending IPFIX flow records through the Flow Exporter and Flow Aggregator
-feature described in [doc](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md).
-The Grafana Flow Collector works as the visualization tool for flow records and
-flow-related information. We use ClickHouse as the data storage, which collects flow
-records data from the Flow Aggregator and load the data to Grafana. This document
-provides the guidelines for deploying the Grafana Flow Collector with support for
-Antrea-specific IPFIX fields in a Kubernetes cluster.
+Antrea supports exporting IPFIX flow records with Kubernetes workload and
+NetworkPolicy information and sending them to a flow collector, through the Flow
+Exporter and Flow Aggregator features as described in the [Antrea Network Flow
+Visibility](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md)
+document. The Grafana Flow Collector works as the visualization and monitoring
+tool for flow records and flow-related information. It uses ClickHouse as the
+data storage, which collects flow records data from the Flow Aggregator and
+loads the data to Grafana. This document provides the guidelines for deploying
+the Grafana Flow Collector with support for Antrea-specific IPFIX fields in a
+Kubernetes cluster.
 
 ### About Grafana and ClickHouse
 
@@ -111,6 +61,11 @@ columnar OLAP database management system for real-time analytics using SQL. We u
 ClickHouse as the data storage, and use Grafana as the data visualization and monitoring tool.
 
 ### Deployment Steps
+
+This section talks about detailed steps to deploy the Grafana Flow Collector
+using Helm charts or YAML manifests. For quick steps of installing Theia
+including the Grafana Flow Collector, please refer to the [Getting Started](getting-started.md)
+guide.
 
 We support deploying the Grafana Flow Collector with Helm. Here is the
 [Helm chart](../build/charts/theia/) for the Grafana Flow Collector. Please follow
@@ -156,7 +111,7 @@ kubectl apply -f https://raw.githubusercontent.com/antrea-io/theia/main/build/ya
 Run the following command to check if ClickHouse and Grafana are deployed properly:
 
 ```bash
-kubectl get all -n flow-visibility                                                               
+kubectl get all -n flow-visibility
 ```
 
 The expected results will be like:
@@ -216,6 +171,10 @@ kubectl delete -f https://raw.githubusercontent.com/antrea-io/theia/main/build/c
 ```
 
 ### Configuration
+
+So far, we went through Grafana Flow Collector deployment with the default
+configuration. The Grafana Flow Collector also exposes a few configuration
+parameters for you to customize the deployment. Read this section to learn more.
 
 #### With Helm
 
@@ -448,7 +407,7 @@ The time interval between the batch commits to the ClickHouse is specified in th
 as `commitInterval`. The ClickHouse throughput grows sightly when the commit interval
 grows from 1s to 8s. A commit interval larger than 8s provides little improvement on the throughput.
 
-##### Persistent Volumes
+###### Persistent Volumes
 
 By default, ClickHouse is deployed in memory. We support deploying ClickHouse with
 Persistent Volumes.
@@ -594,9 +553,11 @@ should be set to your storage size.
       name: clickhouse-storage-volume
     ```
 
+## Grafana Dashboards
+
 ### Pre-built Dashboards
 
-The following dashboards are pre-built and are recommended for Antrea flow
+The following dashboards are pre-built and are recommended for Theia flow
 visualization. They can be found in the Home page of Grafana, by clicking
 the Magnifier button on the left menu bar.
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-grafana-intro-1.png" width="900" alt="Grafana Search Dashboards Guide">
@@ -620,7 +581,7 @@ and resources to render them.
 
 If you want to stop filtering traffic by Namespace, or edit the panel limit,
 you will need to edit the ClickHouse SQL query for each panel. Please follow
-the [dashboards customization](#dashboards-customization) section for more
+the [Dashboard Customization](#dashboard-customization) section for more
 information. As a special case, to edit the panel limit for pie charts, instead
 of editing the query, please follow the
 [doc](https://grafana.com/docs/grafana/latest/visualizations/pie-chart-panel/#limit)
@@ -728,7 +689,7 @@ Mouse out or click on the background will bring all the traffic back.
 
 <img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
 
-### Dashboards Customization
+### Dashboard Customization
 
 If you would like to make any changes to any of the pre-built dashboards, or build
 a new dashboard, please follow this [doc](https://grafana.com/docs/grafana/latest/dashboards/)

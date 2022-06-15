@@ -316,6 +316,7 @@ function deliver_antrea {
     sed -i -e "s/flowPollInterval: \"5s\"/flowPollInterval: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
     sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
     sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
+    sed -i -e "s|image: \"projects.registry.vmware.com/antrea/antrea-ubuntu:latest\"|image: \"antrea/antrea-ubuntu:latest\"|g" $GIT_CHECKOUT_DIR/build/yamls/antrea.yml
 
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest-flow-aggregator.sh > ${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
 

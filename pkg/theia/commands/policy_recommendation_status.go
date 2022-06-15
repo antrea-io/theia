@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 
+	"antrea.io/theia/pkg/theia/commands/config"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -146,7 +147,7 @@ func getSparkAppByRecommendationID(clientset kubernetes.Interface, id string) (s
 	err = clientset.CoreV1().RESTClient().
 		Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(flowVisibilityNS).
+		Namespace(config.FlowVisibilityNS).
 		Resource("sparkapplications").
 		Name("pr-" + id).
 		Do(context.TODO()).

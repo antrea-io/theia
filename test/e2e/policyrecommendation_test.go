@@ -42,14 +42,14 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, true, false)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, true, false, true)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
 	defer func() {
 		teardownTest(t, data)
 		deleteRecommendedPolicies(t, data)
-		teardownFlowVisibility(t, data, true)
+		teardownFlowVisibility(t, data, true, false)
 	}()
 
 	t.Run("testPolicyRecommendationRun", func(t *testing.T) {

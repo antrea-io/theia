@@ -40,6 +40,7 @@ TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
 YML_DIR=$(dirname $0)"/../../build/yamls"
 FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --ch-size 100Mi --ch-monitor-threshold 0.1"
 FLOW_VISIBILITY_WITH_SPARK_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --spark-operator"
+FLOW_VISIBILITY_CH_ONLY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana"
 CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
 
 make theia-linux
@@ -161,13 +162,14 @@ function run_test {
   docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < $CH_OPERATOR_YML
   $FLOW_VISIBILITY_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility.yml
   $FLOW_VISIBILITY_WITH_SPARK_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility-with-spark.yml
+  $FLOW_VISIBILITY_CH_ONLY_CMD | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
 
   docker exec -i kind-control-plane dd of=/root/theia < $THEIACTL_BIN
 
   rm -rf $TMP_DIR
   sleep 1
 
-  go test -v -timeout=20m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
 }
 
 echo "======== Test encap mode =========="

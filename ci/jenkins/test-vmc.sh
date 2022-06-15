@@ -337,6 +337,8 @@ function deliver_antrea {
 
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --ch-size 100Mi --ch-monitor-threshold 0.1 > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility.yml
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --spark-operator > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
+    ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
+
 
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml capv@${control_plane_ip}:~
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/build/yamls/*.yml capv@${control_plane_ip}:~

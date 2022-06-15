@@ -22,13 +22,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os/exec"
-	"syscall"
-
-	"net"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -139,7 +138,7 @@ type testFlow struct {
 }
 
 func TestFlowVisibility(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false, true)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false, true, true)
 	if err != nil {
 		t.Errorf("Error when setting up test: %v", err)
 		failOnError(err, t, data)
@@ -150,7 +149,7 @@ func TestFlowVisibility(t *testing.T) {
 		failOnError(err, t, data)
 	}
 	defer portForwardCmd.Process.Kill()
-	defer flowVisibilityCleanup(t, data, false)
+	defer flowVisibilityCleanup(t, data, false, true)
 
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
 	if err != nil {
@@ -1254,6 +1253,6 @@ func failOnError(err error, t *testing.T, data *TestData) {
 	if portForwardCmd.Process != nil {
 		portForwardCmd.Process.Kill()
 	}
-	flowVisibilityCleanup(t, data, false)
+	flowVisibilityCleanup(t, data, false, true)
 	t.Fatalf("test failed: %v", err)
 }

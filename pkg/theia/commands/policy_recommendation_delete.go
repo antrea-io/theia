@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 
+	"antrea.io/theia/pkg/theia/commands/config"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -82,7 +83,7 @@ $ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
 
 		clientset.CoreV1().RESTClient().Delete().
 			AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-			Namespace(flowVisibilityNS).
+			Namespace(config.FlowVisibilityNS).
 			Resource("sparkapplications").
 			Name("pr-" + recoID).
 			Do(context.TODO())
@@ -102,7 +103,7 @@ func getPolicyRecommendationIdMap(clientset kubernetes.Interface, kubeconfig str
 	sparkApplicationList := &sparkv1.SparkApplicationList{}
 	err = clientset.CoreV1().RESTClient().Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(flowVisibilityNS).
+		Namespace(config.FlowVisibilityNS).
 		Resource("sparkapplications").
 		Do(context.TODO()).Into(sparkApplicationList)
 	if err != nil {
@@ -123,7 +124,7 @@ func getPolicyRecommendationIdMap(clientset kubernetes.Interface, kubeconfig str
 }
 
 func deletePolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, recoID string) (err error) {
-	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	connect, portForward, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if portForward != nil {
 		defer portForward.Stop()
 	}

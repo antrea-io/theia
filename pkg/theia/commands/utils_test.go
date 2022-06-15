@@ -21,6 +21,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"antrea.io/theia/pkg/theia/commands/config"
+	"antrea.io/theia/pkg/theia/util"
 )
 
 func TestGetServiceAddr(t *testing.T) {
@@ -38,7 +41,7 @@ func TestGetServiceAddr(t *testing.T) {
 				&v1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-clickhouse",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Spec: v1.ServiceSpec{
 						Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000}},
@@ -62,7 +65,7 @@ func TestGetServiceAddr(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ip, port, err := GetServiceAddr(tt.fakeClientset, tt.serviceName)
+			ip, port, err := util.GetServiceAddr(tt.fakeClientset, tt.serviceName)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			}
@@ -84,7 +87,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels:    map[string]string{"app": "clickhouse"},
 					},
 					Status: v1.PodStatus{
@@ -94,7 +97,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "spark-operator",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels: map[string]string{
 							"app.kubernetes.io/name": "spark-operator",
 						},
@@ -117,7 +120,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "spark-operator",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels: map[string]string{
 							"app.kubernetes.io/name": "spark-operator",
 						},
@@ -132,7 +135,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := PolicyRecoPreCheck(tt.fakeClientset)
+			err := util.PolicyRecoPreCheck(tt.fakeClientset)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			} else {

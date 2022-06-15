@@ -1,6 +1,6 @@
 module antrea.io/theia
 
-go 1.17
+go 1.18
 
 require (
 	antrea.io/antrea v1.6.0
@@ -8,7 +8,9 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/containernetworking/plugins v0.8.7
 	github.com/google/uuid v1.1.2
+	github.com/jedib0t/go-pretty/v6 v6.3.2
 	github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.0
@@ -52,6 +54,11 @@ require (
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0 // indirect
+	github.com/mailru/easyjson v0.7.0 // indirect
+	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

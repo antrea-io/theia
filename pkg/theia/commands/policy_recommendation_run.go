@@ -29,19 +29,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"antrea.io/theia/pkg/theia/util"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
-)
 
-const (
-	flowVisibilityNS        = "flow-visibility"
-	k8sQuantitiesReg        = "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
-	sparkImage              = "projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"
-	sparkImagePullPolicy    = "IfNotPresent"
-	sparkAppFile            = "local:///opt/spark/work-dir/policy_recommendation_job.py"
-	sparkServiceAccount     = "policy-recommendation-spark"
-	sparkVersion            = "3.1.1"
-	statusCheckPollInterval = 5 * time.Second
-	statusCheckPollTimeout  = 60 * time.Minute
+	"antrea.io/theia/pkg/theia/commands/config"
 )
 
 type SparkResourceArgs struct {
@@ -176,7 +167,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		if err != nil {
 			return err
 		}
-		matchResult, err := regexp.MatchString(k8sQuantitiesReg, driverCoreRequest)
+		matchResult, err := regexp.MatchString(config.K8sQuantitiesReg, driverCoreRequest)
 		if err != nil || !matchResult {
 			return fmt.Errorf("driver-core-request should conform to the Kubernetes resource quantity convention")
 		}
@@ -186,7 +177,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		if err != nil {
 			return err
 		}
-		matchResult, err = regexp.MatchString(k8sQuantitiesReg, driverMemory)
+		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, driverMemory)
 		if err != nil || !matchResult {
 			return fmt.Errorf("driver-memory should conform to the Kubernetes resource quantity convention")
 		}
@@ -196,7 +187,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		if err != nil {
 			return err
 		}
-		matchResult, err = regexp.MatchString(k8sQuantitiesReg, executorCoreRequest)
+		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorCoreRequest)
 		if err != nil || !matchResult {
 			return fmt.Errorf("executor-core-request should conform to the Kubernetes resource quantity convention")
 		}
@@ -206,17 +197,17 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		if err != nil {
 			return err
 		}
-		matchResult, err = regexp.MatchString(k8sQuantitiesReg, executorMemory)
+		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorMemory)
 		if err != nil || !matchResult {
 			return fmt.Errorf("executor-memory should conform to the Kubernetes resource quantity convention")
 		}
 		sparkResourceArgs.executorMemory = executorMemory
 
-		kubeconfig, err := ResolveKubeConfig(cmd)
+		kubeconfig, err := util.ResolveKubeConfig(cmd)
 		if err != nil {
 			return err
 		}
-		clientset, err := CreateK8sClient(kubeconfig)
+		clientset, err := util.CreateK8sClient(kubeconfig)
 		if err != nil {
 			return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
 		}
@@ -226,7 +217,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 			return err
 		}
 
-		err = PolicyRecoPreCheck(clientset)
+		err = util.PolicyRecoPreCheck(clientset)
 		if err != nil {
 			return err
 		}
@@ -240,22 +231,22 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "pr-" + recommendationID,
-				Namespace: flowVisibilityNS,
+				Namespace: config.FlowVisibilityNS,
 			},
 			Spec: sparkv1.SparkApplicationSpec{
 				Type:                "Python",
-				SparkVersion:        sparkVersion,
+				SparkVersion:        config.SparkVersion,
 				Mode:                "cluster",
-				Image:               ConstStrToPointer(sparkImage),
-				ImagePullPolicy:     ConstStrToPointer(sparkImagePullPolicy),
-				MainApplicationFile: ConstStrToPointer(sparkAppFile),
+				Image:               util.ConstStrToPointer(config.SparkImage),
+				ImagePullPolicy:     util.ConstStrToPointer(config.SparkImagePullPolicy),
+				MainApplicationFile: util.ConstStrToPointer(config.SparkAppFile),
 				Arguments:           recoJobArgs,
 				Driver: sparkv1.DriverSpec{
 					CoreRequest: &driverCoreRequest,
 					SparkPodSpec: sparkv1.SparkPodSpec{
 						Memory: &driverMemory,
 						Labels: map[string]string{
-							"version": sparkVersion,
+							"version": config.SparkVersion,
 						},
 						EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 							"CH_USERNAME": {
@@ -267,7 +258,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 								Key:  "password",
 							},
 						},
-						ServiceAccount: ConstStrToPointer(sparkServiceAccount),
+						ServiceAccount: util.ConstStrToPointer(config.SparkServiceAccount),
 					},
 				},
 				Executor: sparkv1.ExecutorSpec{
@@ -275,7 +266,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 					SparkPodSpec: sparkv1.SparkPodSpec{
 						Memory: &executorMemory,
 						Labels: map[string]string{
-							"version": sparkVersion,
+							"version": config.SparkVersion,
 						},
 						EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 							"CH_USERNAME": {
@@ -296,7 +287,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		err = clientset.CoreV1().RESTClient().
 			Post().
 			AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-			Namespace(flowVisibilityNS).
+			Namespace(config.FlowVisibilityNS).
 			Resource("sparkapplications").
 			Body(recommendationApplication).
 			Do(context.TODO()).
@@ -305,7 +296,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 			return err
 		}
 		if waitFlag {
-			err = wait.Poll(statusCheckPollInterval, statusCheckPollTimeout, func() (bool, error) {
+			err = wait.Poll(config.StatusCheckPollInterval, config.StatusCheckPollTimeout, func() (bool, error) {
 				state, err := getPolicyRecommendationStatus(clientset, recommendationID)
 				if err != nil {
 					return false, err
@@ -345,7 +336,7 @@ Job is still running. Please check completion status for job via CLI later.`, re
 			if err != nil {
 				return err
 			}
-			if err := CheckClickHousePod(clientset); err != nil {
+			if err := util.CheckClickHousePod(clientset); err != nil {
 				return err
 			}
 			recoResult, err := getPolicyRecommendationResult(clientset, kubeconfig, endpoint, useClusterIP, filePath, recommendationID)

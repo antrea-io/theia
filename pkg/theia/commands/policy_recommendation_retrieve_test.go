@@ -22,6 +22,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"antrea.io/theia/pkg/theia/commands/config"
+	"antrea.io/theia/pkg/theia/util"
 )
 
 func TestGetClickHouseSecret(t *testing.T) {
@@ -38,7 +41,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"username": []byte("clickhouse_operator"),
@@ -63,7 +66,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"password": []byte("clickhouse_operator_password"),
@@ -80,7 +83,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"username": []byte("clickhouse_operator"),
@@ -94,7 +97,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			username, password, err := getClickHouseSecret(tt.fakeClientset)
+			username, password, err := util.GetClickHouseSecret(tt.fakeClientset)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			}

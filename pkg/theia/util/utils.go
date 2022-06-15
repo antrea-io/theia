@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package util
 
 import (
 	"context"
@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/theia/portforwarder"
 )
 
@@ -59,7 +60,7 @@ func PolicyRecoPreCheck(clientset kubernetes.Interface) error {
 
 func CheckSparkOperatorPod(clientset kubernetes.Interface) error {
 	// Check the deployment of Spark Operator in flow-visibility ns
-	pods, err := clientset.CoreV1().Pods(flowVisibilityNS).List(context.TODO(), metav1.ListOptions{
+	pods, err := clientset.CoreV1().Pods(config.FlowVisibilityNS).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/name=spark-operator",
 	})
 	if err != nil {
@@ -76,14 +77,14 @@ func CheckSparkOperatorPod(clientset kubernetes.Interface) error {
 		}
 	}
 	if !hasRunningPod {
-		return fmt.Errorf("can't find a running ClickHouse Pod, please check the deployment of ClickHouse")
+		return fmt.Errorf("can't find a running Spark Operator Pod, please check the deployment of Spark")
 	}
 	return nil
 }
 
 func CheckClickHousePod(clientset kubernetes.Interface) error {
 	// Check the ClickHouse deployment in flow-visibility namespace
-	pods, err := clientset.CoreV1().Pods(flowVisibilityNS).List(context.TODO(), metav1.ListOptions{
+	pods, err := clientset.CoreV1().Pods(config.FlowVisibilityNS).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: "app=clickhouse",
 	})
 	if err != nil {
@@ -112,7 +113,7 @@ func ConstStrToPointer(constStr string) *string {
 func GetServiceAddr(clientset kubernetes.Interface, serviceName string) (string, int, error) {
 	var serviceIP string
 	var servicePort int
-	service, err := clientset.CoreV1().Services(flowVisibilityNS).Get(context.TODO(), serviceName, metav1.GetOptions{})
+	service, err := clientset.CoreV1().Services(config.FlowVisibilityNS).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		return serviceIP, servicePort, fmt.Errorf("error when finding the Service %s: %v", serviceName, err)
 	}
@@ -129,12 +130,12 @@ func GetServiceAddr(clientset kubernetes.Interface, serviceName string) (string,
 }
 
 func StartPortForward(kubeconfig string, service string, servicePort int, listenAddress string, listenPort int) (*portforwarder.PortForwarder, error) {
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	configuration, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err
 	}
 	// Forward the policy recommendation service port
-	pf, err := portforwarder.NewServicePortForwarder(config, flowVisibilityNS, service, servicePort, listenAddress, listenPort)
+	pf, err := portforwarder.NewServicePortForwarder(configuration, config.FlowVisibilityNS, service, servicePort, listenAddress, listenPort)
 	if err != nil {
 		return nil, err
 	}

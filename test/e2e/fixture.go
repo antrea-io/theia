@@ -43,7 +43,7 @@ func ensureAntreaRunning(data *TestData) error {
 }
 
 func teardownTest(tb testing.TB, data *TestData) {
-	exportLogs(tb, data, "beforeTeardown", true)
+	exportLogs(tb, data, "beforeTeardown", true, false)
 	if empty, _ := IsDirEmpty(data.logsDirForTestCase); empty {
 		_ = os.Remove(data.logsDirForTestCase)
 	}
@@ -124,24 +124,26 @@ func forAllNodes(fn func(nodeName string) error) error {
 	return nil
 }
 
-func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs bool) {
-	if tb.Skipped() {
-		return
-	}
-	// if test was successful and --logs-export-on-success was not provided, we do not export
-	// any logs.
-	if !tb.Failed() && !testOptions.logsExportOnSuccess {
-		return
+func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs bool, testMain bool) {
+	if !testMain {
+		if tb.Skipped() {
+			return
+		}
+		// if test was successful and --logs-export-on-success was not provided, we do not export
+		// any logs.
+		if !tb.Failed() && !testOptions.logsExportOnSuccess {
+			return
+		}
 	}
 	const timeFormat = "Jan02-15-04-05"
 	timeStamp := time.Now().Format(timeFormat)
 	logsDir := filepath.Join(data.logsDirForTestCase, fmt.Sprintf("%s.%s", logsSubDir, timeStamp))
 	err := createDirectory(logsDir)
 	if err != nil {
-		tb.Errorf("Error when creating logs directory '%s': %v", logsDir, err)
+		log.Printf("Error when creating logs directory '%s': %v", logsDir, err)
 		return
 	}
-	tb.Logf("Exporting test logs to '%s'", logsDir)
+	log.Printf("Exporting test logs to '%s'", logsDir)
 	// for now we just retrieve the logs for the Antrea Pods, but maybe we can find a good way to
 	// retrieve the logs for the test Pods in the future (before deleting them) if it is useful
 	// for debugging.
@@ -152,7 +154,7 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 		logFile := filepath.Join(logsDir, fmt.Sprintf("%s-%s-%s", nodeName, podName, suffix))
 		f, err := os.Create(logFile)
 		if err != nil {
-			tb.Errorf("Error when creating log file '%s': '%v'", logFile, err)
+			log.Printf("Error when creating log file '%s': '%v'", logFile, err)
 			return nil
 		}
 		return f
@@ -163,7 +165,7 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 	runKubectl := func(cmd string) string {
 		rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 		if err != nil || rc != 0 {
-			tb.Errorf("Error when running kubectl command on control-plane Node, cmd:%s\nstdout:%s\nstderr:%s", cmd, stdout, stderr)
+			log.Printf("Error when running kubectl command on control-plane Node, cmd:%s\nstdout:%s\nstderr:%s", cmd, stdout, stderr)
 			return ""
 		}
 		return stdout
@@ -188,14 +190,16 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 
 	data.forAllMatchingPodsInNamespace("app=antrea", antreaNamespace, writePodLogs)
 
-	// dump the logs for flow-aggregator Pods to disk.
-	data.forAllMatchingPodsInNamespace("", flowAggregatorNamespace, writePodLogs)
+	if !testMain {
+		// dump the logs for flow-aggregator Pods to disk.
+		data.forAllMatchingPodsInNamespace("", flowAggregatorNamespace, writePodLogs)
 
-	// dump the logs for flow-visibility Pods to disk.
-	data.forAllMatchingPodsInNamespace("", flowVisibilityNamespace, writePodLogs)
+		// dump the logs for flow-visibility Pods to disk.
+		data.forAllMatchingPodsInNamespace("", flowVisibilityNamespace, writePodLogs)
 
-	// dump the logs for clickhouse operator Pods to disk.
-	data.forAllMatchingPodsInNamespace("app=clickhouse-operator", kubeNamespace, writePodLogs)
+		// dump the logs for clickhouse operator Pods to disk.
+		data.forAllMatchingPodsInNamespace("app=clickhouse-operator", kubeNamespace, writePodLogs)
+	}
 
 	// dump the output of "kubectl describe" for Antrea pods to disk.
 	data.forAllMatchingPodsInNamespace("app=antrea", antreaNamespace, func(nodeName, podName, nsName string) error {
@@ -222,13 +226,13 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 		logFile := filepath.Join(logsDir, fmt.Sprintf("%s-%s", nodeName, suffix))
 		f, err := os.Create(logFile)
 		if err != nil {
-			tb.Errorf("Error when creating log file '%s': '%v'", logFile, err)
+			log.Printf("Error when creating log file '%s': '%v'", logFile, err)
 			return nil
 		}
 		return f
 	}
 	// export kubelet logs with journalctl for each Node. If the Nodes do not use journalctl we
-	// print a log message. If kubelet is not run with systemd, the log file will be empty.
+	// print a log message. If kubelet is not running with systemd, the log file will be empty.
 	if err := forAllNodes(func(nodeName string) error {
 		const numLines = 100
 		// --no-pager ensures the command does not hang.
@@ -250,7 +254,7 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 		w.WriteString(stdout)
 		return nil
 	}); err != nil {
-		tb.Logf("Error when exporting kubelet logs: %v", err)
+		log.Printf("Error when exporting kubelet logs: %v", err)
 	}
 }
 
@@ -263,7 +267,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	defer func() {
 		if !success {
 			tb.Fail()
-			exportLogs(tb, testData, "afterSetupTest", true)
+			exportLogs(tb, testData, "afterSetupTest", true, false)
 		}
 	}()
 	tb.Logf("Creating '%s' K8s Namespace", testNamespace)

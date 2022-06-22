@@ -124,18 +124,19 @@ func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
 }
 
 // Example output:
-// CreateTime          ID                                   Status
-// 2022-06-10 15:03:24 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
-// 2022-06-10 15:03:22 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
-// 2022-06-10 15:03:39 c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
+
+// CreationTime          CompletionTime        ID                                   Status
+// 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
+// 2022-06-17 15:03:22 2022-06-17 18:08:37 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
+// 2022-06-17 15:03:39 N/A                 c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
 func testPolicyRecommendationList(t *testing.T, data *TestData) {
 	_, jobId, err := runJob(t, data)
 	require.NoError(t, err)
 	stdout, err := listJobs(t, data)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, "CreateTime", "stdout: %s", stdout)
-	assert.Containsf(stdout, "CompleteTime", "stdout: %s", stdout)
+	assert.Containsf(stdout, "CreationTime", "stdout: %s", stdout)
+	assert.Containsf(stdout, "CompletionTime", "stdout: %s", stdout)
 	assert.Containsf(stdout, "ID", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Status", "stdout: %s", stdout)
 	assert.Containsf(stdout, jobId, "stdout: %s", stdout)

@@ -17,7 +17,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -56,9 +55,9 @@ $ theia policy-recommendation list
 			return err
 		}
 		if endpoint != "" {
-			_, err := url.ParseRequestURI(endpoint)
+			err = ParseEndpoint(endpoint)
 			if err != nil {
-				return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
+				return err
 			}
 		}
 		useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
@@ -88,7 +87,7 @@ $ theia policy-recommendation list
 		}
 
 		sparkApplicationTable := [][]string{
-			{"CreateTime", "CompleteTime", "ID", "Status"},
+			{"CreationTime", "CompletionTime", "ID", "Status"},
 		}
 		idMap := make(map[string]bool)
 		for _, sparkApplication := range sparkApplicationList.Items {
@@ -122,40 +121,12 @@ $ theia policy-recommendation list
 }
 
 func getCompletedPolicyRecommendationList(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (completedPolicyRecommendationList []policyRecommendationRow, err error) {
-	if endpoint == "" {
-		service := "clickhouse-clickhouse"
-		if useClusterIP {
-			serviceIP, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return completedPolicyRecommendationList, fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
-		} else {
-			listenAddress := "localhost"
-			listenPort := 9000
-			_, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return completedPolicyRecommendationList, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-			}
-			// Forward the ClickHouse service port
-			pf, err := StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-			if err != nil {
-				return completedPolicyRecommendationList, fmt.Errorf("error when forwarding port: %v", err)
-			}
-			defer pf.Stop()
-			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-		}
+	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	if portForward != nil {
+		defer portForward.Stop()
 	}
-
-	// Connect to ClickHouse and get the result
-	username, password, err := getClickHouseSecret(clientset)
 	if err != nil {
 		return completedPolicyRecommendationList, err
-	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err := connectClickHouse(clientset, url)
-	if err != nil {
-		return completedPolicyRecommendationList, fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}
 	query := "SELECT timeCreated, id FROM recommendations;"
 	rows, err := connect.Query(query)
@@ -167,7 +138,7 @@ func getCompletedPolicyRecommendationList(clientset kubernetes.Interface, kubeco
 		var row policyRecommendationRow
 		err := rows.Scan(&row.timeComplete, &row.id)
 		if err != nil {
-			return completedPolicyRecommendationList, fmt.Errorf("err when scaning recommendations row %v", err)
+			return completedPolicyRecommendationList, fmt.Errorf("err when scanning recommendations row %v", err)
 		}
 		completedPolicyRecommendationList = append(completedPolicyRecommendationList, row)
 	}
@@ -176,15 +147,4 @@ func getCompletedPolicyRecommendationList(clientset kubernetes.Interface, kubeco
 
 func init() {
 	policyRecommendationCmd.AddCommand(policyRecommendationListCmd)
-	policyRecommendationListCmd.Flags().String(
-		"clickhouse-endpoint",
-		"",
-		"The ClickHouse service endpoint.",
-	)
-	policyRecommendationListCmd.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use Service ClusterIP instead of port forwarding when connecting to the ClickHouse service.
-It can only be used when running theia in cluster.`,
-	)
 }

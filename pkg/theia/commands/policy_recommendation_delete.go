@@ -17,9 +17,7 @@ package commands
 import (
 	"context"
 	"fmt"
-	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 
@@ -45,9 +43,9 @@ $ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
 		if recoID == "" && len(args) == 1 {
 			recoID = args[0]
 		}
-		_, err = uuid.Parse(recoID)
+		err = ParseRecommendationID(recoID)
 		if err != nil {
-			return fmt.Errorf("failed to decode input id %s into a UUID, err: %v", recoID, err)
+			return err
 		}
 		kubeconfig, err := ResolveKubeConfig(cmd)
 		if err != nil {
@@ -58,9 +56,9 @@ $ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
 			return err
 		}
 		if endpoint != "" {
-			_, err := url.ParseRequestURI(endpoint)
+			err = ParseEndpoint(endpoint)
 			if err != nil {
-				return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
+				return err
 			}
 		}
 		useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
@@ -75,7 +73,7 @@ $ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
 
 		idMap, err := getPolicyRecommendationIdMap(clientset, kubeconfig, endpoint, useClusterIP)
 		if err != nil {
-			return fmt.Errorf("err when get policy recommendation ID map, %v", err)
+			return fmt.Errorf("err when getting policy recommendation ID map, %v", err)
 		}
 
 		if _, ok := idMap[recoID]; !ok {
@@ -125,40 +123,12 @@ func getPolicyRecommendationIdMap(clientset kubernetes.Interface, kubeconfig str
 }
 
 func deletePolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, recoID string) (err error) {
-	if endpoint == "" {
-		service := "clickhouse-clickhouse"
-		if useClusterIP {
-			serviceIP, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
-		} else {
-			listenAddress := "localhost"
-			listenPort := 9000
-			_, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-			}
-			// Forward the ClickHouse service port
-			pf, err := StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-			if err != nil {
-				return fmt.Errorf("error when forwarding port: %v", err)
-			}
-			defer pf.Stop()
-			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-		}
+	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	if portForward != nil {
+		defer portForward.Stop()
 	}
-
-	// Connect to ClickHouse and get the result
-	username, password, err := getClickHouseSecret(clientset)
 	if err != nil {
 		return err
-	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err := connectClickHouse(clientset, url)
-	if err != nil {
-		return fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}
 	query := "ALTER TABLE recommendations DELETE WHERE id = (?);"
 	_, err = connect.Exec(query, recoID)
@@ -175,16 +145,5 @@ func init() {
 		"i",
 		"",
 		"ID of the policy recommendation Spark job.",
-	)
-	policyRecommendationDeleteCmd.Flags().String(
-		"clickhouse-endpoint",
-		"",
-		"The ClickHouse service endpoint.",
-	)
-	policyRecommendationDeleteCmd.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use Service ClusterIP instead of port forwarding when connecting to the ClickHouse service.
-It can only be used when running theia in cluster.`,
 	)
 }

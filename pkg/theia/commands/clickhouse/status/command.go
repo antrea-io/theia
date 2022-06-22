@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clickhouse
+package status
 
 import (
 	"database/sql"
@@ -28,8 +28,8 @@ import (
 )
 
 type chOptions struct {
-	diskUsage   bool
-	numRecords  bool
+	diskInfo    bool
+	tableInfo   bool
 	insertRate  bool
 	formatTable bool
 }
@@ -83,22 +83,22 @@ var options *chOptions
 var Command *cobra.Command
 
 var example = strings.Trim(`
-theia get clickhouse --storage
-theia get clickhouse --storage --print-table
-theia get clickhouse --storage --record-number --insertion-rate --print-table
+theia clickhouse status --storage
+theia clickhouse status --storage --print-table
+theia clickhouse status --storage --record-number --insertion-rate --print-table
 `, "\n")
 
 func init() {
 	Command = &cobra.Command{
-		Use:     "clickhouse",
-		Short:   "check clickhouse status",
+		Use:     "status",
+		Short:   "Get diagnostic infos of ClickHouse database",
 		Example: example,
 		Args:    cobra.NoArgs,
 		RunE:    getClickHouseStatus,
 	}
 	options = &chOptions{}
-	Command.Flags().BoolVar(&options.diskUsage, "storage", false, "check storage")
-	Command.Flags().BoolVar(&options.numRecords, "record-number", false, "check number of records")
+	Command.Flags().BoolVar(&options.diskInfo, "diskInfo", false, "check storage")
+	Command.Flags().BoolVar(&options.tableInfo, "tableInfo", false, "check number of records")
 	Command.Flags().BoolVar(&options.insertRate, "insertion-rate", false, "check insertion-rate")
 	Command.Flags().BoolVar(&options.formatTable, "print-table", false, "output data in table format")
 	Command.Flags().String("clickhouse-endpoint", "", "The ClickHouse service endpoint.")
@@ -111,8 +111,8 @@ It can only be used when running theia in cluster.`,
 }
 
 func getClickHouseStatus(cmd *cobra.Command, args []string) error {
-	if !options.diskUsage && !options.numRecords && !options.insertRate {
-		return fmt.Errorf("no flag is specified")
+	if !options.diskInfo && !options.tableInfo && !options.insertRate {
+		return fmt.Errorf("no metric related flag is specified")
 	}
 	kubeconfig, err := util.ResolveKubeConfig(cmd)
 	if err != nil {
@@ -137,46 +137,18 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if endpoint == "" {
-		service := "clickhouse-clickhouse"
-		if useClusterIP {
-			serviceIP, servicePort, err := util.GetServiceAddr(clientset, service)
-			if err != nil {
-				return fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
-		} else {
-			listenAddress := "localhost"
-			listenPort := 9000
-			_, servicePort, err := util.GetServiceAddr(clientset, service)
-			if err != nil {
-				return fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-			}
-			// Forward the ClickHouse service port
-			pf, err := util.StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-			if err != nil {
-				return fmt.Errorf("error when forwarding port: %v", err)
-			}
-			defer pf.Stop()
-			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-			fmt.Println(endpoint)
-		}
-	}
-
 	if err := util.CheckClickHousePod(clientset); err != nil {
 		return err
 	}
 	// Connect to ClickHouse and get the result
-	username, password, err := util.GetClickHouseSecret(clientset)
+	connect, pf, err := util.SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if err != nil {
 		return err
 	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err := util.ConnectClickHouse(clientset, url)
-	if err != nil {
-		return fmt.Errorf("error when connecting to ClickHouse, %v", err)
+	if pf != nil {
+		defer pf.Stop()
 	}
-	if options.diskUsage {
+	if options.diskInfo {
 		data, err := getDiskInfoFromClickHouse(connect)
 		if err != nil {
 			return err
@@ -189,7 +161,7 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 			}
 		}
 	}
-	if options.numRecords {
+	if options.tableInfo {
 		data, err := getTableInfoBasicFromClickHouse(connect)
 		if err != nil {
 			return err

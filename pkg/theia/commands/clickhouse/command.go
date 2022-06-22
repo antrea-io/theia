@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package get
+package clickhouse
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
-	"antrea.io/theia/pkg/theia/commands/get/clickhouse"
+	"antrea.io/theia/pkg/theia/commands/clickhouse/status"
 )
 
-var GetCmd = &cobra.Command{
-	Use:   "get",
-	Short: "Get diagnostic infos of ClickHouse DataBase or Spark",
+var ClickHouseCmd = &cobra.Command{
+	Use:     "clickhouse",
+	Aliases: []string{"ch"},
+	Short:   "Commands of Theia ClickHouse feature",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Error: must also specify a subcommand to run")
 	},
 }
 
 func init() {
-	GetCmd.AddCommand(clickhouse.Command)
+	ClickHouseCmd.AddCommand(status.Command)
 }

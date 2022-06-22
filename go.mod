@@ -1,6 +1,6 @@
 module antrea.io/theia
 
-go 1.18
+go 1.17
 
 require (
 	antrea.io/antrea v1.6.0
@@ -8,7 +8,6 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/containernetworking/plugins v0.8.7
 	github.com/google/uuid v1.1.2
-	github.com/jedib0t/go-pretty/v6 v6.3.2
 	github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/sirupsen/logrus v1.8.1

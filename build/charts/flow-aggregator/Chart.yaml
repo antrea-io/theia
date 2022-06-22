@@ -3,8 +3,8 @@ name: flow-aggregator
 type: application
 displayName: flow-aggregator
 home: https://antrea.io/
-version: 1.7.0-dev
-appVersion: 1.7.0-dev
+version: 1.7.0
+appVersion: 1.7.0
 kubeVersion: ">= 1.16.0-0"
 icon: https://raw.githubusercontent.com/antrea-io/antrea/main/docs/assets/logo/antrea_logo.svg
 description: Antrea Network Flow Aggregator

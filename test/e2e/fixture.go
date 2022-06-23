@@ -281,7 +281,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	return testData, nil
 }
 
-func setupTestForFlowAggregator(tb testing.TB, withSparkOperator bool) (*TestData, bool, bool, error) {
+func setupTestForFlowVisibility(tb testing.TB, withSparkOperator bool) (*TestData, bool, bool, error) {
 	v4Enabled := clusterInfo.podV4NetworkCIDR != ""
 	v6Enabled := clusterInfo.podV6NetworkCIDR != ""
 	testData, err := setupTest(tb)

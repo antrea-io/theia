@@ -34,86 +34,60 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"antrea.io/antrea/pkg/agent/openflow"
-	"antrea.io/antrea/pkg/antctl"
-	"antrea.io/antrea/pkg/antctl/runtime"
 	secv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	"antrea.io/antrea/test/e2e/utils"
 )
 
-/* Sample output from the collector:
-IPFIX-HDR:
-  version: 10,  Message Length: 617
-  Exported Time: 1637706974 (2021-11-23 22:36:14 +0000 UTC)
-  Sequence No.: 27,  Observation Domain ID: 2569248951
-DATA SET:
-  DATA RECORD-0:
-    flowStartSeconds: 1637706961
-    flowEndSeconds: 1637706973
-    flowEndReason: 3
-    sourceTransportPort: 44752
-    destinationTransportPort: 5201
-    protocolIdentifier: 6
-    packetTotalCount: 823188
-    octetTotalCount: 30472817041
-    packetDeltaCount: 241333
-    octetDeltaCount: 8982624938
-    sourceIPv4Address: 10.10.0.79
-    destinationIPv4Address: 10.10.0.80
-    reversePacketTotalCount: 471111
-    reverseOctetTotalCount: 24500996
-    reversePacketDeltaCount: 136211
-    reverseOctetDeltaCount: 7083284
-    sourcePodName: perftest-a
-    sourcePodNamespace: antrea-test
-    sourceNodeName: k8s-node-control-plane
-    destinationPodName: perftest-b
-    destinationPodNamespace: antrea-test
-    destinationNodeName: k8s-node-control-plane
-    destinationServicePort: 0
-    destinationServicePortName:
-    ingressNetworkPolicyName: test-flow-aggregator-networkpolicy-ingress-allow
-    ingressNetworkPolicyNamespace: antrea-test
-    ingressNetworkPolicyType: 1
-    ingressNetworkPolicyRuleName:
-    ingressNetworkPolicyRuleAction: 1
-    egressNetworkPolicyName: test-flow-aggregator-networkpolicy-egress-allow
-    egressNetworkPolicyNamespace: antrea-test
-    egressNetworkPolicyType: 1
-    egressNetworkPolicyRuleName:
-    egressNetworkPolicyRuleAction: 1
-    tcpState: TIME_WAIT
-    flowType: 1
-    destinationClusterIPv4: 0.0.0.0
-    octetDeltaCountFromSourceNode: 8982624938
-    octetDeltaCountFromDestinationNode: 8982624938
-    octetTotalCountFromSourceNode: 30472817041
-    octetTotalCountFromDestinationNode: 30472817041
-    packetDeltaCountFromSourceNode: 241333
-    packetDeltaCountFromDestinationNode: 241333
-    packetTotalCountFromSourceNode: 823188
-    packetTotalCountFromDestinationNode: 823188
-    reverseOctetDeltaCountFromSourceNode: 7083284
-    reverseOctetDeltaCountFromDestinationNode: 7083284
-    reverseOctetTotalCountFromSourceNode: 24500996
-    reverseOctetTotalCountFromDestinationNode: 24500996
-    reversePacketDeltaCountFromSourceNode: 136211
-    reversePacketDeltaCountFromDestinationNode: 136211
-    reversePacketTotalCountFromSourceNode: 471111
-    reversePacketTotalCountFromDestinationNode: 471111
-    flowEndSecondsFromSourceNode: 1637706973
-    flowEndSecondsFromDestinationNode: 1637706973
-    throughput: 15902813472
-    throughputFromSourceNode: 15902813472
-    throughputFromDestinationNode: 15902813472
-    reverseThroughput: 12381344
-    reverseThroughputFromSourceNode: 12381344
-    reverseThroughputFromDestinationNode: 12381344
-    sourcePodLabels: {"antrea-e2e":"perftest-a","app":"perftool"}
-    destinationPodLabels: {"antrea-e2e":"perftest-b","app":"perftool"}
-Intra-Node: Flow record information is complete for source and destination e.g. sourcePodName, destinationPodName
-Inter-Node: Flow record from destination Node is ignored, so only flow record from the source Node has its K8s info e.g., sourcePodName, sourcePodNamespace, sourceNodeName etc.
-AntreaProxy enabled (Intra-Node): Flow record information is complete for source and destination along with K8s service info such as destinationClusterIP, destinationServicePort, destinationServicePortName etc.
-AntreaProxy enabled (Inter-Node): Flow record from destination Node is ignored, so only flow record from the source Node has its K8s info like in Inter-Node case along with K8s Service info such as destinationClusterIP, destinationServicePort, destinationServicePortName etc.
+/* Sample record in ClickHouse table:
+timeInserted: 1637706985
+flowStartSeconds: 1637706961
+flowEndSeconds: 1637706973
+flowEndSecondsFromSourceNode: 1637706973
+flowEndSecondsFromDestinationNode: 1637706973
+flowEndReason: 3
+sourceIP: 10.10.0.79
+destinationIP: 10.10.0.80
+sourceTransportPort: 44752
+destinationTransportPort: 5201
+protocolIdentifier: 6
+packetTotalCount: 823188
+octetTotalCount: 30472817041
+packetDeltaCount: 241333
+octetDeltaCount: 8982624938
+reversePacketTotalCount: 471111
+reverseOctetTotalCount: 24500996
+reversePacketDeltaCount: 136211
+reverseOctetDeltaCount: 7083284
+sourcePodName: perftest-a
+sourcePodNamespace: antrea-test
+sourceNodeName: k8s-node-control-plane
+destinationPodName: perftest-b
+destinationPodNamespace: antrea-test
+destinationNodeName: k8s-node-control-plane
+destinationClusterIP: 0.0.0.0
+destinationServicePort: 0
+destinationServicePortName:
+ingressNetworkPolicyName: test-flow-aggregator-networkpolicy-ingress-allow
+ingressNetworkPolicyNamespace: antrea-test
+ingressNetworkPolicyRuleName:
+ingressNetworkPolicyRuleAction: 1
+ingressNetworkPolicyType: 1
+egressNetworkPolicyName: test-flow-aggregator-networkpolicy-egress-allow
+egressNetworkPolicyNamespace: antrea-test
+egressNetworkPolicyRuleName:
+egressNetworkPolicyRuleAction: 1
+egressNetworkPolicyType: 1
+tcpState: TIME_WAIT
+flowType: 1
+sourcePodLabels: {"antrea-e2e":"perftest-a","app":"perftool"}
+destinationPodLabels: {"antrea-e2e":"perftest-b","app":"perftool"}
+throughput: 15902813472
+reverseThroughput: 12381344
+throughputFromSourceNode: 15902813472
+throughputFromDestinationNode: 15902813472
+reverseThroughputFromSourceNode: 12381344
+reverseThroughputFromDestinationNode: 12381344
+trusted: 0
 */
 
 const (
@@ -131,7 +105,6 @@ const (
 	testEgressRuleName             = "test-egress-rule-name"
 	clickHousePodName              = "chi-clickhouse-clickhouse-0-0-0"
 	iperfTimeSec                   = 12
-	protocolIdentifierTCP          = 6
 	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
 	// (default unlimited for TCP), to reduce the variances caused by network performance
 	// during 12s, and make the throughput test more stable.
@@ -158,14 +131,14 @@ type testFlow struct {
 	dstPodName string
 }
 
-func TestFlowAggregator(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowAggregator(t, false)
+func TestFlowVisibility(t *testing.T) {
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
 	defer func() {
 		teardownTest(t, data)
-		teardownFlowAggregator(t, data, false)
+		teardownFlowVisibility(t, data, false)
 	}()
 
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
@@ -489,88 +462,6 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 			checkRecordsForFlows(t, data, podAIPs.ipv4.String(), svcC.Spec.ClusterIP, isServiceIPv6, false, true, false, false)
 		}
 	})
-
-	// Antctl tests ensure antctl is available in a Flow Aggregator Pod
-	// and check the output of antctl commands.
-	t.Run("Antctl", func(t *testing.T) {
-		flowAggPod, err := data.getFlowAggregator()
-		if err != nil {
-			t.Fatalf("Error when getting flow-aggregator Pod: %v", err)
-		}
-		podName := flowAggPod.Name
-		for _, args := range antctl.CommandList.GetDebugCommands(runtime.ModeFlowAggregator) {
-			command := append([]string{"antctl", "-v"}, args...)
-			t.Logf("Run command: %s", command)
-
-			t.Run(strings.Join(command, " "), func(t *testing.T) {
-				stdout, stderr, err := runAntctl(podName, command, data)
-				require.NoErrorf(t, err, "Error when running 'antctl %s' from %s: %v\n%s", args, podName, err, antctlOutput(stdout, stderr))
-			})
-		}
-		t.Run("GetFlowRecordsJson", func(t *testing.T) {
-			checkAntctlGetFlowRecordsJson(t, data, podName, podAIPs, podBIPs, isIPv6)
-		})
-	})
-}
-
-func checkAntctlGetFlowRecordsJson(t *testing.T, data *TestData, podName string, podAIPs, podBIPs *PodIPs, isIPv6 bool) {
-	// A shorter iperfTime that provides stable test results, at which the first record ready in the AggregationProcess but not sent.
-	const iperfTimeSecShort = 5
-	var cmdStr, srcIP, dstIP string
-	// trigger a flow with iperf
-	if !isIPv6 {
-		srcIP = podAIPs.ipv4.String()
-		dstIP = podBIPs.ipv4.String()
-		cmdStr = fmt.Sprintf("iperf3 -c %s -t %d", dstIP, iperfTimeSecShort)
-	} else {
-		srcIP = podAIPs.ipv6.String()
-		dstIP = podBIPs.ipv6.String()
-		cmdStr = fmt.Sprintf("iperf3 -6 -c %s -t %d", dstIP, iperfTimeSecShort)
-	}
-	stdout, _, err := data.RunCommandFromPod(testNamespace, "perftest-a", "perftool", []string{"bash", "-c", cmdStr})
-	require.NoErrorf(t, err, "Error when running iperf3 client: %v", err)
-	_, srcPort, dstPort := getBandwidthAndPorts(stdout)
-
-	// run antctl command on flow aggregator to get flow records
-	args := []string{"get", "flowrecords", "-o", "json", "--srcip", srcIP, "--srcport", srcPort}
-	command := append([]string{"antctl"}, args...)
-	t.Logf("Run command: %s", command)
-	stdout, stderr, err := runAntctl(podName, command, data)
-	require.NoErrorf(t, err, "Error when running 'antctl get flowrecords -o json' from %s: %v\n%s", podName, err, antctlOutput(stdout, stderr))
-
-	var records []map[string]interface{}
-	err = json.Unmarshal([]byte(stdout), &records)
-	require.NoErrorf(t, err, "Error when parsing flow records from antctl: %v", err)
-	require.Len(t, records, 1)
-
-	checkAntctlRecord(t, records[0], srcIP, dstIP, srcPort, dstPort, isIPv6)
-}
-
-func checkAntctlRecord(t *testing.T, record map[string]interface{}, srcIP, dstIP, srcPort, dstPort string, isIPv6 bool) {
-	assert := assert.New(t)
-	if isIPv6 {
-		assert.Equal(srcIP, record["sourceIPv6Address"], "The record from antctl does not have correct sourceIPv6Address")
-		assert.Equal(dstIP, record["destinationIPv6Address"], "The record from antctl does not have correct destinationIPv6Address")
-	} else {
-		assert.Equal(srcIP, record["sourceIPv4Address"], "The record from antctl does not have correct sourceIPv4Address")
-		assert.Equal(dstIP, record["destinationIPv4Address"], "The record from antctl does not have correct destinationIPv4Address")
-	}
-	srcPortNum, err := strconv.Atoi(srcPort)
-	require.NoErrorf(t, err, "error when converting the iperf srcPort to int type: %s", srcPort)
-	assert.EqualValues(srcPortNum, record["sourceTransportPort"], "The record from antctl does not have correct sourceTransportPort")
-	assert.Equal("perftest-a", record["sourcePodName"], "The record from antctl does not have correct sourcePodName")
-	assert.Equal("antrea-test", record["sourcePodNamespace"], "The record from antctl does not have correct sourcePodNamespace")
-	assert.Equal(controlPlaneNodeName(), record["sourceNodeName"], "The record from antctl does not have correct sourceNodeName")
-
-	dstPortNum, err := strconv.Atoi(dstPort)
-	require.NoErrorf(t, err, "error when converting the iperf dstPort to int type: %s", dstPort)
-	assert.EqualValues(dstPortNum, record["destinationTransportPort"], "The record from antctl does not have correct destinationTransportPort")
-	assert.Equal("perftest-b", record["destinationPodName"], "The record from antctl does not have correct destinationPodName")
-	assert.Equal("antrea-test", record["destinationPodNamespace"], "The record from antctl does not have correct destinationPodNamespace")
-	assert.Equal(controlPlaneNodeName(), record["destinationNodeName"], "The record from antctl does not have correct destinationNodeName")
-
-	assert.EqualValues(ipfixregistry.FlowTypeIntraNode, record["flowType"], "The record from antctl does not have correct flowType")
-	assert.EqualValues(protocolIdentifierTCP, record["protocolIdentifier"], "The record from antctl does not have correct protocolIdentifier")
 }
 
 func checkRecordsForFlows(t *testing.T, data *TestData, srcIP string, dstIP string, isIPv6 bool, isIntraNode bool, checkService bool, checkK8sNetworkPolicy bool, checkAntreaNetworkPolicy bool) {
@@ -703,7 +594,6 @@ func checkRecordsForDenyFlows(t *testing.T, data *TestData, testFlow1, testFlow2
 	_, _, err = data.RunCommandFromPod(testNamespace, testFlow2.srcPodName, "", []string{"timeout", "2", "bash", "-c", cmdStr2})
 	assert.Error(t, err)
 
-	//checkRecordsForDenyFlowsCollector(t, data, testFlow1, testFlow2, isIPv6, isIntraNode, isANP)
 	checkRecordsForDenyFlowsClickHouse(t, data, testFlow1, testFlow2, isIPv6, isIntraNode, isANP)
 }
 
@@ -806,7 +696,6 @@ func getClickHouseOutput(t *testing.T, data *TestData, srcIP, dstIP, srcPort str
 		"--format=JSONEachRow",
 		fmt.Sprintf("--query=%s", query),
 	}
-	// ClickHouse output expected to be checked after IPFIX collector.
 	// Waiting additional 4x commit interval to be adequate for 3 commit attempts.
 	timeout := (exporterActiveFlowExportTimeout + aggregatorActiveFlowRecordTimeout*2 + aggregatorClickHouseCommitInterval*4) * 2
 	err := wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {

@@ -3,8 +3,8 @@ name: theia
 type: application
 displayName: Theia
 home: https://antrea.io/
-version: 0.1.0-dev
-appVersion: 0.1.0-dev
+version: 0.1.0
+appVersion: 0.1.0
 kubeVersion: ">= 1.16.0-0"
 icon: https://raw.githubusercontent.com/antrea-io/antrea/main/docs/assets/logo/antrea_logo.svg
 description: Antrea Network Flow Visibility

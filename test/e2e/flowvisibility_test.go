@@ -131,7 +131,7 @@ type testFlow struct {
 }
 
 func TestFlowVisibility(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false, true)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}

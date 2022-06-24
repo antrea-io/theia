@@ -28,13 +28,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"antrea.io/theia/pkg/theia/util"
+	"antrea.io/theia/pkg/theia/commands"
 )
 
 const (
 	getDiskInfoCmd   = "./theia clickhouse status --diskInfo"
 	getTableInfoCmd  = "./theia clickhouse status --tableInfo"
-	getInsertRateCmd = "./theia clickhouse status --insertion-rate"
+	getInsertRateCmd = "./theia clickhouse status --insertionRate"
 	insertQuery      = `INSERT INTO flows (
                    flowStartSeconds,
                    flowEndSeconds,
@@ -96,42 +96,29 @@ const (
 
 var targetTable = map[string]string{
 	".inner.flows_node_view":   "16",
-	".inner.flows_pod_view":    "17",
+	".inner.flows_pod_view":    "20",
 	".inner.flows_policy_view": "27",
 	"flows":                    "49",
 }
 
-var wg sync.WaitGroup
-
 func TestTheiaGetCommand(t *testing.T) {
-	data, _, _, err := setupTestForTheia(t, false, false)
+	data, _, _, err := setupTestForFlowVisibility(t, false, false)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
 	defer func() {
 		teardownTest(t, data)
-		teardownFlowAggregator(t, data, false)
+		teardownFlowVisibility(t, data, false)
 	}()
 
 	clientset := data.clientset
-	service := "clickhouse-clickhouse"
-	listenAddress := "localhost"
-	listenPort := 9000
-	_, servicePort, err := util.GetServiceAddr(clientset, service)
-	require.NoError(t, err)
-	// Forward the ClickHouse service port
 	kubeconfig, err := data.provider.GetKubeconfigPath()
 	require.NoError(t, err)
-	pf, err := util.StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
+	connect, pf, err := commands.SetupClickHouseConnection(clientset, kubeconfig, "", false)
 	require.NoError(t, err)
-	defer pf.Stop()
-	endpoint := fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-	username, password, err := util.GetClickHouseSecret(clientset)
-	require.NoError(t, err)
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	// Check connection
-	connect, err := util.ConnectClickHouse(url)
-	require.NoError(t, err)
+	if pf != nil {
+		defer pf.Stop()
+	}
 
 	t.Run("testTheiaGetClickHouseDiskInfo", func(t *testing.T) {
 		testTheiaGetClickHouseDiskInfo(t, data)
@@ -178,8 +165,12 @@ func testTheiaGetClickHouseDiskInfo(t *testing.T, data *TestData) {
 func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.DB) {
 	// send 10000 records to clickhouse
 	commitNum := 10
+	var wg sync.WaitGroup
 	wg.Add(1)
-	sendTraffic(t, commitNum, connect)
+	go func() {
+		defer wg.Done()
+		sendTraffic(t, commitNum, connect)
+	}()
 	wg.Wait()
 	// retrieve metrics
 	stdout, err := getClickHouseDBInfo(t, data, getTableInfoCmd)
@@ -226,8 +217,12 @@ func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.
 
 func testTheiaGetClickHouseInsertRate(t *testing.T, data *TestData, connect *sql.DB) {
 	commitNum := 70
+	var wg sync.WaitGroup
 	wg.Add(1)
-	go sendTraffic(t, commitNum, connect)
+	go func() {
+		defer wg.Done()
+		sendTraffic(t, commitNum, connect)
+	}()
 	// need to wait at least 1 min to get the insertion rate.
 	// insertion rate is the average ProfileEvent_InsertedRows in system.metric_log in current minute
 	time.Sleep(1 * time.Minute)
@@ -327,7 +322,7 @@ func addFakeRecord(t *testing.T, stmt *sql.Stmt) {
 	require.NoError(t, err)
 }
 
-func writeRecords(t *testing.T, connect *sql.DB) {
+func writeRecords(t *testing.T, connect *sql.DB, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// Test ping DB
 	var err error
@@ -346,12 +341,13 @@ func writeRecords(t *testing.T, connect *sql.DB) {
 }
 
 func sendTraffic(t *testing.T, commitNum int, connect *sql.DB) {
-	defer wg.Done()
+	var wg sync.WaitGroup
 	for i := 0; i < commitNum; i++ {
 		wg.Add(1)
-		go writeRecords(t, connect)
+		go writeRecords(t, connect, &wg)
 		time.Sleep(time.Duration(insertInterval) * time.Second)
 	}
+	wg.Wait()
 }
 
 func randInt(t *testing.T, limit int64) int64 {

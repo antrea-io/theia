@@ -20,8 +20,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
-
-	"antrea.io/theia/pkg/theia/commands/clickhouse"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -61,5 +59,4 @@ func init() {
 		"",
 		"absolute path to the k8s config file, will use $KUBECONFIG if not specified",
 	)
-	rootCmd.AddCommand(clickhouse.ClickHouseCmd)
 }

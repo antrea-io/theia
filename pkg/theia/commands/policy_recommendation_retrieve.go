@@ -23,8 +23,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
-
-	"antrea.io/theia/pkg/theia/util"
 )
 
 // policyRecommendationRetrieveCmd represents the policy-recommendation retrieve command
@@ -59,7 +57,7 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 		if err != nil {
 			return fmt.Errorf("failed to decode input id %s into a UUID, err: %v", recoID, err)
 		}
-		kubeconfig, err := util.ResolveKubeConfig(cmd)
+		kubeconfig, err := ResolveKubeConfig(cmd)
 		if err != nil {
 			return err
 		}
@@ -83,11 +81,11 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 		}
 
 		// Verify Clickhouse is running
-		clientset, err := util.CreateK8sClient(kubeconfig)
+		clientset, err := CreateK8sClient(kubeconfig)
 		if err != nil {
 			return fmt.Errorf("couldn't create k8s client using given kubeconfig: %v", err)
 		}
-		if err := util.CheckClickHousePod(clientset); err != nil {
+		if err := CheckClickHousePod(clientset); err != nil {
 			return err
 		}
 
@@ -104,7 +102,7 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 }
 
 func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, filePath string, recoID string) (recoResult string, err error) {
-	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	connect, portForward, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if portForward != nil {
 		defer portForward.Stop()
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package util
+package commands
 
 import (
 	"context"
@@ -163,7 +163,7 @@ func ResolveKubeConfig(cmd *cobra.Command) (string, error) {
 }
 
 func getClickHouseSecret(clientset kubernetes.Interface) (username []byte, password []byte, err error) {
-	secret, err := clientset.CoreV1().Secrets(flowVisibilityNS).Get(context.TODO(), "clickhouse-secret", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(config.FlowVisibilityNS).Get(context.TODO(), "clickhouse-secret", metav1.GetOptions{})
 	if err != nil {
 		return username, password, fmt.Errorf("error %v when finding the ClickHouse secret, please check the deployment of ClickHouse", err)
 	}
@@ -209,7 +209,7 @@ func connectClickHouse(clientset kubernetes.Interface, url string) (*sql.DB, err
 	return connect, nil
 }
 
-func setupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
+func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
 	if endpoint == "" {
 		service := "clickhouse-clickhouse"
 		if useClusterIP {

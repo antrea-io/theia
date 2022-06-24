@@ -29,7 +29,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"antrea.io/theia/pkg/theia/util"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 
 	"antrea.io/theia/pkg/theia/commands/config"
@@ -203,11 +202,11 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		}
 		sparkResourceArgs.executorMemory = executorMemory
 
-		kubeconfig, err := util.ResolveKubeConfig(cmd)
+		kubeconfig, err := ResolveKubeConfig(cmd)
 		if err != nil {
 			return err
 		}
-		clientset, err := util.CreateK8sClient(kubeconfig)
+		clientset, err := CreateK8sClient(kubeconfig)
 		if err != nil {
 			return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
 		}
@@ -217,7 +216,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 			return err
 		}
 
-		err = util.PolicyRecoPreCheck(clientset)
+		err = PolicyRecoPreCheck(clientset)
 		if err != nil {
 			return err
 		}
@@ -237,9 +236,9 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 				Type:                "Python",
 				SparkVersion:        config.SparkVersion,
 				Mode:                "cluster",
-				Image:               util.ConstStrToPointer(config.SparkImage),
-				ImagePullPolicy:     util.ConstStrToPointer(config.SparkImagePullPolicy),
-				MainApplicationFile: util.ConstStrToPointer(config.SparkAppFile),
+				Image:               ConstStrToPointer(config.SparkImage),
+				ImagePullPolicy:     ConstStrToPointer(config.SparkImagePullPolicy),
+				MainApplicationFile: ConstStrToPointer(config.SparkAppFile),
 				Arguments:           recoJobArgs,
 				Driver: sparkv1.DriverSpec{
 					CoreRequest: &driverCoreRequest,
@@ -258,7 +257,7 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 								Key:  "password",
 							},
 						},
-						ServiceAccount: util.ConstStrToPointer(config.SparkServiceAccount),
+						ServiceAccount: ConstStrToPointer(config.SparkServiceAccount),
 					},
 				},
 				Executor: sparkv1.ExecutorSpec{
@@ -336,7 +335,7 @@ Job is still running. Please check completion status for job via CLI later.`, re
 			if err != nil {
 				return err
 			}
-			if err := util.CheckClickHousePod(clientset); err != nil {
+			if err := CheckClickHousePod(clientset); err != nil {
 				return err
 			}
 			recoResult, err := getPolicyRecommendationResult(clientset, kubeconfig, endpoint, useClusterIP, filePath, recommendationID)

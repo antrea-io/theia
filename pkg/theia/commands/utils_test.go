@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"antrea.io/theia/pkg/theia/commands/config"
-	"antrea.io/theia/pkg/theia/util"
 )
 
 func TestGetServiceAddr(t *testing.T) {
@@ -65,7 +64,7 @@ func TestGetServiceAddr(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ip, port, err := util.GetServiceAddr(tt.fakeClientset, tt.serviceName)
+			ip, port, err := GetServiceAddr(tt.fakeClientset, tt.serviceName)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			}
@@ -135,7 +134,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := util.PolicyRecoPreCheck(tt.fakeClientset)
+			err := PolicyRecoPreCheck(tt.fakeClientset)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			} else {

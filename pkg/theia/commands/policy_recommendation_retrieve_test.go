@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"antrea.io/theia/pkg/theia/commands/config"
-	"antrea.io/theia/pkg/theia/util"
 )
 
 func TestGetClickHouseSecret(t *testing.T) {
@@ -97,7 +96,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			username, password, err := util.GetClickHouseSecret(tt.fakeClientset)
+			username, password, err := getClickHouseSecret(tt.fakeClientset)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			}

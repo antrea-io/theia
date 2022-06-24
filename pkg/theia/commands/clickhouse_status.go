@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package status
+package commands
 
 import (
 	"database/sql"
@@ -23,15 +23,14 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-
-	"antrea.io/theia/pkg/theia/util"
 )
 
 type chOptions struct {
 	diskInfo    bool
 	tableInfo   bool
 	insertRate  bool
-	formatTable bool
+	stackTraces bool
+	printTable  bool
 }
 
 type diskInfo struct {
@@ -58,29 +57,44 @@ type writeRowsPerSec struct {
 	bytesPerSec string
 }
 
+type stackTraces struct {
+	shard          string
+	traceFunctions string
+	count          string
+}
+
 const (
 	diskQuery = "SELECT shardNum() as shard, name as Name, path as Path, formatReadableSize(free_space) as Free," +
-		" formatReadableSize(total_space) as Total, TRUNCATE((1 - free_space/total_space) * 100, 2) as Used_Percentage FROM " +
-		"cluster('{cluster}', system.disks) ;"
+		" formatReadableSize(total_space) as Total, TRUNCATE((1 - free_space/total_space) * 100, 2) as " +
+		"Used_Percentage FROM cluster('{cluster}', system.disks) ;"
 	tableInfoBasicQuery = "SELECT shard, DatabaseName, TableName, TotalRows, TotalBytes, TotalCols FROM (SELECT " +
 		"shardNum() as shard, database AS DatabaseName, name AS TableName, total_rows AS TotalRows, " +
 		"formatReadableSize(total_bytes) AS TotalBytes FROM cluster('{cluster}', system.tables) WHERE database = " +
 		"'default') as t1 INNER JOIN(SELECT shardNum() as shard, table_catalog as DatabaseName, table_name as " +
-		"TableName, COUNT(*) as TotalCols FROM cluster('{cluster}', INFORMATION_SCHEMA.COLUMNS) WHERE table_catalog == " +
-		"'default' GROUP BY table_name, table_catalog, shard) as t2 ON t1.DatabaseName = t2.DatabaseName and " +
+		"TableName, COUNT(*) as TotalCols FROM cluster('{cluster}', INFORMATION_SCHEMA.COLUMNS) WHERE table_catalog " +
+		"== 'default' GROUP BY table_name, table_catalog, shard) as t2 ON t1.DatabaseName = t2.DatabaseName and " +
 		"t1.TableName = t2.TableName and t1.shard = t2.shard"
 	// average writing rate for all tables per second
 	writePerSecQuery = "SELECT sd.shard, sd.Rows_per_second, sd.Bytes_per_second  FROM (SELECT shardNum() as " +
 		"shard, (intDiv(toUInt32(date_trunc('minute', toDateTime(event_time))), 2) * 2) * 1000 as t, " +
-		"TRUNCATE(avg(ProfileEvent_InsertedRows),0) as Rows_per_second, formatReadableSize(avg(ProfileEvent_InsertedBytes)) as Bytes_per_second, " +
+		"TRUNCATE(avg(ProfileEvent_InsertedRows),0) as Rows_per_second, " +
+		"formatReadableSize(avg(ProfileEvent_InsertedBytes)) as Bytes_per_second, " +
 		"ROW_NUMBER() OVER(PARTITION BY shardNum() ORDER BY t DESC) rowNumber FROM cluster('{cluster}', " +
 		"system.metric_log) GROUP BY t, shardNum() ORDER BY t DESC, shardNum()) sd WHERE sd.rowNumber=1"
+	stackTracesQuery = "SELECT shardNum() as shard, arrayStringConcat(arrayMap(x -> demangle(addressToSymbol(x)), " +
+		"trace), '\\n') AS trace_functions, count() FROM cluster('{cluster}', system.stack_trace) GROUP BY " +
+		"trace_functions, shard ORDER BY count() DESC SETTINGS allow_introspection_functions=1\n"
 )
 
 var options *chOptions
 
-// Command is the support bundle command implementation.
-var Command *cobra.Command
+var clickHouseStatusCmd = &cobra.Command{
+	Use:     "status",
+	Short:   "Get diagnostic infos of ClickHouse database",
+	Example: example,
+	Args:    cobra.NoArgs,
+	RunE:    getClickHouseStatus,
+}
 
 var example = strings.Trim(`
 theia clickhouse status --storage
@@ -89,36 +103,24 @@ theia clickhouse status --storage --record-number --insertion-rate --print-table
 `, "\n")
 
 func init() {
-	Command = &cobra.Command{
-		Use:     "status",
-		Short:   "Get diagnostic infos of ClickHouse database",
-		Example: example,
-		Args:    cobra.NoArgs,
-		RunE:    getClickHouseStatus,
-	}
+	clickHouseCmd.AddCommand(clickHouseStatusCmd)
 	options = &chOptions{}
-	Command.Flags().BoolVar(&options.diskInfo, "diskInfo", false, "check storage")
-	Command.Flags().BoolVar(&options.tableInfo, "tableInfo", false, "check number of records")
-	Command.Flags().BoolVar(&options.insertRate, "insertion-rate", false, "check insertion-rate")
-	Command.Flags().BoolVar(&options.formatTable, "print-table", false, "output data in table format")
-	Command.Flags().String("clickhouse-endpoint", "", "The ClickHouse service endpoint.")
-	Command.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use Service ClusterIP instead of port forwarding when connecting to the ClickHouse service.
-It can only be used when running theia in cluster.`,
-	)
+	clickHouseStatusCmd.Flags().BoolVar(&options.diskInfo, "diskInfo", false, "check storage")
+	clickHouseStatusCmd.Flags().BoolVar(&options.tableInfo, "tableInfo", false, "check number of records")
+	clickHouseStatusCmd.Flags().BoolVar(&options.insertRate, "insertionRate", false, "check insertion-rate")
+	clickHouseStatusCmd.Flags().BoolVar(&options.stackTraces, "stackTraces", false, "check stacktrace")
+	clickHouseStatusCmd.Flags().BoolVar(&options.printTable, "printTable", false, "output data in table format")
 }
 
 func getClickHouseStatus(cmd *cobra.Command, args []string) error {
-	if !options.diskInfo && !options.tableInfo && !options.insertRate {
+	if !options.diskInfo && !options.tableInfo && !options.insertRate && !options.stackTraces {
 		return fmt.Errorf("no metric related flag is specified")
 	}
-	kubeconfig, err := util.ResolveKubeConfig(cmd)
+	kubeconfig, err := ResolveKubeConfig(cmd)
 	if err != nil {
 		return err
 	}
-	clientset, err := util.CreateK8sClient(kubeconfig)
+	clientset, err := CreateK8sClient(kubeconfig)
 	if err != nil {
 		return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
 	}
@@ -137,11 +139,11 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := util.CheckClickHousePod(clientset); err != nil {
+	if err := CheckClickHousePod(clientset); err != nil {
 		return err
 	}
 	// Connect to ClickHouse and get the result
-	connect, pf, err := util.SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	connect, pf, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if err != nil {
 		return err
 	}
@@ -153,7 +155,7 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if options.formatTable {
+		if options.printTable {
 			printTable(data)
 		} else {
 			for _, arr := range data {
@@ -166,7 +168,7 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if options.formatTable {
+		if options.printTable {
 			printTable(data)
 		} else {
 			for _, arr := range data {
@@ -179,7 +181,20 @@ func getClickHouseStatus(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		if options.formatTable {
+		if options.printTable {
+			printTable(data)
+		} else {
+			for _, arr := range data {
+				fmt.Println(arr)
+			}
+		}
+	}
+	if options.stackTraces {
+		data, err := getStackTracesFromClickHouse(connect)
+		if err != nil {
+			return err
+		}
+		if options.printTable {
 			printTable(data)
 		} else {
 			for _, arr := range data {
@@ -259,10 +274,32 @@ func getWritingRateFromClickHouse(connect *sql.DB) ([][]string, error) {
 	return data, nil
 }
 
+func getStackTracesFromClickHouse(connect *sql.DB) ([][]string, error) {
+	result, err := connect.Query(stackTracesQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clickhouse stack trace: %v", err)
+	}
+	defer result.Close()
+	columnName, err := result.Columns()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get the head of stack trace: %v", err)
+	}
+	var data [][]string
+	data = append(data, columnName)
+	for result.Next() {
+		res := stackTraces{}
+		result.Scan(&res.shard, &res.traceFunctions, &res.count)
+		data = append(data, []string{res.shard, res.traceFunctions, res.count})
+	}
+	if len(data) <= 1 {
+		return nil, fmt.Errorf("no data is returned by database")
+	}
+	return data, nil
+}
+
 func printTable(data [][]string) {
 	table := tablewriter.NewWriter(os.Stdout)
-	//table, _ := tablewriter.NewCSV(os.Stdout, "./test_info.csv", true)
-	//table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetRowLine(true)
 	table.SetHeader(data[0])
 	for i := 1; i < len(data); i++ {
 		table.Append(data[i])

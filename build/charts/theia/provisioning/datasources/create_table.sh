@@ -92,10 +92,13 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodName,
         destinationPodName,
         destinationIP,
+        destinationServicePort,
         destinationServicePortName,
         flowType,
         sourcePodNamespace,
-        destinationPodNamespace)
+        destinationPodNamespace,
+        sourceTransportPort,
+        destinationTransportPort)
     TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
     SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
@@ -107,10 +110,13 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodName,
         destinationPodName,
         destinationIP,
+        destinationServicePort,
         destinationServicePortName,
         flowType,
         sourcePodNamespace,
         destinationPodNamespace,
+        sourceTransportPort,
+        destinationTransportPort,
         sum(octetDeltaCount) AS octetDeltaCount,
         sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
         sum(throughput) AS throughput,
@@ -126,10 +132,13 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodName,
         destinationPodName,
         destinationIP,
+        destinationServicePort,
         destinationServicePortName,
         flowType,
         sourcePodNamespace,
-        destinationPodNamespace;
+        destinationPodNamespace,
+        sourceTransportPort,
+        destinationTransportPort;
 
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view
     ENGINE = SummingMergeTree

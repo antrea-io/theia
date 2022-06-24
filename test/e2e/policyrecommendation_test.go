@@ -44,14 +44,14 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowAggregator(t, true)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, true)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
 	defer func() {
 		teardownTest(t, data)
 		deleteRecommendedPolicies(t, data)
-		teardownFlowAggregator(t, data, true)
+		teardownFlowVisibility(t, data, true)
 	}()
 
 	t.Run("testPolicyRecommendationRun", func(t *testing.T) {

@@ -46,7 +46,6 @@ import (
 	utilnet "k8s.io/utils/net"
 
 	"antrea.io/antrea/pkg/agent/openflow"
-	"antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdclientset "antrea.io/antrea/pkg/client/clientset/versioned"
 
@@ -54,7 +53,7 @@ import (
 )
 
 var (
-	connectionLostError = fmt.Errorf("http2: client connection lost")
+	errConnectionLost = fmt.Errorf("http2: client connection lost")
 )
 
 const (
@@ -101,13 +100,6 @@ type ClusterNode struct {
 	gwV4Addr         string
 	gwV6Addr         string
 	os               string
-}
-
-func (n ClusterNode) ip() string {
-	if n.ipv4Addr != "" {
-		return n.ipv4Addr
-	}
-	return n.ipv6Addr
 }
 
 type ClusterInfo struct {
@@ -259,7 +251,7 @@ func (data *TestData) waitForAntreaDaemonSetPods(timeout time.Duration) error {
 }
 
 func isConnectionLostError(err error) bool {
-	return strings.Contains(err.Error(), connectionLostError.Error())
+	return strings.Contains(err.Error(), errConnectionLost.Error())
 }
 
 // retryOnConnectionLostError allows the caller to retry fn in case the error is ConnectionLost.
@@ -576,7 +568,7 @@ func (data *TestData) deleteNetworkpolicy(policy *networkingv1.NetworkPolicy) er
 }
 
 // deleteAntreaNetworkpolicy deletes an Antrea NetworkPolicy.
-func (data *TestData) deleteAntreaNetworkpolicy(policy *v1alpha1.NetworkPolicy) error {
+func (data *TestData) deleteAntreaNetworkpolicy(policy *crdv1alpha1.NetworkPolicy) error {
 	if err := data.crdClient.CrdV1alpha1().NetworkPolicies(testNamespace).Delete(context.TODO(), policy.Name, metav1.DeleteOptions{}); err != nil {
 		return fmt.Errorf("unable to cleanup policy %v: %v", policy.Name, err)
 	}
@@ -664,7 +656,7 @@ func parsePodIPs(podIPStrings sets.String) (*PodIPs, error) {
 		ip := net.ParseIP(ipStr)
 		if ip.To4() != nil {
 			if ips.ipv4 != nil && ipStr != ips.ipv4.String() {
-				return nil, fmt.Errorf("Pod is assigned multiple IPv4 addresses: %s and %s", ips.ipv4.String(), ipStr)
+				return nil, fmt.Errorf("pod is assigned multiple IPv4 addresses: %s and %s", ips.ipv4.String(), ipStr)
 			}
 			if ips.ipv4 == nil {
 				ips.ipv4 = &ip
@@ -672,7 +664,7 @@ func parsePodIPs(podIPStrings sets.String) (*PodIPs, error) {
 			}
 		} else {
 			if ips.ipv6 != nil && ipStr != ips.ipv6.String() {
-				return nil, fmt.Errorf("Pod is assigned multiple IPv6 addresses: %s and %s", ips.ipv6.String(), ipStr)
+				return nil, fmt.Errorf("pod is assigned multiple IPv6 addresses: %s and %s", ips.ipv6.String(), ipStr)
 			}
 			if ips.ipv6 == nil {
 				ips.ipv6 = &ip
@@ -701,7 +693,7 @@ func (data *TestData) podWaitForIPs(timeout time.Duration, name, namespace strin
 	// the PodIP field should only be empty if the Pod has not yet been scheduled, and "running"
 	// implies scheduled.
 	if pod.Status.PodIP == "" {
-		return nil, fmt.Errorf("Pod is running but has no assigned IP, which should never happen")
+		return nil, fmt.Errorf("pod is running but has no assigned IP, which should never happen")
 	}
 	podIPStrings := sets.NewString(pod.Status.PodIP)
 	for _, podIP := range pod.Status.PodIPs {
@@ -1205,7 +1197,7 @@ func (data *TestData) deleteClickHouseOperator() error {
 	return nil
 }
 
-func teardownFlowAggregator(tb testing.TB, data *TestData, withSparkOperator bool) {
+func teardownFlowVisibility(tb testing.TB, data *TestData, withSparkOperator bool) {
 	if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
 		tb.Logf("Error when tearing down flow aggregator: %v", err)
 	}

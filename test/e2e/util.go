@@ -15,11 +15,9 @@
 package e2e
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"os"
-	"strings"
 )
 
 const nameSuffixLength int = 8
@@ -58,34 +56,4 @@ func randSeq(n int) string {
 
 func randName(prefix string) string {
 	return prefix + randSeq(nameSuffixLength)
-}
-
-// runAntctl runs antctl commands on antrea Pods, the controller, or agents.
-func runAntctl(podName string, cmds []string, data *TestData) (string, string, error) {
-	var containerName string
-	var namespace string
-	if strings.Contains(podName, "agent") {
-		containerName = "antrea-agent"
-		namespace = antreaNamespace
-	} else if strings.Contains(podName, "flow-aggregator") {
-		containerName = "flow-aggregator"
-		namespace = flowAggregatorNamespace
-	} else {
-		containerName = "antrea-controller"
-		namespace = antreaNamespace
-	}
-	stdout, stderr, err := data.RunCommandFromPod(namespace, podName, containerName, cmds)
-	// remove Bincover metadata if needed
-	if err == nil {
-		index := strings.Index(stdout, "START_BINCOVER_METADATA")
-		if index != -1 {
-			stdout = stdout[:index]
-		}
-	}
-	return stdout, stderr, err
-}
-
-// antctlOutput is a helper function for generating antctl outputs.
-func antctlOutput(stdout, stderr string) string {
-	return fmt.Sprintf("antctl stdout:\n%s\nantctl stderr:\n%s", stdout, stderr)
 }

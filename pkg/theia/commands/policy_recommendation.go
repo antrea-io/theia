@@ -34,10 +34,15 @@ Must specify a subcommand like run, status or retrieve.`,
 
 func init() {
 	rootCmd.AddCommand(policyRecommendationCmd)
-	rootCmd.PersistentFlags().StringP(
-		"kubeconfig",
-		"k",
+	policyRecommendationCmd.PersistentFlags().String(
+		"clickhouse-endpoint",
 		"",
-		"absolute path to the k8s config file, will use $KUBECONFIG if not specified",
+		"The ClickHouse Service endpoint.",
+	)
+	policyRecommendationCmd.PersistentFlags().Bool(
+		"use-cluster-ip",
+		false,
+		`Enable this option will use ClusterIP instead of port forwarding when connecting to the ClickHouse Service
+and Spark Monitoring Service. It can only be used when running in cluster.`,
 	)
 }

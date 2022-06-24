@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -67,6 +68,16 @@ $ theia policy-recommendation status e998433e-accb-4888-9fc8-06563f073e86 --use-
 		if err != nil {
 			return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
 		}
+		endpoint, err := cmd.Flags().GetString("clickhouse-endpoint")
+		if err != nil {
+			return err
+		}
+		if endpoint != "" {
+			_, err := url.ParseRequestURI(endpoint)
+			if err != nil {
+				return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
+			}
+		}
 		useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
 		if err != nil {
 			return err
@@ -76,62 +87,97 @@ $ theia policy-recommendation status e998433e-accb-4888-9fc8-06563f073e86 --use-
 		if err != nil {
 			return err
 		}
-
-		state, err := getPolicyRecommendationStatus(clientset, recoID)
+		var state, errorMessage string
+		// Check the ClickHouse first because completed jobs will store results in ClickHouse
+		_, err = getPolicyRecommendationResult(clientset, kubeconfig, endpoint, useClusterIP, "", recoID)
 		if err != nil {
-			return err
-		}
-		if state == "RUNNING" {
-			var endpoint string
-			service := fmt.Sprintf("pr-%s-ui-svc", recoID)
-			if useClusterIP {
-				serviceIP, servicePort, err := GetServiceAddr(clientset, service)
-				if err != nil {
-					klog.V(2).ErrorS(err, "error when getting the progress of the job, cannot get Spark Monitor Service address")
+			state, err = getPolicyRecommendationStatus(clientset, recoID)
+			if err != nil {
+				return err
+			}
+			if state == "" {
+				state = "NEW"
+			}
+			if state == "RUNNING" {
+				var endpoint string
+				service := fmt.Sprintf("pr-%s-ui-svc", recoID)
+				if useClusterIP {
+					serviceIP, servicePort, err := GetServiceAddr(clientset, service)
+					if err != nil {
+						klog.V(2).ErrorS(err, "error when getting the progress of the job, cannot get Spark Monitor Service address")
+					} else {
+						endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
+					}
 				} else {
-					endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
+					servicePort := 4040
+					listenAddress := "localhost"
+					listenPort := 4040
+					pf, err := StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
+					if err != nil {
+						klog.V(2).ErrorS(err, "error when getting the progress of the job, cannot forward port")
+					} else {
+						endpoint = fmt.Sprintf("http://%s:%d", listenAddress, listenPort)
+						defer pf.Stop()
+					}
 				}
-			} else {
-				servicePort := 4040
-				listenAddress := "localhost"
-				listenPort := 4040
-				pf, err := StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-				if err != nil {
-					klog.V(2).ErrorS(err, "error when getting the progress of the job, cannot forward port")
-				} else {
-					endpoint = fmt.Sprintf("http://%s:%d", listenAddress, listenPort)
-					defer pf.Stop()
+				// Check the working progress of running recommendation job
+				if endpoint != "" {
+					stateProgress, err := getPolicyRecommendationProgress(endpoint)
+					if err != nil {
+						klog.V(2).ErrorS(err, "failed to get the progress of the job")
+					}
+					state += stateProgress
 				}
 			}
-			// Check the working progress of running recommendation job
-			if endpoint != "" {
-				stateProgress, err := getPolicyRecommendationProgress(endpoint)
-				if err != nil {
-					klog.V(2).ErrorS(err, "failed to get the progress of the job")
-				}
-				state += stateProgress
+			errorMessage, err = getPolicyRecommendationErrorMsg(clientset, recoID)
+			if err != nil {
+				return err
 			}
+		} else {
+			state = "COMPLETED"
 		}
 		fmt.Printf("Status of this policy recommendation job is %s\n", state)
+		if errorMessage != "" {
+			fmt.Printf("Error message: %s\n", errorMessage)
+		}
 		return nil
 	},
 }
 
-func getPolicyRecommendationStatus(clientset kubernetes.Interface, recoID string) (string, error) {
-	sparkApplication := &sparkv1.SparkApplication{}
-	err := clientset.CoreV1().RESTClient().
+func getSparkAppByRecommendationID(clientset kubernetes.Interface, id string) (sparkApp sparkv1.SparkApplication, err error) {
+	err = clientset.CoreV1().RESTClient().
 		Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
 		Namespace(flowVisibilityNS).
 		Resource("sparkapplications").
-		Name("pr-" + recoID).
+		Name("pr-" + id).
 		Do(context.TODO()).
-		Into(sparkApplication)
+		Into(&sparkApp)
+	if err != nil {
+		return sparkApp, err
+	}
+	return sparkApp, nil
+}
+
+func getPolicyRecommendationStatus(clientset kubernetes.Interface, id string) (string, error) {
+	sparkApplication, err := getSparkAppByRecommendationID(clientset, id)
 	if err != nil {
 		return "", err
 	}
 	state := strings.TrimSpace(string(sparkApplication.Status.AppState.State))
+	if state == "" {
+		state = "NEW"
+	}
 	return state, nil
+}
+
+func getPolicyRecommendationErrorMsg(clientset kubernetes.Interface, id string) (string, error) {
+	sparkApplication, err := getSparkAppByRecommendationID(clientset, id)
+	if err != nil {
+		return "", err
+	}
+	errorMessage := strings.TrimSpace(string(sparkApplication.Status.AppState.ErrorMessage))
+	return errorMessage, nil
 }
 
 func getPolicyRecommendationProgress(baseUrl string) (string, error) {
@@ -208,11 +254,5 @@ func init() {
 		"i",
 		"",
 		"ID of the policy recommendation Spark job.",
-	)
-	policyRecommendationStatusCmd.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use Service ClusterIP instead of port forwarding when connecting to the Spark Monitoring Service.
-It can only be used when running theia in cluster.`,
 	)
 }

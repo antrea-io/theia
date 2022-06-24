@@ -53,4 +53,10 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&verbose, "verbose", "v", 0, "set verbose level")
+	rootCmd.PersistentFlags().StringP(
+		"kubeconfig",
+		"k",
+		"",
+		"absolute path to the k8s config file, will use $KUBECONFIG if not specified",
+	)
 }

@@ -16,12 +16,16 @@ package commands
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/ClickHouse/clickhouse-go"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -155,4 +159,89 @@ func ResolveKubeConfig(cmd *cobra.Command) (string, error) {
 		}
 	}
 	return kubeconfigPath, nil
+}
+
+func getClickHouseSecret(clientset kubernetes.Interface) (username []byte, password []byte, err error) {
+	secret, err := clientset.CoreV1().Secrets(flowVisibilityNS).Get(context.TODO(), "clickhouse-secret", metav1.GetOptions{})
+	if err != nil {
+		return username, password, fmt.Errorf("error %v when finding the ClickHouse secret, please check the deployment of ClickHouse", err)
+	}
+	username, ok := secret.Data["username"]
+	if !ok {
+		return username, password, fmt.Errorf("error when getting the ClickHouse username")
+	}
+	password, ok = secret.Data["password"]
+	if !ok {
+		return username, password, fmt.Errorf("error when getting the ClickHouse password")
+	}
+	return username, password, nil
+}
+
+func connectClickHouse(clientset kubernetes.Interface, url string) (*sql.DB, error) {
+	var connect *sql.DB
+	var connErr error
+	connRetryInterval := 1 * time.Second
+	connTimeout := 10 * time.Second
+
+	// Connect to ClickHouse in a loop
+	if err := wait.PollImmediate(connRetryInterval, connTimeout, func() (bool, error) {
+		// Open the database and ping it
+		var err error
+		connect, err = sql.Open("clickhouse", url)
+		if err != nil {
+			connErr = fmt.Errorf("failed to open ClickHouse: %v", err)
+			return false, nil
+		}
+		if err := connect.Ping(); err != nil {
+			if exception, ok := err.(*clickhouse.Exception); ok {
+				connErr = fmt.Errorf("failed to ping ClickHouse: %v", exception.Message)
+			} else {
+				connErr = fmt.Errorf("failed to ping ClickHouse: %v", err)
+			}
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}); err != nil {
+		return nil, fmt.Errorf("failed to connect to ClickHouse after %s: %v", connTimeout, connErr)
+	}
+	return connect, nil
+}
+
+func setupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
+	if endpoint == "" {
+		service := "clickhouse-clickhouse"
+		if useClusterIP {
+			serviceIP, servicePort, err := GetServiceAddr(clientset, service)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
+			}
+			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
+		} else {
+			listenAddress := "localhost"
+			listenPort := 9000
+			_, servicePort, err := GetServiceAddr(clientset, service)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
+			}
+			// Forward the ClickHouse service port
+			portForward, err = StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
+			}
+			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
+		}
+	}
+
+	// Connect to ClickHouse and execute query
+	username, password, err := getClickHouseSecret(clientset)
+	if err != nil {
+		return nil, portForward, err
+	}
+	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
+	connect, err = connectClickHouse(clientset, url)
+	if err != nil {
+		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
+	}
+	return connect, portForward, nil
 }

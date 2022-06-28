@@ -15,18 +15,13 @@
 package commands
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"time"
 
-	"github.com/ClickHouse/clickhouse-go"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -107,40 +102,12 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 }
 
 func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, filePath string, recoID string) (recoResult string, err error) {
-	if endpoint == "" {
-		service := "clickhouse-clickhouse"
-		if useClusterIP {
-			serviceIP, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return "", fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
-		} else {
-			listenAddress := "localhost"
-			listenPort := 9000
-			_, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return "", fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-			}
-			// Forward the ClickHouse service port
-			pf, err := StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-			if err != nil {
-				return "", fmt.Errorf("error when forwarding port: %v", err)
-			}
-			defer pf.Stop()
-			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-		}
+	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	if portForward != nil {
+		defer portForward.Stop()
 	}
-
-	// Connect to ClickHouse and get the result
-	username, password, err := getClickHouseSecret(clientset)
 	if err != nil {
 		return "", err
-	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err := connectClickHouse(clientset, url)
-	if err != nil {
-		return "", fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}
 	recoResult, err = getResultFromClickHouse(connect, recoID)
 	if err != nil {
@@ -154,53 +121,6 @@ func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig st
 		return recoResult, nil
 	}
 	return "", nil
-}
-
-func getClickHouseSecret(clientset kubernetes.Interface) (username []byte, password []byte, err error) {
-	secret, err := clientset.CoreV1().Secrets(flowVisibilityNS).Get(context.TODO(), "clickhouse-secret", metav1.GetOptions{})
-	if err != nil {
-		return username, password, fmt.Errorf("error %v when finding the ClickHouse secret, please check the deployment of ClickHouse", err)
-	}
-	username, ok := secret.Data["username"]
-	if !ok {
-		return username, password, fmt.Errorf("error when getting the ClickHouse username")
-	}
-	password, ok = secret.Data["password"]
-	if !ok {
-		return username, password, fmt.Errorf("error when getting the ClickHouse password")
-	}
-	return username, password, nil
-}
-
-func connectClickHouse(clientset kubernetes.Interface, url string) (*sql.DB, error) {
-	var connect *sql.DB
-	var connErr error
-	connRetryInterval := 1 * time.Second
-	connTimeout := 10 * time.Second
-
-	// Connect to ClickHouse in a loop
-	if err := wait.PollImmediate(connRetryInterval, connTimeout, func() (bool, error) {
-		// Open the database and ping it
-		var err error
-		connect, err = sql.Open("clickhouse", url)
-		if err != nil {
-			connErr = fmt.Errorf("failed to ping ClickHouse: %v", err)
-			return false, nil
-		}
-		if err := connect.Ping(); err != nil {
-			if exception, ok := err.(*clickhouse.Exception); ok {
-				connErr = fmt.Errorf("failed to ping ClickHouse: %v", exception.Message)
-			} else {
-				connErr = fmt.Errorf("failed to ping ClickHouse: %v", err)
-			}
-			return false, nil
-		} else {
-			return true, nil
-		}
-	}); err != nil {
-		return nil, fmt.Errorf("failed to connect to ClickHouse after %s: %v", connTimeout, connErr)
-	}
-	return connect, nil
 }
 
 func getResultFromClickHouse(connect *sql.DB, id string) (string, error) {
@@ -220,17 +140,6 @@ func init() {
 		"i",
 		"",
 		"ID of the policy recommendation Spark job.",
-	)
-	policyRecommendationRetrieveCmd.Flags().String(
-		"clickhouse-endpoint",
-		"",
-		"The ClickHouse service endpoint.",
-	)
-	policyRecommendationRetrieveCmd.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use Service ClusterIP instead of port forwarding when connecting to the ClickHouse service.
-It can only be used when running theia in cluster.`,
 	)
 	policyRecommendationRetrieveCmd.Flags().StringP(
 		"file",

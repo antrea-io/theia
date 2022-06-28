@@ -456,17 +456,6 @@ Example values include 512M, 1G, 8G, etc.`,
 		false,
 		"Enable this option will hold and wait the whole policy recommendation job finishes.",
 	)
-	policyRecommendationRunCmd.Flags().String(
-		"clickhouse-endpoint",
-		"",
-		"The ClickHouse Service endpoint. It can only be used when wait is enabled.",
-	)
-	policyRecommendationRunCmd.Flags().Bool(
-		"use-cluster-ip",
-		false,
-		`Enable this option will use ClusterIP instead of port forwarding when connecting to the ClickHouse Service.
-It can only be used when running in cluster and when wait is enabled.`,
-	)
 	policyRecommendationRunCmd.Flags().StringP(
 		"file",
 		"f",

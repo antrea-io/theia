@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"regexp"
 	"strconv"
@@ -647,6 +648,25 @@ func (data *TestData) PodWaitFor(timeout time.Duration, name, namespace string, 
 		return nil, err
 	}
 	return pod, nil
+}
+
+// Gets pod logs from Pod
+func (data *TestData) GetPodLogs(namespace, name string, podLogOpts *corev1.PodLogOptions) (string, error) {
+	var logString string
+	req := data.clientset.CoreV1().Pods(namespace).GetLogs(name, podLogOpts)
+	podLogs, err := req.Stream(context.TODO())
+	if err != nil {
+		return logString, fmt.Errorf("error when opening stream: %v", err)
+	}
+	defer podLogs.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, podLogs)
+	if err != nil {
+		return logString, fmt.Errorf("error when copying data from Pod logs to buffer: %v", err)
+	}
+	logString = buf.String()
+	return logString, nil
 }
 
 func parsePodIPs(podIPStrings sets.String) (*PodIPs, error) {

@@ -46,29 +46,14 @@
             "pluginVersion": "7.5.2",
             "targets": [
                 {
-                    "database": "default",
-                    "datasource": {
-                        "type": "grafana-clickhouse-datasource",
-                        "uid": "PDEE91DDB90597936"
-                    },
-                    "dateColDataType": "",
-                    "dateLoading": false,
-                    "dateTimeColDataType": "flowEndSeconds",
-                    "dateTimeType": "DATETIME",
-                    "datetimeLoading": false,
-                    "extrapolate": true,
-                    "format": 1,
-                    "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-                    "intervalFactor": 1,
-                    "query": "SELECT SUM(octetDeltaCount), (sourcePodName, destinationIP) AS pair\nFROM $table\nWHERE $timeFilter\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-aggregator', 'flow-visibility')\nGROUP BY pair\n",
-                    "queryType": "randomWalk",
-                    "rawQuery": "SELECT SUM(octetDeltaCount), (sourcePodName, destinationIP) AS pair\nFROM default.flows_pod_view\nWHERE flowEndSeconds >= toDateTime(1642534343) AND flowEndSeconds <= toDateTime(1642536143)\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-aggregator', 'flow-visibility')\nGROUP BY pair",
-                    "rawSql": "SELECT SUM(octetDeltaCount) as bytes, \nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR)) as source, \ndestinationIP as destination\nFrom flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nHAVING bytes > 0\nORDER BY bytes DESC\nLIMIT 50",
                     "refId": "A",
-                    "round": "0s",
-                    "skip_comments": true,
-                    "table": "flows_pod_view",
-                    "tableLoading": false
+                    "datasource": {
+                        "uid": "PDEE91DDB90597936",
+                        "type": "grafana-clickhouse-datasource"
+                    },
+                    "queryType": "sql",
+                    "rawSql": "SELECT SUM(octetDeltaCount) as bytes, \nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR)) as source, \ndestinationIP as destination\nFrom flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nHAVING bytes > 0\nORDER BY bytes DESC\nLIMIT 50",
+                    "format": 1
                 }
             ],
             "title": "Cumulative Bytes of Pod-to-External",
@@ -95,29 +80,14 @@
             "pluginVersion": "7.5.2",
             "targets": [
                 {
-                    "database": "default",
-                    "datasource": {
-                        "type": "grafana-clickhouse-datasource",
-                        "uid": "PDEE91DDB90597936"
-                    },
-                    "dateColDataType": "",
-                    "dateLoading": false,
-                    "dateTimeColDataType": "flowEndSeconds",
-                    "dateTimeType": "DATETIME",
-                    "datetimeLoading": false,
-                    "extrapolate": true,
-                    "format": 1,
-                    "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-                    "intervalFactor": 1,
-                    "query": "SELECT SUM(reverseOctetDeltaCount), (sourcePodName, destinationIP) AS pair\nFROM $table\nWHERE $timeFilter\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-aggregator', 'flow-visibility')\nGROUP BY pair\n",
-                    "queryType": "randomWalk",
-                    "rawQuery": "SELECT SUM(reverseOctetDeltaCount), (sourcePodName, destinationIP) AS pair\nFROM default.flows_pod_view\nWHERE flowEndSeconds >= toDateTime(1642534382) AND flowEndSeconds <= toDateTime(1642536182)\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-aggregator', 'flow-visibility')\nGROUP BY pair",
-                    "rawSql": "SELECT SUM(reverseOctetDeltaCount) as bytes,\nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR)) as source, \ndestinationIP as destination\nFrom flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nHAVING bytes > 0\nORDER BY bytes DESC\nLIMIT 50",
                     "refId": "A",
-                    "round": "0s",
-                    "skip_comments": true,
-                    "table": "flows_pod_view",
-                    "tableLoading": false
+                    "datasource": {
+                        "uid": "PDEE91DDB90597936",
+                        "type": "grafana-clickhouse-datasource"
+                    },
+                    "queryType": "sql",
+                    "rawSql": "SELECT SUM(reverseOctetDeltaCount) as bytes,\nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR)) as source, \ndestinationIP as destination\nFrom flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nHAVING bytes > 0\nORDER BY bytes DESC\nLIMIT 50",
+                    "format": 1
                 }
             ],
             "title": "Cumulative Reverse Bytes of Pod-to-External",
@@ -202,45 +172,25 @@
             "pluginVersion": "8.3.3",
             "targets": [
                 {
-                    "database": "default",
-                    "datasource": {
-                        "type": "grafana-clickhouse-datasource",
-                        "uid": "PDEE91DDB90597936"
-                    },
-                    "dateColDataType": "",
-                    "dateLoading": false,
-                    "dateTimeColDataType": "flowEndSeconds",
-                    "dateTimeType": "DATETIME",
-                    "datetimeLoading": false,
-                    "extrapolate": true,
-                    "format": 2,
-                    "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-                    "hide": false,
-                    "intervalFactor": 1,
-                    "query": "SELECT $timeSeries as t, SUM(octetDeltaCount), (sourcePodName, destinationIP) as pair\nFROM $table\nWHERE $timeFilter\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nGROUP BY pair,t\nORDER BY t\n",
-                    "queryType": "sql",
-                    "rawQuery": "SELECT (intDiv(toUInt32(flowEndSeconds), 60) * 60) * 1000 as t, SUM(octetDeltaCount), (sourcePodName, destinationIP) as pair\nFROM default.flows_pod_view\nWHERE flowEndSeconds >= toDateTime(1642534150) AND flowEndSeconds <= toDateTime(1642535950)\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nGROUP BY pair,t\nORDER BY t",
-                    "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, \nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR), '->', destinationIP) as pair,\nAVG(throughput)\nFROM flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
                     "refId": "A",
-                    "round": "0s",
-                    "skip_comments": true,
-                    "table": "flows_pod_view",
-                    "tableLoading": false
+                    "datasource": {
+                        "uid": "PDEE91DDB90597936",
+                        "type": "grafana-clickhouse-datasource"
+                    },
+                    "queryType": "sql",
+                    "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, \nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR), '->', destinationIP) as pair,\nAVG(throughput)\nFROM flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
+                    "meta": {
+                        "builderOptions": {
+                            "mode": "list",
+                            "fields": [],
+                            "limit": 100
+                        }
+                    },
+                    "format": 2
                 }
             ],
             "title": "Throughput of Pod-to-External",
             "transformations": [
-                {
-                    "id": "groupBy",
-                    "options": {
-                        "fields": {
-                            "Time": {
-                                "aggregations": [],
-                                "operation": "aggregate"
-                            }
-                        }
-                    }
-                },
                 {
                     "id": "labelsToFields",
                     "options": {
@@ -326,45 +276,25 @@
             "pluginVersion": "8.3.3",
             "targets": [
                 {
-                    "database": "default",
-                    "datasource": {
-                        "type": "grafana-clickhouse-datasource",
-                        "uid": "PDEE91DDB90597936"
-                    },
-                    "dateColDataType": "",
-                    "dateLoading": false,
-                    "dateTimeColDataType": "flowEndSeconds",
-                    "dateTimeType": "DATETIME",
-                    "datetimeLoading": false,
-                    "extrapolate": true,
-                    "format": 2,
-                    "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-                    "hide": false,
-                    "intervalFactor": 1,
-                    "query": "SELECT $timeSeries as t, SUM(reverseOctetDeltaCount), (sourcePodName, destinationIP) as pair\nFROM $table\nWHERE $timeFilter\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nGROUP BY pair, t\nORDER BY t",
-                    "queryType": "sql",
-                    "rawQuery": "SELECT (intDiv(toUInt32(flowEndSeconds), 60) * 60) * 1000 as t, SUM(reverseOctetDeltaCount), (sourcePodName, destinationIP) as pair\nFROM default.flows_pod_view\nWHERE flowEndSeconds >= toDateTime(1642534246) AND flowEndSeconds <= toDateTime(1642536046)\nAND flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nGROUP BY pair, t\nORDER BY t",
-                    "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR), '->', destinationIP) as pair,\nAVG(reverseThroughput)\nFROM flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nHAVING AVG(reverseThroughput) > 0\nORDER BY time\nLIMIT 50",
                     "refId": "A",
-                    "round": "0s",
-                    "skip_comments": true,
-                    "table": "flows_pod_view",
-                    "tableLoading": false
+                    "datasource": {
+                        "uid": "PDEE91DDB90597936",
+                        "type": "grafana-clickhouse-datasource"
+                    },
+                    "queryType": "sql",
+                    "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR), '->', destinationIP) as pair,\nAVG(reverseThroughput)\nFROM flows_pod_view\nWHERE flowType == 3\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nHAVING AVG(reverseThroughput) > 0\nORDER BY time\nLIMIT 50",
+                    "meta": {
+                        "builderOptions": {
+                            "mode": "list",
+                            "fields": [],
+                            "limit": 100
+                        }
+                    },
+                    "format": 2
                 }
             ],
             "title": "Reverse Throughput of Pod-to-External",
             "transformations": [
-                {
-                    "id": "groupBy",
-                    "options": {
-                        "fields": {
-                            "Time": {
-                                "aggregations": [],
-                                "operation": "aggregate"
-                            }
-                        }
-                    }
-                },
                 {
                     "id": "labelsToFields",
                     "options": {

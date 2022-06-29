@@ -74,50 +74,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "builderOptions": {
-            "database": "default",
-            "fields": [],
-            "filters": [],
-            "limit": 100,
-            "mode": "list",
-            "orderBy": [],
-            "table": "flows"
-          },
-          "database": "default",
+          "refId": "A",
           "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "ClickHouse"
+            "uid": "PDEE91DDB90597936",
+            "type": "grafana-clickhouse-datasource"
           },
-          "dateColDataType": "",
-          "dateLoading": false,
-          "dateTimeColDataType": "flowEndSeconds",
-          "dateTimeType": "DATETIME",
-          "datetimeLoading": false,
-          "extrapolate": true,
-          "format": 1,
-          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-          "interval": "",
-          "intervalFactor": 1,
+          "queryType": "sql",
+          "rawSql": "SELECT count(*) as count\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)",
           "meta": {
             "builderOptions": {
-              "database": "default",
-              "fields": [],
-              "filters": [],
-              "limit": 100,
               "mode": "list",
-              "orderBy": [],
-              "table": "flows"
+              "fields": [],
+              "limit": 100
             }
           },
-          "query": "SELECT count()\nFROM $table\n",
-          "queryType": "sql",
-          "rawQuery": "SELECT count()\nFROM default.flows",
-          "rawSql": "SELECT count(*) as count\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)",
-          "refId": "A",
-          "round": "0s",
-          "skip_comments": true,
-          "table": "flows",
-          "tableLoading": false
+          "format": 2
         }
       ],
       "title": "Flow Records Count",
@@ -203,29 +174,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "database": "default",
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "ClickHouse"
-          },
-          "dateColDataType": "",
-          "dateLoading": false,
-          "dateTimeColDataType": "flowEndSeconds",
-          "dateTimeType": "DATETIME",
-          "datetimeLoading": false,
-          "extrapolate": true,
-          "format": 1,
-          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-          "intervalFactor": 1,
-          "query": "SELECT\n    $timeSeries as t,\n    count() as count\nFROM $table\n\nWHERE $timeFilter\n\nGROUP BY t\n\nORDER BY t\n",
-          "queryType": "sql",
-          "rawQuery": "SELECT\n    (intDiv(toUInt32(flowEndSeconds), 1) * 1) * 1000 as t,\n    count() as count\nFROM default.flows\n\nWHERE\n    flowEndSeconds >= toDateTime(1642711765) AND flowEndSeconds <= toDateTime(1642712665)\n    AND sourcePodNamespace = 'antrea-test'\nGROUP BY t\n\nORDER BY t\n",
-          "rawSql": "SELECT count() as count, $__timeInterval(flowEndSeconds) as time\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nGROUP BY time\nORDER BY time",
           "refId": "A",
-          "round": "0s",
-          "skip_comments": true,
-          "table": "flows",
-          "tableLoading": false
+          "datasource": {
+            "uid": "PDEE91DDB90597936",
+            "type": "grafana-clickhouse-datasource"
+          },
+          "queryType": "sql",
+          "rawSql": "SELECT count() as count, $__timeInterval(flowEndSeconds) as time\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nGROUP BY time\nORDER BY time",
+          "meta": {
+            "builderOptions": {
+              "mode": "list",
+              "fields": [],
+              "limit": 100
+            }
+          },
+          "format": 2
         }
       ],
       "title": "Flow Records Count",
@@ -879,29 +842,14 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "database": "default",
-          "datasource": {
-            "type": "grafana-clickhouse-datasource",
-            "uid": "ClickHouse"
-          },
-          "dateColDataType": "",
-          "dateLoading": false,
-          "dateTimeColDataType": "flowEndSeconds",
-          "dateTimeType": "DATETIME",
-          "datetimeLoading": false,
-          "extrapolate": true,
-          "format": 1,
-          "formattedQuery": "SELECT $timeSeries as t, count() FROM $table WHERE $timeFilter GROUP BY t ORDER BY t",
-          "intervalFactor": 1,
-          "query": "SELECT\n    $timeSeries as t,\n    *\nFROM $table\n\nWHERE $timeFilter\n\nORDER BY t\n",
-          "queryType": "sql",
-          "rawQuery": "SELECT\n    (intDiv(toUInt32(flowEndSeconds), 1) * 1) * 1000 as t,\n    *\nFROM default.flows\n\nWHERE flowEndSeconds >= toDateTime(1642715797) AND flowEndSeconds <= toDateTime(1642716697)\n\nORDER BY t",
-          "rawSql": "SELECT * \nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC\nLIMIT 10000",
           "refId": "A",
-          "round": "0s",
-          "skip_comments": true,
-          "table": "flows",
-          "tableLoading": false
+          "datasource": {
+            "uid": "PDEE91DDB90597936",
+            "type": "grafana-clickhouse-datasource"
+          },
+          "queryType": "sql",
+          "rawSql": "SELECT * \nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC\nLIMIT 10000",
+          "format": 1
         }
       ],
       "title": "Flow Records Table",

@@ -13,7 +13,11 @@
   "dependencies": {
     "d3": "^7.1.0",
     "d3-chord": "^3.0.1",
-    "my-d3": "npm:d3@7.1.0"
+    "enzyme": "^3.11.0",
+    "enzyme-adapter-react-16": "^1.15.6",
+    "my-d3": "npm:d3@7.1.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "author": "antrea-io",
   "license": "Apache-2.0",
@@ -22,6 +26,8 @@
     "@grafana/toolkit": "latest",
     "@grafana/ui": "latest",
     "@types/d3": "^7.1.0",
+    "@types/enzyme": "^3.10.12",
+    "@types/enzyme-adapter-react-16": "^1.0.6",
     "@types/my-d3": "npm:@types/d3@7.1.0",
     "emotion": "10.0.27"
   },

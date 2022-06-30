@@ -6,7 +6,7 @@ import * as d3 from 'my-d3';
 
 interface Props extends Themeable2, PanelProps<ChordOptions> {}
 
-const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, height, theme }) => {
+export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, height, theme }) => {
   const d3Container = useRef(null);
 
   // GetFieldVal reads field's value from data series

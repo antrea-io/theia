@@ -1,21 +1,25 @@
 import { configure, shallow } from 'enzyme';
 import Adapter from 'enzyme-adapter-react-16';
 import { SankeyPanel } from './SankeyPanel';
-import { LoadingState, PanelProps, TimeRange } from '@grafana/data';
+import { LoadingState, PanelProps, TimeRange, toDataFrame } from '@grafana/data';
 import React from 'react';
 import { Chart } from 'react-google-charts';
 
 configure({ adapter: new Adapter() });
 
 describe('Sankey Diagram test', () => {
-  it('should return true', () => {
-    expect(true).toBeTruthy();
-  });
-  it('should render Chart', () => {
+  it('Should render Chart', () => {
     let props = {} as PanelProps;
     let timeRange = {} as TimeRange;
     props.data = {
-      series: [],
+      series: [
+        toDataFrame({ refId: 'A', fields: [
+          { name: 'source', values: ["alpine0"] }, 
+          { name: 'destination', values: ["alpine1"] },
+          { name: 'destinationIP', values: ["10.10.1.55"] },
+          { name: 'bytes', values: [10000] },
+        ] }),
+      ],
       state: LoadingState.Done,
       timeRange: timeRange,
     };
@@ -24,7 +28,7 @@ describe('Sankey Diagram test', () => {
     props.options = {};
     let data = [
       ['From', 'To', 'Bytes'],
-      ['Source N/A', 'Destination N/A', 1],
+      ['alpine0', 'alpine1 ', 10000],
     ];
     let component = shallow(<SankeyPanel {...props} />);
     expect(

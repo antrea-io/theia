@@ -33,9 +33,9 @@ Kustomize, and print it to stdout.
         --ch-monitor-threshold <threshold>  Deploy the ClickHouse monitor with a specific threshold. Can
                                             vary from 0 to 1. (default is 0.5)
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
-to generate manifests for Theia. You can set the HELM and KUSTOMIZE environment variable to
-the path of the helm and kustomize binary you want us to use. Otherwise we will download the
-appropriate version of the helm and kustomize binary and use it (this is the recommended
+to generate manifests for Theia. You can set the HELM and KUSTOMIZE environment variables to
+the paths of the helm and kustomize binaries you want us to use. Otherwise we will download the
+appropriate version of the helm and kustomize binaries and use them (this is the recommended
 approach since different versions of helm and kustomize may create different output YAMLs)."
 
 function print_usage {

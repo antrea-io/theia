@@ -34,7 +34,7 @@ clickhouse:
     type: ClusterIP
     # -- TCP port number for the ClickHouse service.
     tcpPort: 9000
-    # -- TCP port number for the ClickHouse service.
+    # -- HTTP port number for the ClickHouse service.
     httpPort: 8123
   # -- Time to live for data in the ClickHouse. Can be a plain integer using
   # one of these unit suffixes SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER,
@@ -78,7 +78,7 @@ grafana:
     repository: "projects.registry.vmware.com/antrea/theia-grafana"
     pullPolicy: "IfNotPresent"
     tag: "8.3.3"
-  # -- Credentials to login to Grafana. They will be stored in a secret.
+  # -- Credentials to login to Grafana. They will be stored in a Secret.
   loginSecret:
     username: "admin"
     password: "admin"

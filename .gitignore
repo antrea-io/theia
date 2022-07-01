@@ -5,6 +5,9 @@ bin
 .vscode/
 .idea/
 
+# Common backup files
+*.bak
+
 ci/jenkins/jobs/defaults.yaml
 
 plugins/grafana-custom-plugins/grafana-sankey-plugin/node_modules/

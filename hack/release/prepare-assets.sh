@@ -66,4 +66,11 @@ export IMG_TAG=$VERSION
 export IMG_NAME=projects.registry.vmware.com/antrea/theia-clickhouse-monitor
 ./hack/generate-manifest.sh --mode release > "$OUTPUT_DIR"/flow-visibility.yml
 
+cd -
+
+# Package the Theia chart
+# We need to strip the leading "v" from the version string to ensure that we use
+# a valid SemVer 2 version.
+VERSION=${VERSION:1} ./hack/generate-helm-release.sh --out "$OUTPUT_DIR"
+
 ls "$OUTPUT_DIR" | cat

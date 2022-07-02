@@ -107,7 +107,7 @@ COMMON_IMAGES_LIST=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                     "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
                     "projects.registry.vmware.com/antrea/perftool" \
                     "antrea/antrea-ubuntu:latest" \
-                    "projects.registry.vmware.com/antrea/flow-aggregator:latest" \
+                    "antrea/flow-aggregator:latest" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11" \
@@ -149,6 +149,7 @@ function run_test {
   sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $TMP_DIR/antrea.yml
 
   curl -o $TMP_DIR/flow-aggregator.yml https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/flow-aggregator.yml
+  sed -i -e "s|image: projects.registry.vmware.com/antrea/flow-aggregator:latest|image: antrea/flow-aggregator:latest|g" $TMP_DIR/flow-aggregator.yml
   perl -i -p0e 's/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: false/      # Enable is the switch to enable exporting flow records to ClickHouse.\n      enable: true/' $TMP_DIR/flow-aggregator.yml
   sed -i -e "s/    activeFlowRecordTimeout: 60s/    activeFlowRecordTimeout: 3500ms/g" $TMP_DIR/flow-aggregator.yml
   sed -i -e "s/    inactiveFlowRecordTimeout: 90s/    inactiveFlowRecordTimeout: 6s/g" $TMP_DIR/flow-aggregator.yml

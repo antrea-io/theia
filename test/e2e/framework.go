@@ -81,6 +81,8 @@ const (
 	chOperatorYML              string = "clickhouse-operator-install-bundle.yaml"
 	flowVisibilityCHPodName    string = "chi-clickhouse-clickhouse-0-0-0"
 	policyOutputYML            string = "output.yaml"
+	sparkOperatorPodLabel      string = "app.kubernetes.io/name=spark-operator"
+	grafanaPodLabel            string = "app=grafana"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
@@ -143,10 +145,6 @@ type TestOptions struct {
 }
 
 var testOptions TestOptions
-
-var (
-	namespaces []string
-)
 
 type PodIPs struct {
 	ipv4      *net.IP
@@ -1088,9 +1086,9 @@ func (data *TestData) createTestNamespace() error {
 	return data.CreateNamespace(testNamespace, nil)
 }
 
-// deployFlowVisibility deploys ClickHouse Operator and DB. If withSparkOperator
-// is set to true, it also deploys Spark Operator.
-func (data *TestData) deployFlowVisibility(withSparkOperator bool) (string, error) {
+// deployFlowVisibility deploys ClickHouse Operator and DB. If withSparkOperator/
+// withGrafana is set to true, it also deploys Spark Operator/Grafana.
+func (data *TestData) deployFlowVisibility(withSparkOperator, withGrafana bool) (string, error) {
 	flowVisibilityManifest := flowVisibilityYML
 	if withSparkOperator {
 		flowVisibilityManifest = flowVisibilityWithSparkYML
@@ -1116,7 +1114,7 @@ func (data *TestData) deployFlowVisibility(withSparkOperator bool) (string, erro
 	}
 
 	if withSparkOperator {
-		sparkOperatorPodName, err := data.getSparkOperator()
+		sparkOperatorPodName, err := data.getPodByLabel(sparkOperatorPodLabel, flowVisibilityNamespace)
 		if err != nil {
 			return "", fmt.Errorf("error when getting the Spark Operator Pod name: %v", err)
 		}
@@ -1147,6 +1145,17 @@ func (data *TestData) deployFlowVisibility(withSparkOperator bool) (string, erro
 		}
 	}); err != nil {
 		return "", fmt.Errorf("timeout checking http port connectivity of clickhouse service: %v", err)
+	}
+
+	if withGrafana {
+		grafanaPodName, err := data.getPodByLabel(grafanaPodLabel, flowVisibilityNamespace)
+		if err != nil {
+			return "", fmt.Errorf("error when getting the Grafana Pod name: %v", err)
+		}
+		// check for Grafana Pod ready.
+		if err = data.podWaitForReady(defaultTimeout, grafanaPodName, flowVisibilityNamespace); err != nil {
+			return "", err
+		}
 	}
 
 	return chSvc.Spec.ClusterIP, nil
@@ -1186,16 +1195,16 @@ func (data *TestData) deployFlowAggregator() error {
 	return nil
 }
 
-// getSparkOperator retrieves the name of the Spark Operator Pod (policy-recommendation-spark-operator-*).
-func (data *TestData) getSparkOperator() (string, error) {
+// getPodByLabel retrieves the name of the desired Pod.
+func (data *TestData) getPodByLabel(podLabel, ns string) (string, error) {
 	listOptions := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=spark-operator",
+		LabelSelector: podLabel,
 	}
 	var pod *corev1.Pod
 	if err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
-		pods, err := data.clientset.CoreV1().Pods(flowVisibilityNamespace).List(context.TODO(), listOptions)
+		pods, err := data.clientset.CoreV1().Pods(ns).List(context.TODO(), listOptions)
 		if err != nil {
-			return false, fmt.Errorf("failed to list Spark Operator Pod: %v", err)
+			return false, fmt.Errorf("failed to list Pod: %v", err)
 		}
 		if len(pods.Items) == 0 {
 			return false, nil
@@ -1341,4 +1350,9 @@ func (data *TestData) Cleanup(namespaces []string) {
 			log.Errorf("Error when deleting Namespace '%s': %v", ns, err)
 		}
 	}
+}
+
+func flowVisibilityCleanup(tb testing.TB, data *TestData, withSparkOperator bool) {
+	teardownTest(tb, data)
+	teardownFlowVisibility(tb, data, withSparkOperator)
 }

@@ -44,7 +44,7 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, true)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, true, false)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}

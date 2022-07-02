@@ -15,8 +15,17 @@
 package e2e
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os/exec"
+	"syscall"
+
 	"net"
 	"strconv"
 	"strings"
@@ -26,6 +35,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 	ipfixregistry "github.com/vmware/go-ipfix/pkg/registry"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -90,20 +100,8 @@ trusted: 0
 */
 
 const (
-	ingressAllowNetworkPolicyName  = "test-flow-aggregator-networkpolicy-ingress-allow"
-	ingressRejectANPName           = "test-flow-aggregator-anp-ingress-reject"
-	ingressDropANPName             = "test-flow-aggregator-anp-ingress-drop"
-	ingressDenyNPName              = "test-flow-aggregator-np-ingress-deny"
-	egressAllowNetworkPolicyName   = "test-flow-aggregator-networkpolicy-egress-allow"
-	egressRejectANPName            = "test-flow-aggregator-anp-egress-reject"
-	egressDropANPName              = "test-flow-aggregator-anp-egress-drop"
-	egressDenyNPName               = "test-flow-aggregator-np-egress-deny"
-	ingressAntreaNetworkPolicyName = "test-flow-aggregator-antrea-networkpolicy-ingress"
-	egressAntreaNetworkPolicyName  = "test-flow-aggregator-antrea-networkpolicy-egress"
-	testIngressRuleName            = "test-ingress-rule-name"
-	testEgressRuleName             = "test-egress-rule-name"
-	clickHousePodName              = "chi-clickhouse-clickhouse-0-0-0"
-	iperfTimeSec                   = 12
+	clickHousePodName = "chi-clickhouse-clickhouse-0-0-0"
+	iperfTimeSec      = 12
 	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
 	// (default unlimited for TCP), to reduce the variances caused by network performance
 	// during 12s, and make the throughput test more stable.
@@ -115,6 +113,11 @@ const (
 	monitorThreshold                = 0.1
 	monitorDeletePercentage         = 0.5
 	monitorIperfRounds              = 80
+	grafanaCred                     = "admin:admin"
+	grafanaLocalPort                = "5000"
+	grafanaSvcPort                  = "3000"
+	grafanaAddr                     = "http://127.0.0.1:5000"
+	grafanaQueryTimeout             = 10 * time.Second
 )
 
 var (
@@ -124,6 +127,8 @@ var (
 	// Since flow aggregator will aggregate records based on 5-tuple connection key and active timeout is 3.5 seconds,
 	// we expect 3 records at time 5.5s, 9s, and 12.5s after iperf traffic begins.
 	expectedNumDataRecords = 3
+	grafanaPorts           = fmt.Sprintf("%s:%s", grafanaLocalPort, grafanaSvcPort)
+	portForwardCmd         = exec.Command("kubectl", "port-forward", "service/grafana", "-n", "flow-visibility", grafanaPorts)
 )
 
 type testFlow struct {
@@ -134,26 +139,34 @@ type testFlow struct {
 }
 
 func TestFlowVisibility(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false)
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false, true)
 	if err != nil {
-		t.Fatalf("Error when setting up test: %v", err)
+		t.Errorf("Error when setting up test: %v", err)
+		failOnError(err, t, data)
 	}
-	defer func() {
-		teardownTest(t, data)
-		teardownFlowVisibility(t, data, false)
-	}()
+	// port-forward Grafana Service port to local port
+	if err := portForwardCmd.Start(); err != nil {
+		t.Errorf("Error when port forwarding Grafana Service: %v", err)
+		failOnError(err, t, data)
+	}
+	defer portForwardCmd.Process.Kill()
+	defer flowVisibilityCleanup(t, data, false)
 
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
 	if err != nil {
-		t.Fatalf("Error when creating perftest Pods: %v", err)
+		failOnError(fmt.Errorf("error when creating perftest Pods: %v", err), t, data)
 	}
 
 	if v4Enabled {
-		t.Run("IPv4", func(t *testing.T) { testHelper(t, data, podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, false) })
+		t.Run("IPv4", func(t *testing.T) {
+			testHelper(t, data, podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, false)
+		})
 	}
 
 	if v6Enabled {
-		t.Run("IPv6", func(t *testing.T) { testHelper(t, data, podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, true) })
+		t.Run("IPv6", func(t *testing.T) {
+			testHelper(t, data, podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, true)
+		})
 	}
 
 }
@@ -161,7 +174,7 @@ func TestFlowVisibility(t *testing.T) {
 func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs, podEIPs *PodIPs, isIPv6 bool) {
 	svcB, svcC, err := createPerftestServices(data, isIPv6)
 	if err != nil {
-		t.Fatalf("Error when creating perftest Services: %v", err)
+		failOnError(fmt.Errorf("error when creating perftest Services: %v", err), t, data)
 	}
 	defer deletePerftestServices(t, data)
 	// Wait for the Service to be realized.
@@ -429,6 +442,13 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		defer cleanupFunc()
 
 		if !isIPv6 {
+			toExternalServerIP = serverIPs.ipv4.String()
+		} else {
+			toExternalServerIP = serverIPs.ipv6.String()
+		}
+		toExternalClientName = clientName
+
+		if !isIPv6 {
 			if clientIPs.ipv4 != nil && serverIPs.ipv4 != nil {
 				checkRecordsForToExternalFlows(t, data, nodeName(0), clientName, clientIPs.ipv4.String(), serverIPs.ipv4.String(), serverPodPort, isIPv6)
 			}
@@ -465,6 +485,14 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		}
 	})
 
+	// Grafana tests the queries in self-defined dashboards can be successfully
+	// executed, and the returned data contains expected results.
+	t.Run("Grafana", func(t *testing.T) {
+		for _, tc := range grafanaTestCases {
+			checkGrafanaQueryResults(t, data, tc.dashboardName, tc.dashboardUid, &tc.queryList)
+		}
+	})
+
 	// ClickHouseMonitor tests ensure ClickHouse monitor inspects the ClickHouse
 	// Pod storage usage and deletes the data when the stoage usage grows above
 	// the threshold.
@@ -487,6 +515,96 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		}
 		checkClickHouseMonitor(t, data, isIPv6, flow)
 	})
+}
+
+func checkGrafanaQueryResults(t *testing.T, data *TestData, dashboardName, dashboardUid string, queryList *[]query) {
+	queries, err := getQueriesByDashboard("/api/dashboards/uid/", dashboardUid, http.MethodGet, queryList)
+	if err != nil {
+		t.Errorf("Error when getting queries from dashboard: %s\nuid:%s, err: %v", dashboardName, dashboardUid, err)
+		failOnError(err, t, data)
+	}
+	err = checkQueryResult(t, "/api/ds/query", http.MethodPost, queries, queryList)
+	if err != nil {
+		t.Errorf("Error when checking query results from dashboard: %s\nuid:%s, err: %v", dashboardName, dashboardUid, err)
+		failOnError(err, t, data)
+	}
+}
+
+func createNewHttpRequest(httpMethod, url string, body io.Reader) (*http.Request, error) {
+	encodedCreds := base64.StdEncoding.EncodeToString([]byte(grafanaCred))
+	req, err := http.NewRequest(httpMethod, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Authorization", "Basic "+encodedCreds)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	return req, nil
+}
+
+func getQueriesByDashboard(apiEndpoint, dashboardUid, httpMethod string, queryList *[]query) ([]string, error) {
+	queries := []string{}
+	url := grafanaAddr + apiEndpoint + dashboardUid
+	req, err := createNewHttpRequest(httpMethod, url, nil)
+	if err != nil {
+		return queries, fmt.Errorf("error when creating http request: %v", err)
+	}
+	client := &http.Client{}
+	var resp *http.Response
+	var respErr error
+	err = wait.PollImmediate(500*time.Millisecond, grafanaQueryTimeout, func() (bool, error) {
+		resp, respErr = client.Do(req)
+		// If connection refused, keep trying
+		if errors.Is(respErr, syscall.ECONNREFUSED) {
+			return false, respErr
+		}
+		return true, nil
+	})
+	if err != nil {
+		return queries, fmt.Errorf("unable to access Grafana Service, err: %v", err)
+	}
+	if respErr != nil {
+		return queries, fmt.Errorf("error on response, err: %v", respErr)
+	}
+	defer resp.Body.Close()
+
+	dashboard, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return queries, fmt.Errorf("error while reading the response bytes: %v", err)
+	}
+	for _, q := range *queryList {
+		query := gjson.GetBytes(dashboard, fmt.Sprintf("dashboard.panels*.%d.targets", q.queryId))
+		queryWithTimeRange := fmt.Sprintf(`{"queries":%s,"from":"now-15m","to":"now"}`, query.Raw)
+		queries = append(queries, queryWithTimeRange)
+	}
+	return queries, nil
+}
+
+func checkQueryResult(t *testing.T, apiEndpoint, httpMethod string, queries []string, queryList *[]query) error {
+	url := grafanaAddr + apiEndpoint
+	for i, q := range *queryList {
+		req, err := createNewHttpRequest(httpMethod, url, bytes.NewBuffer([]byte(queries[i])))
+		if err != nil {
+			return fmt.Errorf("error when creating http request: %v", err)
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("error on response, err: %v", err)
+		}
+		defer resp.Body.Close()
+
+		result, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("error while reading the response bytes: %v", err)
+		}
+		data := gjson.GetBytes(result, "results.A.frames*.0").Raw
+		assert := assert.New(t)
+		for _, str := range q.expectResult {
+			assert.Containsf(data, str, "Panel name: %s", q.panelName)
+		}
+	}
+	return nil
 }
 
 func checkClickHouseMonitor(t *testing.T, data *TestData, isIPv6 bool, flow testFlow) {
@@ -569,7 +687,7 @@ func checkRecordsForFlows(t *testing.T, data *TestData, srcIP string, dstIP stri
 	if strings.Contains(bwSlice[1], "Mbits") {
 		bandwidthInMbps = bandwidthInFloat
 	} else {
-		t.Fatalf("Unit of the traffic bandwidth reported by iperf should be Mbits.")
+		failOnError(fmt.Errorf("unit of the traffic bandwidth reported by iperf should be Mbits."), t, data)
 	}
 
 	checkRecordsForFlowsClickHouse(t, data, srcIP, dstIP, srcPort, isIntraNode, checkService, checkK8sNetworkPolicy, checkAntreaNetworkPolicy, bandwidthInMbps)
@@ -880,7 +998,7 @@ func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, s
 	anp1 = builder1.Get()
 	anp1, err1 := data.CreateOrUpdateANP(anp1)
 	if err1 != nil {
-		failOnError(fmt.Errorf("Error when creating Antrea Network Policy: %v", err1), t, data)
+		failOnError(fmt.Errorf("error when creating Antrea Network Policy: %v", err1), t, data)
 	}
 
 	builder2 := &utils.AntreaNetworkPolicySpecBuilder{}
@@ -893,7 +1011,7 @@ func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, s
 	anp2 = builder2.Get()
 	anp2, err2 := data.CreateOrUpdateANP(anp2)
 	if err2 != nil {
-		failOnError(fmt.Errorf("Error when creating Network Policy: %v", err2), t, data)
+		failOnError(fmt.Errorf("error when creating Network Policy: %v", err2), t, data)
 	}
 
 	// Wait for network policies to be realized.
@@ -948,12 +1066,12 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 	anp1 = builder1.Get()
 	anp1, err = data.CreateOrUpdateANP(anp1)
 	if err != nil {
-		failOnError(fmt.Errorf("Error when creating Antrea Network Policy: %v", err), t, data)
+		failOnError(fmt.Errorf("error when creating Antrea Network Policy: %v", err), t, data)
 	}
 	anp2 = builder2.Get()
 	anp2, err = data.CreateOrUpdateANP(anp2)
 	if err != nil {
-		failOnError(fmt.Errorf("Error when creating Antrea Network Policy: %v", err), t, data)
+		failOnError(fmt.Errorf("error when creating Antrea Network Policy: %v", err), t, data)
 	}
 	// Wait for Antrea NetworkPolicy to be realized.
 	if err := data.WaitNetworkPolicyRealize(nodeName, table, flowCount); err != nil {
@@ -1001,43 +1119,43 @@ func deployDenyNetworkPolicies(t *testing.T, data *TestData, pod1, pod2 string, 
 
 func createPerftestPods(data *TestData) (podAIPs *PodIPs, podBIPs *PodIPs, podCIPs *PodIPs, podDIPs *PodIPs, podEIPs *PodIPs, err error) {
 	if err := data.createPodOnNode("perftest-a", testNamespace, controlPlaneNodeName(), perftoolImage, nil, nil, nil, nil, false, nil); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when creating the perftest client Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when creating the perftest client Pod: %v", err)
 	}
 	podAIPs, err = data.podWaitForIPs(defaultTimeout, "perftest-a", testNamespace)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when waiting for the perftest client Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when waiting for the perftest client Pod: %v", err)
 	}
 
 	if err := data.createPodOnNode("perftest-b", testNamespace, controlPlaneNodeName(), perftoolImage, nil, nil, nil, []corev1.ContainerPort{{Protocol: corev1.ProtocolTCP, ContainerPort: iperfPort}}, false, nil); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when creating the perftest server Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when creating the perftest server Pod: %v", err)
 	}
 	podBIPs, err = data.podWaitForIPs(defaultTimeout, "perftest-b", testNamespace)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when getting the perftest server Pod's IPs: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when getting the perftest server Pod's IPs: %v", err)
 	}
 
 	if err := data.createPodOnNode("perftest-c", testNamespace, workerNodeName(1), perftoolImage, nil, nil, nil, []corev1.ContainerPort{{Protocol: corev1.ProtocolTCP, ContainerPort: iperfPort}}, false, nil); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when creating the perftest server Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when creating the perftest server Pod: %v", err)
 	}
 	podCIPs, err = data.podWaitForIPs(defaultTimeout, "perftest-c", testNamespace)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when getting the perftest server Pod's IPs: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when getting the perftest server Pod's IPs: %v", err)
 	}
 
 	if err := data.createPodOnNode("perftest-d", testNamespace, controlPlaneNodeName(), perftoolImage, nil, nil, nil, []corev1.ContainerPort{{Protocol: corev1.ProtocolTCP, ContainerPort: iperfPort}}, false, nil); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when creating the perftest server Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when creating the perftest server Pod: %v", err)
 	}
 	podDIPs, err = data.podWaitForIPs(defaultTimeout, "perftest-d", testNamespace)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when getting the perftest server Pod's IPs: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when getting the perftest server Pod's IPs: %v", err)
 	}
 
 	if err := data.createPodOnNode("perftest-e", testNamespace, workerNodeName(1), perftoolImage, nil, nil, nil, []corev1.ContainerPort{{Protocol: corev1.ProtocolTCP, ContainerPort: iperfPort}}, false, nil); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when creating the perftest server Pod: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when creating the perftest server Pod: %v", err)
 	}
 	podEIPs, err = data.podWaitForIPs(defaultTimeout, "perftest-e", testNamespace)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("Error when getting the perftest server Pod's IPs: %v", err)
+		return nil, nil, nil, nil, nil, fmt.Errorf("error when getting the perftest server Pod's IPs: %v", err)
 	}
 
 	return podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, nil
@@ -1051,12 +1169,12 @@ func createPerftestServices(data *TestData, isIPv6 bool) (svcB *corev1.Service, 
 
 	svcB, err = data.CreateService("perftest-b", testNamespace, iperfPort, iperfPort, map[string]string{"antrea-e2e": "perftest-b"}, false, false, corev1.ServiceTypeClusterIP, &svcIPFamily)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error when creating perftest-b Service: %v", err)
+		return nil, nil, fmt.Errorf("error when creating perftest-b Service: %v", err)
 	}
 
 	svcC, err = data.CreateService("perftest-c", testNamespace, iperfPort, iperfPort, map[string]string{"antrea-e2e": "perftest-c"}, false, false, corev1.ServiceTypeClusterIP, &svcIPFamily)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error when creating perftest-c Service: %v", err)
+		return nil, nil, fmt.Errorf("error when creating perftest-c Service: %v", err)
 	}
 
 	return svcB, svcC, nil
@@ -1145,9 +1263,9 @@ type ClickHouseFullRow struct {
 }
 
 func failOnError(err error, t *testing.T, data *TestData) {
-	if err != nil {
-		log.Errorf("%+v", err)
-		data.Cleanup(namespaces)
-		t.Fatalf("test failed: %v", err)
+	if portForwardCmd.Process != nil {
+		portForwardCmd.Process.Kill()
 	}
+	flowVisibilityCleanup(t, data, false)
+	t.Fatalf("test failed: %v", err)
 }

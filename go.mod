@@ -12,6 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.7.0
+	github.com/tidwall/gjson v1.14.1
 	github.com/vmware/go-ipfix v0.5.12
 	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
 	golang.org/x/mod v0.4.2
@@ -65,6 +66,8 @@ require (
 	github.com/safchain/ethtool v0.0.0-20190326074333-42ed695e3de8 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/streamrail/concurrent-map v0.0.0-20160823150647-8bf1e9bacbf6 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/vishvananda/netlink v1.1.1-0.20210510164352-d17758a128bf // indirect
 	github.com/vishvananda/netns v0.0.0-20200728191858-db3c7e526aae // indirect
 	go.opencensus.io v0.22.3 // indirect

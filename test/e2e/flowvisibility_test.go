@@ -17,7 +17,6 @@ package e2e
 import (
 	"encoding/json"
 	"fmt"
-
 	"net"
 	"strconv"
 	"strings"
@@ -113,6 +112,9 @@ const (
 	antreaIngressTableInitFlowCount = 6
 	ingressTableInitFlowCount       = 1
 	egressTableInitFlowCount        = 1
+	monitorThreshold                = 0.1
+	monitorDeletePercentage         = 0.5
+	monitorIperfRounds              = 80
 )
 
 var (
@@ -462,6 +464,91 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 			checkRecordsForFlows(t, data, podAIPs.ipv4.String(), svcC.Spec.ClusterIP, isServiceIPv6, false, true, false, false)
 		}
 	})
+
+	// ClickHouseMonitor tests ensure ClickHouse monitor inspects the ClickHouse
+	// Pod storage usage and deletes the data when the stoage usage grows above
+	// the threshold.
+	t.Run("ClickHouseMonitor", func(t *testing.T) {
+		var flow testFlow
+		if !isIPv6 {
+			flow = testFlow{
+				srcIP:      podAIPs.ipv4.String(),
+				dstIP:      podBIPs.ipv4.String(),
+				srcPodName: "perftest-a",
+				dstPodName: "perftest-b",
+			}
+		} else {
+			flow = testFlow{
+				srcIP:      podAIPs.ipv6.String(),
+				dstIP:      podBIPs.ipv6.String(),
+				srcPodName: "perftest-a",
+				dstPodName: "perftest-b",
+			}
+		}
+		checkClickHouseMonitor(t, data, isIPv6, flow)
+	})
+}
+
+func checkClickHouseMonitor(t *testing.T, data *TestData, isIPv6 bool, flow testFlow) {
+	checkClickHouseMonitorLogs(t, data, false, 0)
+	var cmdStr string
+	// iperf3 has a limit on maximum parallel streams at 128
+	if !isIPv6 {
+		cmdStr = fmt.Sprintf("iperf3 -u -c %s -P 128 -n 1", flow.dstIP)
+	} else {
+		cmdStr = fmt.Sprintf("iperf3 -u -6 -c %s -P 128 -n 1", flow.dstIP)
+	}
+	log.Infof("Generating flow records to exceed monitor threshold...")
+	for i := 0; i < monitorIperfRounds; i++ {
+		stdout, stderr, err := data.RunCommandFromPod(testNamespace, flow.srcPodName, "perftool", []string{"bash", "-c", cmdStr})
+		require.NoErrorf(t, err, "Error when running iPerf3 client: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	}
+	log.Infof("Waiting for the flows to be exported...")
+	time.Sleep(30 * time.Second)
+	// Get the number of records in database before the monitor deletes the records
+	stdout, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT COUNT() FROM default.flows\""})
+	require.NoErrorf(t, err, "Error when querying ClickHouse server: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	numRecord, err := strconv.ParseInt(strings.TrimSuffix(stdout, "\n"), 10, 64)
+	require.NoErrorf(t, err, "Failed when parsing the number of records %v", err)
+	log.Infof("Waiting for the monitor to detect and clean up the ClickHouse storage")
+	time.Sleep(2 * time.Minute)
+	checkClickHouseMonitorLogs(t, data, true, numRecord)
+}
+
+func checkClickHouseMonitorLogs(t *testing.T, data *TestData, deleted bool, numRecord int64) {
+	logString, err := data.GetPodLogs(flowVisibilityNamespace, clickHousePodName,
+		&corev1.PodLogOptions{
+			Container: "clickhouse-monitor",
+		},
+	)
+	require.NoErrorf(t, err, "Error when getting ClickHouse monitor logs: %v", err)
+	// ClickHouse monitor log sample
+	// "Memory usage" total=2062296555 used=42475 percentage=2.0595970980516912e-05
+	logs := strings.Split(logString, "Memory usage")
+	memoryUsageLog := strings.Split(logs[len(logs)-1], "\n")[0]
+	assert.Contains(t, memoryUsageLog, "total=")
+	assert.Contains(t, memoryUsageLog, "used=")
+	assert.Contains(t, memoryUsageLog, "percentage=")
+	percentage, err := strconv.ParseFloat(strings.Split(memoryUsageLog, "percentage=")[1], 64)
+	require.NoErrorf(t, err, "Failed when parsing the memory usage percentage %v", err)
+	if !deleted {
+		assert.LessOrEqual(t, percentage, monitorThreshold)
+	} else {
+		assert.Greater(t, percentage, monitorThreshold)
+		// Monitor deletes records from table flows and related MVs
+		assert.Contains(t, logString, "ALTER TABLE default.flows DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from Table flows")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_pod_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_pod_view")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_node_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_node_view")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_policy_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_policy_view")
+		assert.Contains(t, logString, "Skip rounds after a successful deletion", "Monitor should skip rounds after a successful deletion")
+		require.Contains(t, logString, "SELECT timeInserted FROM default.flows LIMIT 1 OFFSET ", "Monitor should log the deletion SQL command")
+		deletedRecordLog := strings.Split(logString, "SELECT timeInserted FROM default.flows LIMIT 1 OFFSET ")[1]
+		deletedRecordLog = strings.Split(deletedRecordLog, "\n")[0]
+		numDeletedRecord, err := strconv.ParseInt(deletedRecordLog, 10, 64)
+		require.NoErrorf(t, err, "Failed when parsing the number of deleted records %v", err)
+
+		assert.InDeltaf(t, numDeletedRecord, float64(numRecord)*monitorDeletePercentage, float64(numDeletedRecord)*0.15, "Difference between expected and actual number of deleted Records should be lower than 15%")
+	}
 }
 
 func checkRecordsForFlows(t *testing.T, data *TestData, srcIP string, dstIP string, isIPv6 bool, isIntraNode bool, checkService bool, checkK8sNetworkPolicy bool, checkAntreaNetworkPolicy bool) {

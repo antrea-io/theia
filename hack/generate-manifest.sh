@@ -23,9 +23,15 @@ function echoerr {
 _usage="Usage: $0 [--mode (dev|release)] [--keep] [--help|-h]
 Generate a YAML manifest for the Clickhouse-Grafana Flow-visibility Solution, using Helm and
 Kustomize, and print it to stdout.
-        --mode (dev|release)  Choose the configuration variant that you need (default is 'dev')
-        --spark-operator      Generate a manifest with Spark Operator enabled.
-        --no-grafana          Generate a manifest with Grafana disabled.
+        --mode (dev|release)                Choose the configuration variant that you need (default is 'dev')
+        --spark-operator                    Generate a manifest with Spark Operator enabled.
+        --no-grafana                        Generate a manifest with Grafana disabled.
+        --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
+                                            plain integer or as a fixed-point number using one of these quantity
+                                            suffixes: E, P, T, G, M, K. Or the power-of-two equivalents:
+                                            Ei, Pi, Ti, Gi, Mi, Ki. (default is 8Gi)
+        --ch-monitor-threshold <threshold>  Deploy the ClickHouse monitor with a specific threshold. Can
+                                            vary from 0 to 1. (default is 0.5)
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
 to generate manifests for Theia. You can set the HELM and KUSTOMIZE environment variable to
 the path of the helm and kustomize binary you want us to use. Otherwise we will download the
@@ -43,6 +49,8 @@ function print_help {
 MODE="dev"
 SPARK_OP=false
 GRAFANA=true
+CH_SIZE="8Gi"
+CH_THRESHOLD=0.5
 
 while [[ $# -gt 0 ]]
 do
@@ -60,6 +68,14 @@ case $key in
     --no-grafana)
     GRAFANA=false
     shift 1
+    ;;
+    --ch-size)
+    CH_SIZE="$2"
+    shift 2
+    ;;
+    --ch-monitor-threshold)
+    CH_THRESHOLD="$2"
+    shift 2
     ;;
     -h|--help)
     print_usage
@@ -113,6 +129,8 @@ elif ! $KUSTOMIZE version > /dev/null 2>&1; then
 fi
 
 HELM_VALUES=()
+
+HELM_VALUES+=("clickhouse.storage.size=$CH_SIZE" "clickhouse.monitor.threshold=$CH_THRESHOLD")
 
 if [ "$MODE" == "dev" ] && [ -n "$IMG_NAME" ]; then
     HELM_VALUES+=("clickhouse.monitorImage.repository=$IMG_NAME")

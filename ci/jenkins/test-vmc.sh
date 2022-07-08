@@ -345,15 +345,15 @@ function deliver_antrea {
     (cd $GIT_CHECKOUT_DIR && make theia-linux)
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/bin/theia-linux capv@${control_plane_ip}:~/theia
 
-
     # copy images
     docker pull projects.registry.vmware.com/antrea/antrea-ubuntu:latest
     docker pull projects.registry.vmware.com/antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
-    docker pull projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
     docker save -o antrea-ubuntu.tar projects.registry.vmware.com/antrea/antrea-ubuntu:latest
     docker save -o flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator:latest
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
+
+    (cd $GIT_CHECKOUT_DIR && make policy-recommendation)
     docker save -o theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
 
     # not sure the exact image tag, so read from yaml

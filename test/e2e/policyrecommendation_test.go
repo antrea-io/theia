@@ -16,6 +16,7 @@ package e2e
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -30,19 +31,14 @@ const (
 	// Use a long timeout as it takes ~500s to complete a single Spark job on
 	// Kind testbed
 	jobCompleteTimeout = 10 * time.Minute
+	jobSubmitTimeout   = 2 * time.Minute
+	jobFailedTimeout   = 2 * time.Minute
 	startCmd           = "./theia policy-recommendation run"
 	statusCmd          = "./theia policy-recommendation status"
 	listCmd            = "./theia policy-recommendation list"
 	deleteCmd          = "./theia policy-recommendation delete"
 	retrieveCmd        = "./theia policy-recommendation retrieve"
-	// With the workload traffic perftest-a -> perftest-b, we expect the policy
-	// recommendation job recommends two allow ANP, and two default deny ACNP.
-	// Besides, there will always be three allow ACNP recommended for the
-	// 'kube-system', 'flow-aggregator', and 'flow-visibility' Namespace.
-	expectedAllowANPCnt   = 2
-	expectedAllowACNPCnt  = 3
-	expectedRejectANPCnt  = 0
-	expectedRejectACNPCnt = 2
+	serverPodPort      = int32(80)
 )
 
 func TestPolicyRecommendation(t *testing.T) {
@@ -72,35 +68,99 @@ func TestPolicyRecommendation(t *testing.T) {
 		testPolicyRecommendationDelete(t, data)
 	})
 
+	t.Run("testPolicyRecommendationFailed", func(t *testing.T) {
+		testPolicyRecommendationFailed(t, data)
+	})
+
 	podAIPs, podBIPs, err := createTestPods(data)
 	if err != nil {
 		t.Fatalf("Error when creating test Pods: %v", err)
 	}
 
+	svcB, err := createTestService(data, v6Enabled)
+	if err != nil {
+		t.Fatalf("Error when creating perftest-b Service: %v", err)
+	}
+	defer deleteTestService(t, data)
+	// Wait for the Service to be realized.
+	time.Sleep(3 * time.Second)
+	// In dual stack cluster, Service IP can be assigned as different IP family from specified.
+	// In that case, source IP and destination IP will align with IP family of Service IP.
+	// For IPv4-only and IPv6-only cluster, IP family of Service IP will be same as Pod IPs.
+	isServiceIPv6 := net.ParseIP(svcB.Spec.ClusterIP).To4() == nil
+
+	// Creating an agnhost server as a host network Pod
+	_, serverIPs, cleanupFunc := createAndWaitForPod(t, data, func(name string, ns string, nodeName string, hostNetwork bool) error {
+		return data.createServerPod(name, testNamespace, "", serverPodPort, false, true)
+	}, "test-server-", "", testNamespace, false)
+	defer cleanupFunc()
+
+	clientName, clientIPs, cleanupFunc := createAndWaitForPod(t, data, data.createBusyboxPodOnNode, "test-client-", nodeName(0), testNamespace, false)
+	defer cleanupFunc()
+
+	isExternalFlowIPv4 := clientIPs.ipv4 != nil && serverIPs.ipv4 != nil
+	isExternalFlowIPv6 := clientIPs.ipv6 != nil && serverIPs.ipv6 != nil
+
 	if v4Enabled {
 		srcIP := podAIPs.ipv4.String()
-		dstIP := podBIPs.ipv4.String()
-		testFlow := testFlow{
+		testFlowPodToPod := testFlow{
 			srcIP:      srcIP,
-			dstIP:      dstIP,
+			dstIP:      podBIPs.ipv4.String(),
 			srcPodName: "perftest-a",
 			dstPodName: "perftest-b",
 		}
+		var testFlowPodToSvc testFlow
+		if !isServiceIPv6 {
+			testFlowPodToSvc = testFlow{
+				srcIP:      srcIP,
+				dstIP:      svcB.Spec.ClusterIP,
+				srcPodName: "perftest-a",
+				dstPodName: "perftest-b",
+			}
+		}
+		var testFlowPodToExternal testFlow
+		if isExternalFlowIPv4 {
+			testFlowPodToExternal = testFlow{
+				srcIP:      clientIPs.ipv4.String(),
+				dstIP:      serverIPs.ipv4.String(),
+				srcPodName: clientName,
+				dstPodName: "",
+			}
+		}
+
 		t.Run("testPolicyRecommendationRetrieve/IPv4", func(t *testing.T) {
-			testPolicyRecommendationRetrieve(t, data, false, testFlow)
+			testPolicyRecommendationRetrieve(t, data, false, testFlowPodToPod, testFlowPodToSvc, testFlowPodToExternal)
 		})
 	}
 	if v6Enabled {
 		srcIP := podAIPs.ipv6.String()
 		dstIP := podBIPs.ipv6.String()
-		testFlow := testFlow{
+		testFlowPodToPod := testFlow{
 			srcIP:      srcIP,
 			dstIP:      dstIP,
 			srcPodName: "perftest-a",
 			dstPodName: "perftest-b",
 		}
+		var testFlowPodToSvc testFlow
+		if isServiceIPv6 {
+			testFlowPodToSvc = testFlow{
+				srcIP:      srcIP,
+				dstIP:      svcB.Spec.ClusterIP,
+				srcPodName: "perftest-a",
+				dstPodName: "perftest-b",
+			}
+		}
+		var testFlowPodToExternal testFlow
+		if isExternalFlowIPv6 {
+			testFlowPodToExternal = testFlow{
+				srcIP:      clientIPs.ipv6.String(),
+				dstIP:      serverIPs.ipv6.String(),
+				srcPodName: clientName,
+				dstPodName: "",
+			}
+		}
 		t.Run("testPolicyRecommendationRetrieve/IPv6", func(t *testing.T) {
-			testPolicyRecommendationRetrieve(t, data, true, testFlow)
+			testPolicyRecommendationRetrieve(t, data, true, testFlowPodToPod, testFlowPodToSvc, testFlowPodToExternal)
 		})
 	}
 }
@@ -124,7 +184,6 @@ func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
 }
 
 // Example output:
-
 // CreationTime          CompletionTime        ID                                   Status
 // 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
 // 2022-06-17 15:03:22 2022-06-17 18:08:37 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
@@ -156,20 +215,84 @@ func testPolicyRecommendationDelete(t *testing.T, data *TestData) {
 }
 
 // Example output:
+// Status of this policy recommendation job is Failed
+// Error message: driver pod not found
+// Or
+// Error message: driver container failed
+func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
+	stdout, jobId, err := runJob(t, data)
+	require.NoError(t, err)
+	err = wait.PollImmediate(defaultInterval, jobSubmitTimeout, func() (bool, error) {
+		stdout, err = getJobStatus(t, data, jobId)
+		require.NoError(t, err)
+		if strings.Contains(stdout, "Status of this policy recommendation job is RUNNING") {
+			return true, nil
+		}
+		// Keep trying
+		return false, nil
+	})
+	require.NoError(t, err)
+	driverPodName := fmt.Sprintf("pr-%s-driver", jobId)
+	if err := data.DeletePod(flowVisibilityNamespace, driverPodName); err != nil {
+		t.Logf("Error when deleting Driver Pod: %v", err)
+	}
+	err = wait.PollImmediate(defaultInterval, jobFailedTimeout, func() (bool, error) {
+		stdout, err = getJobStatus(t, data, jobId)
+		require.NoError(t, err)
+		if strings.Contains(stdout, "Status of this policy recommendation job is FAILED") {
+			return true, nil
+		}
+		// Keep trying
+		return false, nil
+	})
+	require.NoError(t, err)
+	assert := assert.New(t)
+	assert.Containsf(stdout, "Error message: driver", "stdout: %s", stdout)
+}
+
+// Example output:
 // apiVersion: crd.antrea.io/v1alpha1
 // kind: NetworkPolicy
 // metadata:
 //   name: recommend-allow-anp-fj3hd
 // ...
-func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool, testFlow testFlow) {
+func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool, testFlowPodToPod, testFlowPodToSvc, testFlowPodToExternal testFlow) {
+	// With the workload traffic perftest-a -> perftest-b, perftest-a ->
+	// perftest-svc-b, and test-client -> test-server, we expect the policy
+	// recommendation job recommends 3 allow ANP, and 3 default deny ACNP.
+	// Besides, there will always be 3 allow ACNP recommended for the
+	// 'kube-system', 'flow-aggregator', and 'flow-visibility' Namespace.
+	expectedAllowANPCnt := 3
+	expectedAllowACNPCnt := 3
+	expectedRejectANPCnt := 0
+	expectedRejectACNPCnt := 3
+
+	testFlows := []testFlow{testFlowPodToPod, testFlowPodToSvc}
 	var cmdStr string
-	if !isIPv6 {
-		cmdStr = fmt.Sprintf("iperf3 -c %s", testFlow.dstIP)
-	} else {
-		cmdStr = fmt.Sprintf("iperf3 -6 -c %s", testFlow.dstIP)
+	for _, flow := range testFlows {
+		if (flow != testFlow{}) {
+			if !isIPv6 {
+				cmdStr = fmt.Sprintf("iperf3 -c %s", flow.dstIP)
+			} else {
+				cmdStr = fmt.Sprintf("iperf3 -6 -c %s", flow.dstIP)
+			}
+			stdout, stderr, err := data.RunCommandFromPod(testNamespace, flow.srcPodName, "perftool", []string{"bash", "-c", cmdStr})
+			require.NoErrorf(t, err, "Error when running iPerf3 client: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+		}
 	}
-	stdout, stderr, err := data.RunCommandFromPod(testNamespace, testFlow.srcPodName, "perftool", []string{"bash", "-c", cmdStr})
-	require.NoErrorf(t, err, "Error when running iPerf3 client: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+
+	if (testFlowPodToExternal != testFlow{}) {
+		if !isIPv6 {
+			cmdStr = fmt.Sprintf("wget -O- %s:%d", testFlowPodToExternal.dstIP, serverPodPort)
+		} else {
+			cmdStr = fmt.Sprintf("wget -O- [%s]:%d", testFlowPodToExternal.dstIP, serverPodPort)
+		}
+		stdout, stderr, err := data.RunCommandFromPod(testNamespace, testFlowPodToExternal.srcPodName, busyboxContainerName, strings.Fields(cmdStr))
+		require.NoErrorf(t, err, "Error when running wget command, stdout: %s, stderr: %s", stdout, stderr)
+	} else {
+		expectedAllowANPCnt -= 1
+		expectedRejectACNPCnt -= 1
+	}
 
 	_, jobId, err := runJob(t, data)
 	require.NoError(t, err)
@@ -180,7 +303,7 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 	err = retrieveJobResult(t, data, jobId)
 	require.NoError(t, err)
 	cmd := fmt.Sprintf("kubectl apply -f %s", policyOutputYML)
-	_, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	_, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	require.NoErrorf(t, err, "Error when running %v from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
 	_, allPolicies, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("cat %s", policyOutputYML))
 	require.NoErrorf(t, err, "Error when running %v from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
@@ -201,8 +324,8 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 		}
 	}
 	assert := assert.New(t)
-	assert.Equalf(expectedAllowANPCnt, allowANPCnt, fmt.Sprintf("Expected allow ANP count is: %d. Actual count is: %d. Recommended policies:\n%s", expectedAllowANPCnt, allowANPCnt, allPolicies))
-	assert.Equalf(expectedRejectANPCnt, rejectANPCnt, fmt.Sprintf("Expected reject ANP count is: %d. Actual count is: %d. Recommended policies:\n%s", expectedRejectANPCnt, rejectANPCnt, allPolicies))
+	assert.Equalf(expectedAllowANPCnt, allowANPCnt, fmt.Sprintf("Expected allow ANP count is: %d. Actual count is: %d. Recommended policies:\n%s\nCheck command output:\n%s", expectedAllowANPCnt, allowANPCnt, allPolicies, stdout))
+	assert.Equalf(expectedRejectANPCnt, rejectANPCnt, fmt.Sprintf("Expected reject ANP count is: %d. Actual count is: %d. Recommended policies:\n%s\nCheck command output:\n%s", expectedRejectANPCnt, rejectANPCnt, allPolicies, stdout))
 
 	// Check recommended ACNP counts
 	cmd = "kubectl get acnp"
@@ -219,8 +342,8 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 			rejectACNPCnt += 1
 		}
 	}
-	assert.Equalf(expectedAllowACNPCnt, allowACNPCnt, fmt.Sprintf("Expected allow ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s", expectedAllowACNPCnt, allowACNPCnt, allPolicies))
-	assert.Equalf(expectedRejectACNPCnt, rejectACNPCnt, fmt.Sprintf("Expected reject ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s", expectedRejectACNPCnt, rejectACNPCnt, allPolicies))
+	assert.Equalf(expectedAllowACNPCnt, allowACNPCnt, fmt.Sprintf("Expected allow ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s\nCheck command output:\n%s", expectedAllowACNPCnt, allowACNPCnt, allPolicies, stdout))
+	assert.Equalf(expectedRejectACNPCnt, rejectACNPCnt, fmt.Sprintf("Expected reject ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s\nCheck command output:\n%s", expectedRejectACNPCnt, rejectACNPCnt, allPolicies, stdout))
 }
 
 func runJob(t *testing.T, data *TestData) (stdout string, jobId string, err error) {
@@ -311,4 +434,25 @@ func createTestPods(data *TestData) (podAIPs *PodIPs, podBIPs *PodIPs, err error
 		return nil, nil, fmt.Errorf("error when getting the perftest server Pod's IPs: %v", err)
 	}
 	return podAIPs, podBIPs, nil
+}
+
+func createTestService(data *TestData, isIPv6 bool) (svcB *corev1.Service, err error) {
+	svcIPFamily := corev1.IPv4Protocol
+	if isIPv6 {
+		svcIPFamily = corev1.IPv6Protocol
+	}
+
+	svcB, err = data.CreateService("perftest-b", testNamespace, iperfPort, iperfPort, map[string]string{"antrea-e2e": "perftest-b"}, false, false, corev1.ServiceTypeClusterIP, &svcIPFamily)
+	if err != nil {
+		return nil, fmt.Errorf("Error when creating perftest-b Service: %v", err)
+	}
+
+	return svcB, nil
+}
+
+func deleteTestService(t *testing.T, data *TestData) {
+	err := data.deleteService(testNamespace, "perftest-b")
+	if err != nil {
+		t.Logf("Error when deleting perftest-b Service: %v", err)
+	}
 }

@@ -36,6 +36,7 @@
 {{- define "clickhouse.server.container" }}
 {{- $clickhouse := .clickhouse }}
 {{- $enablePV := .enablePV }}
+{{- $version := .version }}
 - name: clickhouse
   image: {{ $clickhouse.image.repository }}:{{ $clickhouse.image.tag }}
   imagePullPolicy: {{ $clickhouse.image.pullPolicy }}
@@ -46,14 +47,31 @@
     - name: clickhouse-storage-volume
       mountPath: /var/lib/clickhouse
     {{- end }}
+  env:
+    - name: THEIA_VERSION
+      value: {{ $version }}
 {{- end }}
 
 {{- define "clickhouse.volume" }}
 {{- $clickhouse := .clickhouse }}
 {{- $enablePV := .enablePV }}
+{{- $Files := .Files }}
 - name: clickhouse-configmap-volume
   configMap:
     name: clickhouse-mounted-configmap
+    items:
+      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/*.sh" }}
+      - key: {{ regexReplaceAll "(.*)/" $path "" }}
+        path: {{ regexReplaceAll "(.*)/" $path "" }}
+      {{- end }}
+      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/upgrade/*" }}
+      - key: {{ regexReplaceAll "(.*)/" $path "" }}
+        path: migrators/upgrade/{{ regexReplaceAll "(.*)/" $path "" }}
+      {{- end }}
+      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/downgrade/*" }}
+      - key: {{ regexReplaceAll "(.*)/" $path "" }}
+        path: migrators/downgrade/{{ regexReplaceAll "(.*)/" $path "" }}
+      {{- end }}
 {{- if not $enablePV }}
 - name: clickhouse-storage-volume
   emptyDir:

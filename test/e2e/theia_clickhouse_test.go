@@ -112,13 +112,19 @@ var tableColumnNumberMap = map[string]string{
 }
 
 func TestTheiaClickHouseStatusCommand(t *testing.T) {
-	data, _, _, err := setupTestForFlowVisibility(t, false, false, false)
+	config := FlowVisibiltiySetUpConfig{
+		withSparkOperator:     false,
+		withGrafana:           false,
+		withClickHouseLocalPv: false,
+		withFlowAggregator:    false,
+	}
+	data, _, _, err := setupTestForFlowVisibility(t, config)
 	if err != nil {
 		t.Fatalf("Error when setting up test: %v", err)
 	}
 	defer func() {
 		teardownTest(t, data)
-		teardownFlowVisibility(t, data, false, false)
+		teardownFlowVisibility(t, data, config)
 	}()
 
 	clientset := data.clientset

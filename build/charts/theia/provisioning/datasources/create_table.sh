@@ -24,7 +24,8 @@
 {{- else if eq $ttl._1 "HOUR" }}
 {{- $ttlTimeout = min (mul $ttl._0 60 60) $ttlTimeout }}
 {{- end }}
-set -e
+
+function createTable {
 clickhouse client -n -h 127.0.0.1 <<-EOSQL
     --Create a table to store records
     CREATE TABLE IF NOT EXISTS flows_local (
@@ -285,3 +286,4 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
     CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
     engine=Distributed('{cluster}', default, recommendations_local, rand());
 EOSQL
+}

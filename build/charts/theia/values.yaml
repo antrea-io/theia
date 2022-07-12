@@ -24,7 +24,7 @@ clickhouse:
     image:
       repository: "projects.registry.vmware.com/antrea/theia-clickhouse-monitor"
       pullPolicy: "IfNotPresent"
-      tag: "latest"
+      tag: ""
   # -- Credentials to connect to ClickHouse. They will be stored in a secret.
   connectionSecret:
     username : "clickhouse_operator"

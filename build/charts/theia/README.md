@@ -1,6 +1,6 @@
 # theia
 
-![Version: 0.2.0-dev](https://img.shields.io/badge/Version-0.2.0--dev-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.2.0-dev](https://img.shields.io/badge/AppVersion-0.2.0--dev-informational?style=flat-square)
+![Version: 0.2.0-dev](https://img.shields.io/badge/Version-0.2.0--dev-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: latest](https://img.shields.io/badge/AppVersion-latest-informational?style=flat-square)
 
 Antrea Network Flow Visibility
 
@@ -23,7 +23,7 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.monitor.deletePercentage | float | `0.5` | The percentage of records in ClickHouse that will be deleted when the storage grows above threshold. Vary from 0 to 1. |
 | clickhouse.monitor.enable | bool | `true` | Determine whether to run a monitor to periodically check the ClickHouse memory usage and clean data. |
 | clickhouse.monitor.execInterval | string | `"1m"` | The time interval between two round of monitoring. Can be a plain integer using one of these unit suffixes ns, us (or µs), ms, s, m, h. |
-| clickhouse.monitor.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-monitor","tag":"latest"}` | Container image used by the ClickHouse Monitor. |
+| clickhouse.monitor.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-monitor","tag":""}` | Container image used by the ClickHouse Monitor. |
 | clickhouse.monitor.skipRoundsNum | int | `3` | The number of rounds for the monitor to stop after a deletion to wait for the ClickHouse MergeTree Engine to release memory. |
 | clickhouse.monitor.threshold | float | `0.5` | The storage percentage at which the monitor starts to delete old records. Vary from 0 to 1. |
 | clickhouse.service.httpPort | int | `8123` | TCP port number for the ClickHouse service. |

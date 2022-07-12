@@ -49,7 +49,7 @@ spec:
                 {{- end }}
             {{- if .Values.clickhouse.monitor.enable}}
             - name: clickhouse-monitor
-              image: {{ .Values.clickhouse.monitor.image.repository }}:{{ .Values.clickhouse.monitor.image.tag }}
+              image: {{ .Values.clickhouse.monitor.image.repository }}:{{ default .Chart.AppVersion .Values.clickhouse.monitor.image.tag }}
               imagePullPolicy: {{ .Values.clickhouse.monitor.image.pullPolicy }}
               env:
                 - name: CLICKHOUSE_USERNAME

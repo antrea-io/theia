@@ -43,6 +43,7 @@ FLOW_TABLE_COLUMNS = [
     'destinationServicePortName',
     'destinationTransportPort',
     'protocolIdentifier',
+    'flowType',
 ]
 
 NAMESPACE_ALLOW_LIST = [
@@ -69,8 +70,10 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-def get_flow_type(destinationServicePortName, destinationPodLabels):
-    if destinationServicePortName != "":
+def get_flow_type(flowType, destinationServicePortName, destinationPodLabels):
+    if flowType == 3:
+        return "pod_to_external"
+    elif destinationServicePortName != "":
         return "pod_to_svc"
     elif destinationPodLabels != "":
         return "pod_to_pod"
@@ -645,7 +648,8 @@ def read_flow_df(spark, db_jdbc_address, sql_query, rm_labels):
         flow_df = flow_df.withColumn('sourcePodLabels', udf(remove_meaningless_labels, StringType())("sourcePodLabels"))\
             .withColumn('destinationPodLabels', udf(remove_meaningless_labels, StringType())("destinationPodLabels"))\
             .dropDuplicates(['sourcePodLabels', 'destinationPodLabels'])
-    flow_df = flow_df.withColumn('flowType', udf(get_flow_type, StringType())("destinationServicePortName", "destinationPodLabels"))
+    flow_df = flow_df.withColumn('flowType', udf(get_flow_type, StringType())\
+        ("flowType", "destinationServicePortName", "destinationPodLabels"))
     return flow_df
 
 def write_recommendation_result(spark, result, recommendation_type, db_jdbc_address, table_name, recommendation_id_input):

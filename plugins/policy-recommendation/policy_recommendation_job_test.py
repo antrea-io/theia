@@ -30,21 +30,21 @@ def spark_session(request):
  
 @pytest.mark.parametrize("test_input, expected_flow_type", [
     (
-        ("", ""), 
+        (3, "", ""), 
         "pod_to_external"
     ),
     (
-        ("", '{"podname":"perftest-c"}'), 
+        (1, "", '{"podname":"perftest-c"}'), 
         "pod_to_pod"
     ),
     (
-        ("antrea-e2e/perftestsvc:5201", '{"podname":"perftest-c"}'), 
+        (1, "antrea-e2e/perftestsvc:5201", '{"podname":"perftest-c"}'), 
         "pod_to_svc"
     ),
 ])
 def test_get_flow_type(test_input, expected_flow_type):
-    destinationServicePortName, destinationPodLabels = test_input
-    flow_type = get_flow_type(destinationServicePortName, destinationPodLabels)
+    flowType, destinationServicePortName, destinationPodLabels = test_input
+    flow_type = get_flow_type(flowType, destinationServicePortName, destinationPodLabels)
     assert flow_type == expected_flow_type
 
 @pytest.mark.parametrize("test_input, expected_labels", [
@@ -113,7 +113,6 @@ table_name = "default.flows"
 def test_generate_sql_query(test_input, expected_sql_query):
     limit, start_time, end_time, unprotected = test_input
     sql_query = generate_sql_query(table_name, limit, start_time, end_time, unprotected)
-    print(expected_sql_query)
     assert sql_query == expected_sql_query
 
 @pytest.mark.parametrize("test_input, expected_policies", [
@@ -709,7 +708,7 @@ def test_generate_anp_ingress_rule(test_input, expected_ingress_rule):
 ])
 def test_recommend_k8s_policies(spark_session, flows_input, expected_policies):
     test_df = spark_session.createDataFrame(
-        flows_input, FLOW_TABLE_COLUMNS + ["flowType"]
+        flows_input, FLOW_TABLE_COLUMNS
     )
     recommend_k8s_polices_yamls = recommend_k8s_policies(test_df)
     recommend_k8s_polices_dicts = [
@@ -1165,7 +1164,7 @@ def test_recommend_k8s_policies(spark_session, flows_input, expected_policies):
 def test_recommend_antrea_policies(spark_session, test_input, expected_policies):
     flows_input, option, deny_rules, to_services = test_input
     test_df = spark_session.createDataFrame(
-        flows_input, FLOW_TABLE_COLUMNS + ["flowType"]
+        flows_input, FLOW_TABLE_COLUMNS
     )
     recommend_polices_yamls = recommend_antrea_policies(test_df, option, deny_rules, to_services)
     recommend_polices_dicts = [

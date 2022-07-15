@@ -89,5 +89,11 @@ elif ! $HELM version > /dev/null 2>&1; then
 fi
 
 THEIA_CHART="$THIS_DIR/../build/charts/theia"
+# create a backup file before making changes.
+# note that the backup file will not be included in the release: .bak files are
+# ignored as per the .helmignore file.
+cp "$THEIA_CHART/Chart.yaml" "$THEIA_CHART/Chart.yaml.bak"
+yq -i '.annotations."artifacthub.io/prerelease" = strenv(PRERELEASE)' "$THEIA_CHART/Chart.yaml"
 $HELM package --app-version $VERSION --version $VERSION $THEIA_CHART
 mv "theia-$VERSION.tgz" "$OUT/theia-chart.tgz"
+mv "$THEIA_CHART/Chart.yaml.bak" "$THEIA_CHART/Chart.yaml"

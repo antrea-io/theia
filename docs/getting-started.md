@@ -28,8 +28,10 @@ Theia.
 ## Prerequisites
 
 Theia requires that Antrea v1.7.0 or later is installed in the Kubernetes
-cluster. Ensure the Flow Exporter feature of Antrea Agent is enabled in the
-Antrea deployment manifest:
+cluster.
+
+For Antrea v1.7, please ensure the Flow Exporter feature of Antrea
+Agent is enabled in the Antrea deployment manifest:
 
 ```yaml
   antrea-agent.conf: |
@@ -39,26 +41,58 @@ Antrea deployment manifest:
       FlowExporter: true
 ```
 
+From Antrea v1.8, you can deploy Antrea through Helm by running the following
+commands:
+
+```bash
+helm repo add antrea https://charts.antrea.io
+helm install antrea antrea/antrea -n kube-system --set featureGate.FlowExporter=true
+```
+
+This will install the latest available version of Antrea with the Flow Exporter
+feature enabled. You can also install a specific version of Antrea (>= v1.8.0)
+with `--version <TAG>`.
+
+For more information about Antrea Helm chart, please refer to
+[Antrea Helm chart installation instructions](https://github.com/antrea-io/antrea/blob/main/docs/helm.md).
+
 ## Theia Installation
+
+Please install Flow Aggregator and Theia through Helm.
+
+For Theia v0.1, please clone the repository and checkout branch `release-0.1`.
+Both Helm charts are located under the folder `build/charts`.
+
+From Theia v0.2 and Antrea v1.8, the Flow Aggregator Helm chart is moved from
+Theia repository to Antrea repository; and the Helm charts are added to Antrea
+Helm repo. Please add the repo by running the following command:
+
+```bash
+helm repo add antrea https://charts.antrea.io
+helm repo update
+```
 
 To enable both [Grafana Flow Collector](network-flow-visibility.md) and
 [NetworkPolicy Recommendation](networkpolicy-recommendation.md), please install
 Flow Aggregator and Theia by runnning the following commands:
 
 ```bash
-git clone https://github.com/antrea-io/theia.git
-helm install flow-aggregator theia/build/charts/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
-helm install theia theia/build/charts/theia --set sparkOperator.enable=true -n flow-visibility --create-namespace
+helm install flow-aggregator antrea/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
+helm install theia antrea/theia --set sparkOperator.enable=true -n flow-visibility --create-namespace
 ```
 
 To enable only Grafana Flow Collector, please install Flow Aggregator and Theia
 by runnning the following commands:
 
 ```bash
-git clone https://github.com/antrea-io/theia.git
-helm install flow-aggregator theia/build/charts/flow-aggregator --set clickHouse.enable=true -n flow-aggregator --create-namespace
-helm install theia theia/build/charts/theia -n flow-visibility --create-namespace
+helm install flow-aggregator antrea/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
+helm install theia antrea/theia -n flow-visibility --create-namespace
 ```
+
+These will install the latest available versions of Flow Aggregator and Theia.
+You can also install specific versions of Flow Aggregator (>= v1.8.0) and
+Theia (>= v0.2.0) with `--version <TAG>`. Please ensure that you use the same
+released version for the Flow Aggregator chart as for the Antrea chart.
 
 ## Features
 

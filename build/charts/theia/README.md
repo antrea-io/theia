@@ -26,7 +26,7 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.monitor.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-monitor","tag":""}` | Container image used by the ClickHouse Monitor. |
 | clickhouse.monitor.skipRoundsNum | int | `3` | The number of rounds for the monitor to stop after a deletion to wait for the ClickHouse MergeTree Engine to release memory. |
 | clickhouse.monitor.threshold | float | `0.5` | The storage percentage at which the monitor starts to delete old records. Vary from 0 to 1. |
-| clickhouse.service.httpPort | int | `8123` | TCP port number for the ClickHouse service. |
+| clickhouse.service.httpPort | int | `8123` | HTTP port number for the ClickHouse service. |
 | clickhouse.service.tcpPort | int | `9000` | TCP port number for the ClickHouse service. |
 | clickhouse.service.type | string | `"ClusterIP"` | The type of Service exposing ClickHouse. It can be one of ClusterIP, NodePort or LoadBalancer. |
 | clickhouse.storage.createPersistentVolume.local.affinity | object | `{}` | Affinity for the Local Persistent Volume. By default it requires to label the Node used to store the ClickHouse data with "antrea.io/clickhouse-data-node=". |
@@ -41,7 +41,7 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.enable | bool | `true` | Determine whether to install Grafana. It is used as a data visualization and monitoring tool.   |
 | grafana.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-grafana","tag":"8.3.3"}` | Container image used by Grafana. |
 | grafana.installPlugins | list | `["https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.1.zip;theia-grafana-sankey-plugin","https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.0.zip;theia-grafana-chord-plugin","grafana-clickhouse-datasource 1.0.1"]` | Grafana plugins to install. |
-| grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a secret. |
+| grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a Secret. |
 | grafana.service.tcpPort | int | `3000` | TCP port number for the Grafana service. |
 | grafana.service.type | string | `"NodePort"` | The type of Service exposing Grafana. It must be one of NodePort or LoadBalancer. |
 | sparkOperator.enable | bool | `false` | Determine whether to install Spark Operator. It is required to run Network Policy Recommendation jobs. |

@@ -21,3 +21,7 @@ keywords:
   - Flow visibility
 sources:
   - https://github.com/antrea-io/theia
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/operator: "false"
+  artifacthub.io/prerelease: "false"

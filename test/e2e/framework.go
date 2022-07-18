@@ -79,7 +79,7 @@ const (
 	flowVisibilityYML          string = "flow-visibility.yml"
 	flowVisibilityWithSparkYML string = "flow-visibility-with-spark.yml"
 	chOperatorYML              string = "clickhouse-operator-install-bundle.yaml"
-	flowVisibilityCHPodName    string = "chi-clickhouse-clickhouse-0-0-0"
+	flowVisibilityCHPodName    string = "chi-clickhouse-clickhouse"
 	policyOutputYML            string = "output.yaml"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
@@ -89,6 +89,10 @@ const (
 	exporterActiveFlowExportTimeout    = 2 * time.Second
 	aggregatorActiveFlowRecordTimeout  = 3500 * time.Millisecond
 	aggregatorClickHouseCommitInterval = 1 * time.Second
+
+	shardNum = 1
+	// Storage default is 8 GiB per clickhouse pod
+	chStorageSize = 8.0
 )
 
 type ClusterNode struct {
@@ -1128,10 +1132,12 @@ func (data *TestData) deployFlowVisibility(withSparkOperator bool) (string, erro
 	}
 
 	// check for ClickHouse Pod ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
-	if err = data.podWaitForReady(2*defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace); err != nil {
-		return "", err
+	for i := 0; i < shardNum; i++ {
+		chPodName := fmt.Sprintf("%s-%v-0-0", flowVisibilityCHPodName, i)
+		if err = data.podWaitForReady(2*defaultTimeout, chPodName, flowVisibilityNamespace); err != nil {
+			return "", err
+		}
 	}
-
 	// check ClickHouse Service http port for Service connectivity
 	chSvc, err := data.GetService("flow-visibility", "clickhouse-clickhouse")
 	if err != nil {

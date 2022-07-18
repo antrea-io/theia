@@ -71,7 +71,6 @@ func TestPolicyRecommendation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error when creating perftest-b Service: %v", err)
 	}
-	defer deleteTestService(t, data)
 	// Wait for the Service to be realized.
 	time.Sleep(3 * time.Second)
 	// In dual stack cluster, Service IP can be assigned as different IP family from specified.
@@ -93,9 +92,10 @@ func TestPolicyRecommendation(t *testing.T) {
 
 	if v4Enabled {
 		srcIP := podAIPs.ipv4.String()
+		dstIP := podBIPs.ipv4.String()
 		testFlowPodToPod := testFlow{
 			srcIP:      srcIP,
-			dstIP:      podBIPs.ipv4.String(),
+			dstIP:      dstIP,
 			srcPodName: "perftest-a",
 			dstPodName: "perftest-b",
 		}
@@ -210,7 +210,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 	})
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, "Error message: driver", "stdout: %s", stdout)
+	assert.Truef(strings.Contains(stdout, "Error message: driver pod not found") || strings.Contains(stdout, "Error message: driver container failed"), "stdout: %s", stdout)
 }
 
 // Example output:
@@ -393,11 +393,4 @@ func createTestService(data *TestData, isIPv6 bool) (svcB *corev1.Service, err e
 	}
 
 	return svcB, nil
-}
-
-func deleteTestService(t *testing.T, data *TestData) {
-	err := data.deleteService(testNamespace, "perftest-b")
-	if err != nil {
-		t.Logf("Error when deleting perftest-b Service: %v", err)
-	}
 }

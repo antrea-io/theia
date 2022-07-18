@@ -163,7 +163,6 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	if err != nil {
 		t.Fatalf("Error when creating perftest Services: %v", err)
 	}
-	defer deletePerftestServices(t, data)
 	// Wait for the Service to be realized.
 	time.Sleep(3 * time.Second)
 
@@ -1060,15 +1059,6 @@ func createPerftestServices(data *TestData, isIPv6 bool) (svcB *corev1.Service, 
 	}
 
 	return svcB, svcC, nil
-}
-
-func deletePerftestServices(t *testing.T, data *TestData) {
-	for _, serviceName := range []string{"perftest-b", "perftest-c"} {
-		err := data.deleteService(testNamespace, serviceName)
-		if err != nil {
-			t.Logf("Error when deleting %s Service: %v", serviceName, err)
-		}
-	}
 }
 
 // getBandwidthAndPorts parses iperf commands output and returns bandwidth,

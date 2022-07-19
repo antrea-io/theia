@@ -89,8 +89,6 @@
     wrappers: '{wrappers}'
 
 
-
-
 - job-template:
     name: '{name}-{test_name}-for-period'
     node: '{node}'
@@ -104,7 +102,7 @@
     - build-discarder:
         artifact-days-to-keep: -1
         artifact-num-to-keep: -1
-        days-to-keep: 7
+        days-to-keep: 30
         num-to-keep: 30
     triggers:
     - pollscm:

@@ -8,8 +8,6 @@
           chmod a+x ci/jenkins/test-vmc.sh
           ./ci/jenkins/test-vmc.sh --cluster-name "$BUILD_TAG" --registry  "${DOCKER_REGISTRY}" --username "${CAPVC_USERNAME}" --password "${CAPVC_PASSWORD}" --testcase e2e
 
-
-
 - builder:
     name: builder-pending-label
     builders:

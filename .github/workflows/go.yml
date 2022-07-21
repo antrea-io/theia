@@ -60,6 +60,13 @@ jobs:
           ${{ runner.os }}-${{ env.go-cache-name }}-
     - name: Run unit tests
       run: make test-unit
+    - name: Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: .coverage/coverage-unit.txt
+        flags: unit-tests
+        name: codecov-unit-test
 
   golangci-lint:
     needs: check-changes

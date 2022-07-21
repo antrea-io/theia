@@ -10,6 +10,7 @@
   - [Deployment Steps](#deployment-steps)
   - [Configuration](#configuration)
     - [With Helm](#with-helm)
+      - [ClickHouse Cluster](#clickhouse-cluster)
     - [With Standalone Manifest](#with-standalone-manifest)
       - [Grafana Configuration](#grafana-configuration)
         - [Service Customization](#service-customization)
@@ -202,30 +203,60 @@ helm install theia build/charts/theia -n flow-visibility --create-namespace \
   --set=clickhouse.storageSize="2Gi"
 ```
 
-The ClickHouse TCP service is used by the Flow Aggregator. If you have changed the TCP port,
-please update the `databaseURL` following
-[Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1).
+The ClickHouse TCP service is used by the Flow Aggregator. If you have changed
+the TCP port, please update the `clickHouse.databaseURL` in the Flow Aggregator
+Helm Chart values.
 
-The ClickHouse credentials are used in the Flow Aggregator. Them are also specified
-in `flow-aggregator.yml` as a Secret named `clickhouse-secret` as shown below.
-Please make the corresponding changes if you change the ClickHouse credentials.
+The ClickHouse credentials are used in the Flow Aggregator. If you have changed
+the ClickHouse credentials, please update the `clickHouse.connectionSecret` in the
+Flow Aggregator Helm Chart values.
 
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
-    app: flow-aggregator
-  name: clickhouse-secret
-  namespace: flow-aggregator
-stringData:
-  password: clickhouse_operator_password
-  username: clickhouse_operator
-type: Opaque
-```
+Please refer to the Flow Aggregator Helm Chart
+[README](https://github.com/antrea-io/antrea/blob/main/build/charts/flow-aggregator/README.md)
+and [Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1)
+to learn more about ClickHouse configuration options in Flow Aggregator.
 
-Please refer to the [Flow Aggregator Configuration](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md#configuration-1)
-to learn about more ClickHouse configuration options in Flow Aggregator.
+##### ClickHouse Cluster
+
+Starting with v0.2, Theia supports Clickhouse database cluster with data replication.
+A ClickHouse cluster consists of one or more shards. Shards refer to the servers
+that contain different parts of the data. You can deploy multiple shards to scale
+the cluster horizontally. Each shard consists of one or more replica hosts. You
+can deploy multiple replicas in a shard to ensure reliability.
+
+To deploy ClickHouse as a cluster, please set `clickhouse.cluster.enable` to true
+and set `clickhouse.cluster.shards` and `clickhouse.cluster.replicas` per your
+requirement. Please notice that a standlone ClickHouse server cannot switch to
+ClickHouse cluster without deleting. If you plan to scale the ClickHouse cluster
+later, you can start a test environment with a 1-shard-1-replica ClickHouse
+cluster and a 1-replica ZooKeeper.
+
+ClickHouse uses [Apache ZooKeeper](https://zookeeper.apache.org/) for storing
+replicas meta information. By default, a ZooKeeper cluster using `emptyDir` with
+3 replicas will be deployed for ClickHouse cluster. The 3 replicas are expected
+to be deployed on 3 different Nodes. To use a customized ZooKeeper cluster,
+please refer to the
+[ZooKeeper setup instructions for ClickHouse](https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md)
+and set `clickhouse.cluster.zookeeperHosts` to your ZooKeeper hosts.
+
+The default affinity allows only one ClickHouse instance per Node. The
+default ClickHouse cluster contains 1 shard and 2 replicas, which are expected
+to be deployed on 2 different Nodes with this affinity. To change the affinity,
+please set `clickhouse.cluster.podDistribution` per your requirement.
+
+We recommend using Persistent Volumes if you are going to use ClickHouse cluster
+in production. ClickHouse cluster with in memory deployment is mainly for test
+purpose, as when a Pod accidentally restarts, the memory will be cleared, which
+will lead to a complete data loss. In that case, please refer to the
+[ClickHouse document](https://clickhouse.com/docs/en/engines/table-engines/mergetree-family/replication/#recovery-after-complete-data-loss)
+to recover the data.
+
+ClickHouse cluster can be deployed with default Local PV or NFS PV by setting
+`clickhouse.storage.createPersistentVolume`. Please make sure the provided path
+contains a folder for each replica with a name in the format `vol<i>`, where `i`
+varies from 0 to the total number of replicas. To have more flexibility in the
+PV creation, you can configure a customized `StorageClass` in
+`clickhouse.storage.persistentVolumeClaimSpec`.
 
 #### With Standalone Manifest
 

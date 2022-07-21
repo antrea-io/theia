@@ -14,8 +14,8 @@ clickhouse:
     # -- The percentage of records in ClickHouse that will be deleted when the
     # storage grows above threshold. Vary from 0 to 1.
     deletePercentage: 0.5
-    # -- The time interval between two round of monitoring. Can be a plain integer using
-    # one of these unit suffixes ns, us (or µs), ms, s, m, h.
+    # -- The time interval between two round of monitoring. Can be a plain integer
+    # using one of these unit suffixes ns, us (or µs), ms, s, m, h.
     execInterval: "1m"
     # -- The number of rounds for the monitor to stop after a deletion to wait for
     # the ClickHouse MergeTree Engine to release memory.
@@ -30,7 +30,8 @@ clickhouse:
     username : "clickhouse_operator"
     password: "clickhouse_operator_password"
   service:
-    # -- The type of Service exposing ClickHouse. It can be one of ClusterIP, NodePort or LoadBalancer.
+    # -- The type of Service exposing ClickHouse. It can be one of ClusterIP,
+    # NodePort or LoadBalancer.
     type: ClusterIP
     # -- TCP port number for the ClickHouse service.
     tcpPort: 9000
@@ -39,39 +40,87 @@ clickhouse:
   # -- Time to live for data in the ClickHouse. Can be a plain integer using
   # one of these unit suffixes SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER,
   # YEAR.
-  ttl: 1 HOUR
+  ttl: 12 HOUR
   storage:
     # -- ClickHouse storage size. Can be a plain integer or as a fixed-point
     # number using one of these quantity suffixes: E, P, T, G, M, K. Or the
     # power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki.
     size: "8Gi"
     createPersistentVolume:
-      # -- Type of PersistentVolume. Can be set to "Local" or "NFS". Please set this value
-      # to use a PersistentVolume created by Theia.
+      # -- Type of PersistentVolume. Can be set to "Local" or "NFS". Please set
+      # this value to use a PersistentVolume created by Theia.
       type: ""
       local:
         # -- The local path. Required when type is "Local".
         path: "/data"
-        # -- Affinity for the Local Persistent Volume. By default it requires to label the
-        # Node used to store the ClickHouse data with "antrea.io/clickhouse-data-node=".
+        # -- Affinity for the Local Persistent Volume. By default it requires to
+        # label the Node used to store the ClickHouse data with
+        # "antrea.io/clickhouse-data-node=".
         affinity: {}
+        # -- A list of Node hostnames. Required when ClickHouse clustering is
+        # enabled and type is "Local". Please make sure to provide (shards * replicas)
+        # Nodes. Each Node should meet affinity and have the path created on it.
+        nodes:
+          - kind-worker
+          - kind-worker2
       nfs:
-        # -- The NFS server hostname or IP address. Required when type is "NFS".
-        host: ""
-        # -- The path exported on the NFS server. Required when type is "NFS".
+        # -- A list of NFS server hostname or IP address. Required when type is "NFS".
+        # When ClickHouse clustering is enabled, please provide (shards * replicas)
+        # NFS servers. Otherwise, only one NFS server is required.
+        hosts: []
+        # -- The path exported on the NFS server(s).
         path: ""
-    # -- Specification for PersistentVolumeClaim. This is ignored if createPersistentVolume.type is non-empty. 
-    # To use a custom PersistentVolume, please set 
+    # -- Specification for PersistentVolumeClaim. This is ignored if
+    # createPersistentVolume.type is non-empty. To use a custom PersistentVolume,
+    # please set 
     # storageClassName: ""
     # volumeName: "<my-pv>".
     # To dynamically provision a PersistentVolume, please set
     # storageClassName: "<my-storage-class>".
-    # Memory storage is used if both createPersistentVolume.type and persistentVolumeClaimSpec are empty.
+    # Memory storage is used if both createPersistentVolume.type and
+    # persistentVolumeClaimSpec are empty.
     persistentVolumeClaimSpec: {}
       # storageClassName: ""
       # volumeName: ""
+  cluster:
+    # -- Determine whether to deploy ClickHouse as a cluster.
+    enable: false
+    # -- Number of ClickHouse shards in the cluster.
+    shards: 1
+    # -- Number of ClickHouse replicas in each shard.
+    replicas: 2
+    # -- To use a pre-installed ZooKeeper for ClickHouse data replication, please
+    # provide a list of your ZooKeeper hosts. To install a customized ZooKeeper,
+    # refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md>
+    zookeeperHosts: []
+      # - zookeeper.flow-visibility
+    # Specification to install a default ZooKeeper cluster. This is ignored
+    # if zookeeperHosts are provided. 
+    installZookeeper:
+      # -- Memory size for each ZooKeeper pod. Can be a plain integer or as a
+      # fixed-point number using one of these quantity suffixes: E, P, T, G, M, K.
+      # Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki.
+      size: "5Gi"
+      # -- Number of ZooKeeper replicas. It is recommended to be odd. Please refer to
+      # <https://zookeeper.apache.org/doc/r3.8.0/zookeeperStarted.html#sc_RunningReplicatedZooKeeper>
+      # for more information.
+      replicas: 3
+      # -- Container image used by the ZooKeeper.
+      image:
+        repository: "projects.registry.vmware.com/antrea/theia-zookeeper"
+        pullPolicy: "IfNotPresent"
+        tag: "3.8.0"
+    # -- Affinity for the ClickHouse Pods. By default, it allows only one ClickHouse
+    # instance per Node. Please refer to
+    # <https://github.com/Altinity/clickhouse-operator/blob/master/docs/chi-examples/99-clickhouseinstallation-max.yaml>
+    # for other distributions.
+    podDistribution:
+      - type: MaxNumberPerNode
+        number: 1
+        topologyKey: "kubernetes.io/hostname"
 grafana:
-  # -- Determine whether to install Grafana. It is used as a data visualization and monitoring tool.  
+  # -- Determine whether to install Grafana. It is used as a data visualization
+  # and monitoring tool.  
   enable: true
   # -- Container image used by Grafana.
   image: 
@@ -83,7 +132,8 @@ grafana:
     username: "admin"
     password: "admin"
   service:
-    # -- The type of Service exposing Grafana. It must be one of NodePort or LoadBalancer.
+    # -- The type of Service exposing Grafana. It must be one of NodePort or
+    # LoadBalancer.
     type: NodePort
     # -- TCP port number for the Grafana service.
     tcpPort: 3000
@@ -92,7 +142,7 @@ grafana:
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.1.zip;theia-grafana-sankey-plugin
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.0.zip;theia-grafana-chord-plugin
     - grafana-clickhouse-datasource 1.0.1
-  # -- The dashboards to be displayed in Grafana UI. The files must be put under 
+  # -- The dashboards to be displayed in Grafana UI. The files must be put under
   # provisioning/dashboards.
   dashboards:
     - flow_records_dashboard.json
@@ -102,7 +152,8 @@ grafana:
     - node_to_node_dashboard.json
     - networkpolicy_dashboard.json
 sparkOperator:
-  # -- Determine whether to install Spark Operator. It is required to run Network Policy Recommendation jobs.
+  # -- Determine whether to install Spark Operator. It is required to run Network
+  # Policy Recommendation jobs.
   enable: false
   # -- Name of Spark Operator.
   name: "policy-recommendation"

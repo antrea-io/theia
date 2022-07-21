@@ -32,6 +32,8 @@ const (
 	jobCompleteTimeout = 10 * time.Minute
 	startCmd           = "./theia policy-recommendation run"
 	statusCmd          = "./theia policy-recommendation status"
+	listCmd            = "./theia policy-recommendation list"
+	deleteCmd          = "./theia policy-recommendation delete"
 	retrieveCmd        = "./theia policy-recommendation retrieve"
 	// With the workload traffic perftest-a -> perftest-b, we expect the policy
 	// recommendation job recommends two allow ANP, and two default deny ACNP.
@@ -60,6 +62,14 @@ func TestPolicyRecommendation(t *testing.T) {
 
 	t.Run("testPolicyRecommendationStatus", func(t *testing.T) {
 		testPolicyRecommendationStatus(t, data)
+	})
+
+	t.Run("testPolicyRecommendationList", func(t *testing.T) {
+		testPolicyRecommendationList(t, data)
+	})
+
+	t.Run("testPolicyRecommendationDelete", func(t *testing.T) {
+		testPolicyRecommendationDelete(t, data)
 	})
 
 	podAIPs, podBIPs, err := createTestPods(data)
@@ -97,22 +107,52 @@ func TestPolicyRecommendation(t *testing.T) {
 
 // Example output: Successfully created policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
 func testPolicyRecommendationRun(t *testing.T, data *TestData) {
-	stdout, err := runJob(t, data)
+	stdout, jobId, err := runJob(t, data)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, "Successfully created policy recommendation job with ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with ID %s", jobId), "stdout: %s", stdout)
 }
 
 // Example output: Status of this policy recommendation job is COMPLETED
 func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
-	stdout, err := runJob(t, data)
+	_, jobId, err := runJob(t, data)
 	require.NoError(t, err)
-	stdoutSlice := strings.Split(stdout, " ")
-	jobId := stdoutSlice[len(stdoutSlice)-1]
-	stdout, err = getJobStatus(t, data, jobId)
+	stdout, err := getJobStatus(t, data, jobId)
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, "Status of this policy recommendation job is", "stdout: %s", stdout)
+}
+
+// Example output:
+
+// CreationTime          CompletionTime        ID                                   Status
+// 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
+// 2022-06-17 15:03:22 2022-06-17 18:08:37 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
+// 2022-06-17 15:03:39 N/A                 c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
+func testPolicyRecommendationList(t *testing.T, data *TestData) {
+	_, jobId, err := runJob(t, data)
+	require.NoError(t, err)
+	stdout, err := listJobs(t, data)
+	require.NoError(t, err)
+	assert := assert.New(t)
+	assert.Containsf(stdout, "CreationTime", "stdout: %s", stdout)
+	assert.Containsf(stdout, "CompletionTime", "stdout: %s", stdout)
+	assert.Containsf(stdout, "ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, "Status", "stdout: %s", stdout)
+	assert.Containsf(stdout, jobId, "stdout: %s", stdout)
+}
+
+// Example output: Successfully deleted policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
+func testPolicyRecommendationDelete(t *testing.T, data *TestData) {
+	_, jobId, err := runJob(t, data)
+	require.NoError(t, err)
+	stdout, err := deleteJob(t, data, jobId)
+	require.NoError(t, err)
+	assert := assert.New(t)
+	assert.Containsf(stdout, "Successfully deleted policy recommendation job with ID", "stdout: %s", stdout)
+	stdout, err = listJobs(t, data)
+	require.NoError(t, err)
+	assert.NotContainsf(stdout, jobId, "Still found deleted job in list command stdout: %s", stdout)
 }
 
 // Example output:
@@ -131,10 +171,8 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 	stdout, stderr, err := data.RunCommandFromPod(testNamespace, testFlow.srcPodName, "perftool", []string{"bash", "-c", cmdStr})
 	require.NoErrorf(t, err, "Error when running iPerf3 client: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
 
-	stdout, err = runJob(t, data)
+	_, jobId, err := runJob(t, data)
 	require.NoError(t, err)
-	stdoutSlice := strings.Split(stdout, " ")
-	jobId := stdoutSlice[len(stdoutSlice)-1]
 	err = waitJobComplete(t, data, jobId, jobCompleteTimeout)
 	require.NoErrorf(t, err, "Policy recommendation Spark job failed to complete")
 
@@ -185,21 +223,41 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 	assert.Equalf(expectedRejectACNPCnt, rejectACNPCnt, fmt.Sprintf("Expected reject ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s", expectedRejectACNPCnt, rejectACNPCnt, allPolicies))
 }
 
-func runJob(t *testing.T, data *TestData) (stdout string, err error) {
+func runJob(t *testing.T, data *TestData) (stdout string, jobId string, err error) {
 	cmd := "chmod +x ./theia"
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), startCmd)
+	if err != nil || rc != 0 {
+		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	stdout = strings.TrimSuffix(stdout, "\n")
+	stdoutSlice := strings.Split(stdout, " ")
+	jobId = stdoutSlice[len(stdoutSlice)-1]
+	return stdout, jobId, nil
+}
+
+func getJobStatus(t *testing.T, data *TestData, jobId string) (stdout string, err error) {
+	cmd := fmt.Sprintf("%s %s", statusCmd, jobId)
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	return strings.TrimSuffix(stdout, "\n"), nil
 }
 
-func getJobStatus(t *testing.T, data *TestData, jobId string) (stdout string, err error) {
-	cmd := fmt.Sprintf("%s %s", statusCmd, jobId)
+func listJobs(t *testing.T, data *TestData) (stdout string, err error) {
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), listCmd)
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", listCmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	return strings.TrimSuffix(stdout, "\n"), nil
+}
+
+func deleteJob(t *testing.T, data *TestData, jobId string) (stdout string, err error) {
+	cmd := fmt.Sprintf("%s %s", deleteCmd, jobId)
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)

@@ -18,11 +18,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -244,4 +247,35 @@ func setupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string
 		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}
 	return connect, portForward, nil
+}
+
+func TableOutput(table [][]string) {
+	writer := tabwriter.NewWriter(os.Stdout, 15, 0, 1, ' ', 0)
+	for _, line := range table {
+		fmt.Fprintln(writer, strings.Join(line, "\t")+"\t")
+	}
+	writer.Flush()
+}
+
+func FormatTimestamp(timestamp time.Time) string {
+	if timestamp.IsZero() {
+		return "N/A"
+	}
+	return timestamp.UTC().Format("2006-01-02 15:04:05")
+}
+
+func ParseEndpoint(endpoint string) error {
+	_, err := url.ParseRequestURI(endpoint)
+	if err != nil {
+		return fmt.Errorf("input endpoint %s does not seem a valid URL, parsing error: %v", endpoint, err)
+	}
+	return nil
+}
+
+func ParseRecommendationID(recommendationID string) error {
+	_, err := uuid.Parse(recommendationID)
+	if err != nil {
+		return fmt.Errorf("input id %s does not seem a valid UUID, parsing error:: %v", recommendationID, err)
+	}
+	return nil
 }

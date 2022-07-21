@@ -37,11 +37,13 @@ theia help
 ## Usage
 
 To see the list of available commands and options, run `theia help`. Currently,
-we have 3 commands for the NetworkPolicy Recommendation feature:
+we have 5 commands for the NetworkPolicy Recommendation feature:
 
 - `theia policy-recommendation run`
 - `theia policy-recommendation status`
 - `theia policy-recommendation retrieve`
+- `theia policy-recommendation list`
+- `theia policy-recommendation delete`
 
 For details, please refer to [NetworkPolicy recommendation doc](
 networkpolicy-recommendation.md)

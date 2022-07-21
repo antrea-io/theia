@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -332,9 +331,9 @@ Job is still running. Please check completion status for job via CLI later.`, re
 				return err
 			}
 			if endpoint != "" {
-				_, err := url.ParseRequestURI(endpoint)
+				err = ParseEndpoint(endpoint)
 				if err != nil {
-					return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
+					return err
 				}
 			}
 			useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")

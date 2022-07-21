@@ -281,7 +281,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	return testData, nil
 }
 
-func setupTestForFlowVisibility(tb testing.TB, withSparkOperator bool) (*TestData, bool, bool, error) {
+func setupTestForFlowVisibility(tb testing.TB, withSparkOperator, withGrafana bool) (*TestData, bool, bool, error) {
 	v4Enabled := clusterInfo.podV4NetworkCIDR != ""
 	v6Enabled := clusterInfo.podV6NetworkCIDR != ""
 	testData, err := setupTest(tb)
@@ -290,7 +290,7 @@ func setupTestForFlowVisibility(tb testing.TB, withSparkOperator bool) (*TestDat
 	}
 
 	tb.Logf("Applying flow visibility YAML")
-	chSvcIP, err := testData.deployFlowVisibility(withSparkOperator)
+	chSvcIP, err := testData.deployFlowVisibility(withSparkOperator, withGrafana)
 	if err != nil {
 		return testData, v4Enabled, v6Enabled, err
 	}

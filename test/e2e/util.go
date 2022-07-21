@@ -20,7 +20,34 @@ import (
 	"os"
 )
 
-const nameSuffixLength int = 8
+const (
+	nameSuffixLength               int = 8
+	ingressAllowNetworkPolicyName      = "test-flow-aggregator-networkpolicy-ingress-allow"
+	ingressRejectANPName               = "test-flow-aggregator-anp-ingress-reject"
+	ingressDropANPName                 = "test-flow-aggregator-anp-ingress-drop"
+	ingressDenyNPName                  = "test-flow-aggregator-np-ingress-deny"
+	egressAllowNetworkPolicyName       = "test-flow-aggregator-networkpolicy-egress-allow"
+	egressRejectANPName                = "test-flow-aggregator-anp-egress-reject"
+	egressDropANPName                  = "test-flow-aggregator-anp-egress-drop"
+	egressDenyNPName                   = "test-flow-aggregator-np-egress-deny"
+	ingressAntreaNetworkPolicyName     = "test-flow-aggregator-antrea-networkpolicy-ingress"
+	egressAntreaNetworkPolicyName      = "test-flow-aggregator-antrea-networkpolicy-egress"
+	testIngressRuleName                = "test-ingress-rule-name"
+	testEgressRuleName                 = "test-egress-rule-name"
+	flowRecordsDashboardUid            = "t1UGX7t7k"
+	podToPodDashboardUid               = "Yxn0Ghh7k"
+	podToServiceDashboardUid           = "LGdxbW17z"
+	podToExternalDashboardUid          = "K9SPrnJ7k"
+	nodeToNodeDashboardUid             = "1F56RJh7z"
+	networkPolicyDashboardUid          = "KJNMOwQnk"
+)
+
+var (
+	toExternalServerIP   = ""
+	toExternalClientName = ""
+	// A DNS-1123 subdomain must consist of lower case alphanumeric characters
+	lettersAndDigits = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
+)
 
 func createDirectory(path string) error {
 	return os.Mkdir(path, 0700)
@@ -41,9 +68,6 @@ func IsDirEmpty(name string) (bool, error) {
 	return false, err
 }
 
-// A DNS-1123 subdomain must consist of lower case alphanumeric characters
-var lettersAndDigits = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
-
 func randSeq(n int) string {
 	b := make([]rune, n)
 	for i := range b {
@@ -56,4 +80,223 @@ func randSeq(n int) string {
 
 func randName(prefix string) string {
 	return prefix + randSeq(nameSuffixLength)
+}
+
+type query struct {
+	queryId      int
+	panelName    string
+	expectResult []string
+}
+
+var grafanaTestCases = []struct {
+	dashboardName string
+	dashboardUid  string
+	queryList     []query
+}{
+	{
+		dashboardName: "flow_records_dashboard",
+		dashboardUid:  flowRecordsDashboardUid,
+		queryList: []query{
+			{
+				queryId:      2,
+				panelName:    "Flow Records Table",
+				expectResult: []string{"perftest-a", "perftest-b", "perftest-c", "perftest-d", "perftest-e"},
+			},
+		},
+	},
+	{
+		dashboardName: "pod_to_pod_dashboard",
+		dashboardUid:  podToPodDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Cumulative Bytes of Pod-to-Pod",
+				expectResult: []string{"perftest-a", "perftest-b", "perftest-c", "perftest-d", "perftest-e"},
+			},
+			{
+				queryId:      1,
+				panelName:    "Cumulative Reverse Bytes of Pod-to-Pod",
+				expectResult: []string{"perftest-a", "perftest-b", "perftest-c"},
+			},
+			{
+				queryId:      2,
+				panelName:    "Throughput of Pod-to-Pod",
+				expectResult: []string{"perftest-a", "perftest-b", "perftest-c", "perftest-d", "perftest-e"},
+			},
+			{
+				queryId:      3,
+				panelName:    "Reverse Throughput of Pod-to-Pod",
+				expectResult: []string{"perftest-a", "perftest-b", "perftest-c"},
+			},
+			{
+				queryId:      4,
+				panelName:    "Throughput of Pod as Source",
+				expectResult: []string{"perftest-a", "perftest-b"},
+			},
+			{
+				queryId:      5,
+				panelName:    "Cumulative Bytes of Source Pod Namespace",
+				expectResult: []string{testNamespace},
+			},
+			{
+				queryId:      6,
+				panelName:    "Throughput of Pod as Destination",
+				expectResult: []string{"perftest-b", "perftest-c"},
+			},
+			{
+				queryId:      7,
+				panelName:    "Cumulative Bytes of Destination Pod Namespace",
+				expectResult: []string{testNamespace},
+			},
+		},
+	},
+	{
+		dashboardName: "pod_to_service_dashboard",
+		dashboardUid:  podToServiceDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Cumulative Bytes Pod-to-Service",
+				expectResult: []string{"perftest-a", "antrea-test/perftest-b", "antrea-test/perftest-c"},
+			},
+			{
+				queryId:      1,
+				panelName:    "Cumulative Reverse Bytes Pod-to-Service",
+				expectResult: []string{"perftest-a", "antrea-test/perftest-b", "antrea-test/perftest-c"},
+			},
+			{
+				queryId:      2,
+				panelName:    "Throughput of Pod-to-Service",
+				expectResult: []string{"perftest-a", "antrea-test/perftest-b", "antrea-test/perftest-c"},
+			},
+			{
+				queryId:      3,
+				panelName:    "Reverse Throughput of Pod-to-Service",
+				expectResult: []string{"perftest-a", "antrea-test/perftest-b", "antrea-test/perftest-c"},
+			},
+			{
+				queryId:      4,
+				panelName:    "Throughput of Pod as Source",
+				expectResult: []string{"perftest-a"},
+			},
+			{
+				queryId:      5,
+				panelName:    "Throughput of Service as Destination",
+				expectResult: []string{"antrea-test/perftest-b", "antrea-test/perftest-c"},
+			},
+		},
+	},
+	{
+		dashboardName: "pod_to_external_dashboard",
+		dashboardUid:  podToExternalDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Cumulative Bytes of Pod-to-External",
+				expectResult: []string{toExternalClientName, toExternalServerIP},
+			},
+			{
+				queryId:      1,
+				panelName:    "Cumulative Reverse Bytes of Pod-to-External",
+				expectResult: []string{toExternalClientName, toExternalServerIP},
+			},
+			{
+				queryId:      2,
+				panelName:    "Throughput of Pod-to-External",
+				expectResult: []string{toExternalClientName, toExternalServerIP},
+			},
+			{
+				queryId:      3,
+				panelName:    "Reverse Throughput of Pod-to-External",
+				expectResult: []string{toExternalClientName, toExternalServerIP},
+			},
+		},
+	},
+	{
+		dashboardName: "node_to_node_dashboard",
+		dashboardUid:  nodeToNodeDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Cumulative Bytes of Node-to-Node",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+			{
+				queryId:      1,
+				panelName:    "Cumulative Reverse Bytes of Node-to-Node",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+			{
+				queryId:      2,
+				panelName:    "Throughput of Node-to-Node",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+			{
+				queryId:      3,
+				panelName:    "Reverse Throughput of Node-to-Node",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+			{
+				queryId:      4,
+				panelName:    "Throughput of Node as Source",
+				expectResult: []string{controlPlaneNodeName()},
+			},
+			{
+				queryId:      5,
+				panelName:    "Cumulative Bytes of Node as Source",
+				expectResult: []string{controlPlaneNodeName()},
+			},
+			{
+				queryId:      6,
+				panelName:    "Throughput of Node as Destination",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+			{
+				queryId:      7,
+				panelName:    "Cumulative Bytes of Node as Destination",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1)},
+			},
+		},
+	},
+	{
+		dashboardName: "networkpolicy_dashboard",
+		dashboardUid:  networkPolicyDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Cumulative Bytes of Flows with NetworkPolicy Information",
+				expectResult: []string{ingressAllowNetworkPolicyName, egressAllowNetworkPolicyName, ingressAntreaNetworkPolicyName, egressAntreaNetworkPolicyName, ingressRejectANPName, ingressDropANPName, egressRejectANPName, egressDropANPName},
+			},
+			{
+				queryId:      1,
+				panelName:    "Cumulative Bytes of Ingress Network Policy",
+				expectResult: []string{ingressAllowNetworkPolicyName, ingressAntreaNetworkPolicyName, ingressRejectANPName, ingressDropANPName},
+			},
+			{
+				queryId:      2,
+				panelName:    "Cumulative Bytes of Egress Network Policy",
+				expectResult: []string{egressAllowNetworkPolicyName, egressAntreaNetworkPolicyName, egressRejectANPName, egressDropANPName},
+			},
+			{
+				queryId:      3,
+				panelName:    "Throughput of Ingress Allow NetworkPolicy",
+				expectResult: []string{ingressAllowNetworkPolicyName, ingressAntreaNetworkPolicyName},
+			},
+			{
+				queryId:      4,
+				panelName:    "Throughput of Egress Allow NetworkPolicy",
+				expectResult: []string{egressAllowNetworkPolicyName, egressAntreaNetworkPolicyName},
+			},
+			{
+				queryId:      5,
+				panelName:    "Throughput of Ingress Deny NetworkPolicy",
+				expectResult: []string{ingressRejectANPName, ingressDropANPName},
+			},
+			{
+				queryId:      6,
+				panelName:    "Throughput of Egress Deny NetworkPolicy",
+				expectResult: []string{egressRejectANPName, egressDropANPName},
+			},
+		},
+	},
 }

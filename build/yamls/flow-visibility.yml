@@ -1090,8 +1090,8 @@ data:
         "editable": true,
         "fiscalYearStartMonth": 0,
         "graphTooltip": 0,
-        "id": 5,
-        "iteration": 1654638290956,
+        "id": 2,
+        "iteration": 1657746484227,
         "links": [],
         "liveNow": false,
         "panels": [
@@ -1114,14 +1114,14 @@ data:
                             "type": "grafana-clickhouse-datasource",
                             "uid": "PDEE91DDB90597936"
                         },
+                        "format": 2,
                         "meta": {
                             "builderOptions": {
-                                "mode": "list",
                                 "fields": [],
-                                "limit": 100
+                                "limit": 100,
+                                "mode": "list"
                             }
                         },
-                        "format": 2,
                         "queryType": "sql",
                         "rawSql": "SELECT CONCAT(sourcePodNamespace, '/', sourcePodName) as srcPod,\nCONCAT(destinationPodNamespace, '/', destinationPodName) as dstPod,\nsourceTransportPort as srcPort,\ndestinationTransportPort as dstPort,\ndestinationServicePort as dstSvcPort,\ndestinationServicePortName as dstSvc,\ndestinationIP as dstIP,\nSUM(octetDeltaCount) as bytes,\nSUM(reverseOctetDeltaCount) as revBytes,\negressNetworkPolicyName,\negressNetworkPolicyRuleAction,\ningressNetworkPolicyName,\ningressNetworkPolicyRuleAction\nfrom flows_policy_view\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND $__timeFilter(flowEndSeconds)\nGROUP BY srcPod, dstPod, srcPort, dstPort, dstSvcPort, dstSvc, dstIP, egressNetworkPolicyName, egressNetworkPolicyRuleAction, ingressNetworkPolicyName, ingressNetworkPolicyRuleAction\nHAVING bytes > 0\norder by bytes DESC\n",
                         "refId": "A"
@@ -1343,14 +1343,14 @@ data:
                             "type": "grafana-clickhouse-datasource",
                             "uid": "PDEE91DDB90597936"
                         },
+                        "format": 2,
                         "meta": {
                             "builderOptions": {
-                                "mode": "list",
                                 "fields": [],
-                                "limit": 100
+                                "limit": 100,
+                                "mode": "list"
                             }
                         },
-                        "format": 2,
                         "queryType": "sql",
                         "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND AS dst,\nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace,'/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND AS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyRuleAction == 1\nAND egressNetworkPolicyRuleAction NOT IN (2, 3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
                         "refId": "A"
@@ -1445,14 +1445,14 @@ data:
                             "type": "grafana-clickhouse-datasource",
                             "uid": "PDEE91DDB90597936"
                         },
+                        "format": 2,
                         "meta": {
                             "builderOptions": {
-                                "mode": "list",
                                 "fields": [],
-                                "limit": 100
+                                "limit": 100,
+                                "mode": "list"
                             }
                         },
-                        "format": 2,
                         "queryType": "sql",
                         "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace,'/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyRuleAction == 1\nAND ingressNetworkPolicyRuleAction not in (2, 3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
                         "refId": "A"
@@ -1548,16 +1548,17 @@ data:
                             "type": "grafana-clickhouse-datasource",
                             "uid": "PDEE91DDB90597936"
                         },
+                        "expand": false,
+                        "format": 2,
                         "meta": {
                             "builderOptions": {
-                                "mode": "list",
                                 "fields": [],
-                                "limit": 100
+                                "limit": 100,
+                                "mode": "list"
                             }
                         },
-                        "format": 2,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace,'/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyRuleAction in (2,3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
+                        "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace,'/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyRuleAction in (2,3)\nGROUP BY time, src, dst, np\nHAVING SUM(octetDeltaCount) > 0\nORDER BY time\nLIMIT 50",
                         "refId": "A"
                     }
                 ],
@@ -1650,16 +1651,16 @@ data:
                             "type": "grafana-clickhouse-datasource",
                             "uid": "PDEE91DDB90597936"
                         },
+                        "format": 2,
                         "meta": {
                             "builderOptions": {
-                                "mode": "list",
                                 "fields": [],
-                                "limit": 100
+                                "limit": 100,
+                                "mode": "list"
                             }
                         },
-                        "format": 2,
                         "queryType": "sql",
-                        "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace,'/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyRuleAction in (2,3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 50",
+                        "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort == 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort == 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace,'/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM flows_policy_view\nWHERE $__timeFilter(flowEndSeconds)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyRuleAction in (2,3)\nGROUP BY time, src, dst, np\nHAVING SUM(octetDeltaCount) > 0\nORDER BY time\nLIMIT 50",
                         "refId": "A"
                     }
                 ],
@@ -1710,7 +1711,7 @@ data:
         "timezone": "",
         "title": "networkpolicy_dashboard",
         "uid": "KJNMOwQnk",
-        "version": 11,
+        "version": 5,
         "weekStart": ""
     }
   node_to_node_dashboard.json: |

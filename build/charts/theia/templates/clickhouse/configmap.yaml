@@ -5,4 +5,4 @@ metadata:
   namespace: {{ .Release.Namespace }}
 data:
   create_table.sh: |-
-{{ tpl (.Files.Get "provisioning/datasources/create_table.sh") . | indent 4}}
+{{ tpl (.Files.Get "provisioning/datasources/create_table.sh") . | indent 4 }}

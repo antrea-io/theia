@@ -23,7 +23,10 @@ function echoerr {
 _usage="Usage: $0 [--mode (dev|release)] [--keep] [--help|-h]
 Generate a YAML manifest for the Clickhouse-Grafana Flow-visibility Solution, using Helm and
 Kustomize, and print it to stdout.
-        --mode (dev|release)                Choose the configuration variant that you need (default is 'dev')
+        --mode (dev|release|antrea-e2e)     Choose the configuration variant that you need (default is 'dev')
+                                            antrea-e2e mode generates YAML manifest for e2e tests in Antrea
+                                            repository, which only includes a ClickHouse server with default
+                                            credentials.
         --spark-operator                    Generate a manifest with Spark Operator enabled.
         --no-grafana                        Generate a manifest with Grafana disabled.
         --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
@@ -88,8 +91,8 @@ case $key in
 esac
 done
 
-if [ "$MODE" != "dev" ] && [ "$MODE" != "release" ]; then
-    echoerr "--mode must be one of 'dev' or 'release'"
+if [ "$MODE" != "dev" ] && [ "$MODE" != "release" ] && [ "$MODE" != "antrea-e2e" ] ; then
+    echoerr "--mode must be one of 'dev', 'release' or 'antrea-e2e'"
     print_help
     exit 1
 fi
@@ -118,16 +121,6 @@ elif ! $HELM version > /dev/null 2>&1; then
     exit 1
 fi
 
-source $THIS_DIR/verify-kustomize.sh
-
-if [ -z "$KUSTOMIZE" ]; then
-    KUSTOMIZE="$(verify_kustomize)"
-elif ! $KUSTOMIZE version > /dev/null 2>&1; then
-    echoerr "$KUSTOMIZE does not appear to be a valid kustomize binary"
-    print_help
-    exit 1
-fi
-
 HELM_VALUES=()
 
 HELM_VALUES+=("clickhouse.storage.size=$CH_SIZE" "clickhouse.monitor.threshold=$CH_THRESHOLD")
@@ -137,6 +130,9 @@ if [ "$MODE" == "dev" ] && [ -n "$IMG_NAME" ]; then
 fi
 if [ "$MODE" == "release" ]; then
     HELM_VALUES+=("clickhouse.monitorImage.repository=$IMG_NAME" "clickhouse.monitorImage.tag=$IMG_TAG")
+fi
+if [ "$MODE" == "antrea-e2e" ]; then
+    HELM_VALUES+=("grafana.enable=false" "clickhouse.monitor.enable=false")
 fi
 if $SPARK_OP; then
     HELM_VALUES+=("sparkOperator.enable=true")
@@ -156,6 +152,32 @@ if [ "$HELM_VALUES_OPTION" != "" ]; then
 fi
 
 THEIA_CHART=$THIS_DIR/../build/charts/theia
+
+# For antrea-e2e mode, extra Namespace resource is not required.
+# The manifest can be generated with Helm directly.
+if [ "$MODE" == "antrea-e2e" ]; then
+    # Suppress potential Helm warnings about invalid permissions for Kubeconfig file
+    # by throwing away related warnings.
+    $HELM template \
+      --namespace flow-visibility \
+      $HELM_VALUES_OPTION \
+      "$THEIA_CHART"\
+      2> >(grep -v 'This is insecure' >&2)
+    exit 0
+fi
+
+# For release or dev mode, generate an intermediate manifest by Helm,
+# and add flow-visibility Namespace resource with Kustomize.
+# Install Kustomize
+source $THIS_DIR/verify-kustomize.sh
+if [ -z "$KUSTOMIZE" ]; then
+    KUSTOMIZE="$(verify_kustomize)"
+elif ! $KUSTOMIZE version > /dev/null 2>&1; then
+    echoerr "$KUSTOMIZE does not appear to be a valid kustomize binary"
+    print_help
+    exit 1
+fi
+
 KUSTOMIZATION_DIR=$THIS_DIR/../build/yamls/base
 # intermediate manifest
 MANIFEST=$KUSTOMIZATION_DIR/flow-visibility/manifest.yaml
@@ -168,7 +190,6 @@ $HELM template \
       2> >(grep -v 'This is insecure' >&2)\
       > $MANIFEST
 
-# Add flow-visibility Namespace resource with Kustomize
 cd $KUSTOMIZATION_DIR/flow-visibility
 
 # Add Spark Operator CRDs with Kustomize

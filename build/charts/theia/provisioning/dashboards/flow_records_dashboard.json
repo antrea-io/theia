@@ -21,8 +21,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
-  "iteration": 1652994218341,
+  "id": 4,
+  "iteration": 1659392847247,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -74,21 +74,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": 2,
+          "meta": {
+            "builderOptions": {
+              "fields": [],
+              "limit": 100,
+              "mode": "list"
+            }
           },
           "queryType": "sql",
           "rawSql": "SELECT count(*) as count\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)",
-          "meta": {
-            "builderOptions": {
-              "mode": "list",
-              "fields": [],
-              "limit": 100
-            }
-          },
-          "format": 2
+          "refId": "A"
         }
       ],
       "title": "Flow Records Count",
@@ -174,21 +174,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": 2,
+          "meta": {
+            "builderOptions": {
+              "fields": [],
+              "limit": 100,
+              "mode": "list"
+            }
           },
           "queryType": "sql",
           "rawSql": "SELECT count() as count, $__timeInterval(flowEndSeconds) as time\nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nGROUP BY time\nORDER BY time",
-          "meta": {
-            "builderOptions": {
-              "mode": "list",
-              "fields": [],
-              "limit": 100
-            }
-          },
-          "format": 2
+          "refId": "A"
         }
       ],
       "title": "Flow Records Count",
@@ -560,6 +560,10 @@
               {
                 "id": "custom.width",
                 "value": 230
+              },
+              {
+                "id": "displayName",
+                "value": "throughput reported by source"
               }
             ]
           },
@@ -571,7 +575,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 251
+                "value": 260
+              },
+              {
+                "id": "displayName",
+                "value": "throughput reported by destination"
               }
             ]
           },
@@ -583,7 +591,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 273
+                "value": 280
+              },
+              {
+                "id": "displayName",
+                "value": "reverse throughput reported by source"
               }
             ]
           },
@@ -595,7 +607,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 299
+                "value": 310
+              },
+              {
+                "id": "displayName",
+                "value": "reverse throughput reported by destination"
               }
             ]
           },
@@ -655,7 +671,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 283
+                "value": 290
+              },
+              {
+                "id": "displayName",
+                "value": "end time of flow reported by destination"
               }
             ]
           },
@@ -667,7 +687,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 255
+                "value": 260
+              },
+              {
+                "id": "displayName",
+                "value": "end time of flow reported by source"
               }
             ]
           },
@@ -792,6 +816,10 @@
               {
                 "id": "custom.width",
                 "value": 185
+              },
+              {
+                "id": "displayName",
+                "value": "end time of flow"
               }
             ]
           },
@@ -803,7 +831,11 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 184
+                "value": 185
+              },
+              {
+                "id": "displayName",
+                "value": "start time of flow"
               }
             ]
           },
@@ -815,7 +847,77 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 181
+                "value": 187
+              },
+              {
+                "id": "displayName",
+                "value": "insert time of flow"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "flowEndReason"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "1": {
+                        "index": 0,
+                        "text": "Idle Timeout"
+                      },
+                      "2": {
+                        "index": 1,
+                        "text": "Active Timeout"
+                      },
+                      "3": {
+                        "index": 2,
+                        "text": "End Of Flow"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 142
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "octetDeltaCount"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "delta bytes from the last record"
+              },
+              {
+                "id": "custom.width",
+                "value": 235
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "packetDeltaCount"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 250
+              },
+              {
+                "id": "displayName",
+                "value": "delta packets from the last record"
               }
             ]
           }
@@ -842,14 +944,14 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
+          "format": 1,
           "queryType": "sql",
           "rawSql": "SELECT * \nFROM flows\nWHERE $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC\nLIMIT 10000",
-          "format": 1
+          "refId": "A"
         }
       ],
       "title": "Flow Records Table",

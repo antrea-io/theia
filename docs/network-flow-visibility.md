@@ -593,24 +593,24 @@ Flow Records Dashboard displays the number of flow records being captured in the
 selected time range. The detailed metadata of each of the records can be found
 in the table below.  
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-flow-records-1.png" width="900" alt="Flow Records Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-flow-records-1.png" width="900" alt="Flow Records Dashboard">
 
 Flow Records Dashboard provides time-range control. The selected time-range will
 be applied to all the panels in the dashboard. This feature is also available for
 all the other pre-built dashboards.
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-flow-records-3.png" width="900" alt="Flow Records Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-flow-records-3.png" width="900" alt="Flow Records Dashboard">
 
 Flow Records Dashboard allows us to add key/value filters that automatically apply
 to all the panels in the dashboard. This feature is also available for all the
 other pre-built dashboards.
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-flow-records-2.png" width="900" alt="Flow Records Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-flow-records-2.png" width="900" alt="Flow Records Dashboard">
 
 Besides the dashboard-wide filter, Flow Records Dashboard also provides column-based
 filters that apply to each table column.
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-flow-records-4.png" width="900" alt="Flow Records Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-flow-records-4.png" width="900" alt="Flow Records Dashboard">
 
 #### Pod-to-Pod Flows Dashboard
 
@@ -621,7 +621,7 @@ visualize the cumulative traffic grouped by source or destination Pod Namespace.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-pod-1.png" width="900" alt="Pod-to-Pod Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-pod-2.png" width="900" alt="Pod-to-Pod Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-pod-to-pod-2.png" width="900" alt="Pod-to-Pod Flows Dashboard">
 
 #### Pod-to-External Flows Dashboard
 
@@ -629,9 +629,9 @@ Pod-to-External Flows Dashboard has similar visualization to Pod-to-Pod Flows
 Dashboard, visualizing the Pod-to-External flows. The destination of a traffic
 flow is represented by the destination IP address.
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-external-1.png" width="900" alt="Pod-to-External Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-pod-to-external-1.png" width="900" alt="Pod-to-External Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-external-2.png" width="900" alt="Pod-to-External Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-pod-to-external-2.png" width="900" alt="Pod-to-External Flows Dashboard">
 
 #### Pod-to-Service Flows Dashboard
 
@@ -641,7 +641,7 @@ is represented by the destination Service metadata.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-service-1.png" width="900" alt="Pod-to-Service Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-pod-to-service-2.png" width="900" alt="Pod-to-Service Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-pod-to-service-2.png" width="900" alt="Pod-to-Service Flows Dashboard">
 
 #### Node-to-Node Flows Dashboard
 
@@ -651,7 +651,7 @@ and throughput is shown in the line graphs.
 
 <img src="https://downloads.antrea.io/static/02152022/flow-visibility-node-to-node-1.png" width="900" alt="Node-to-Node Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-node-to-node-2.png" width="900" alt="Node-to-Node Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-node-to-node-2.png" width="900" alt="Node-to-Node Flows Dashboard">
 
 #### Network-Policy Flows Dashboard
 
@@ -667,9 +667,9 @@ without NetworkPolicy enforced has the same color with its source Pod. Every
 link is in the shape of an arrow, pointing from source to destination. Line
 graphs show the evolution of traffic throughput with NetworkPolicy enforced.
 
-<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-0.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-0.png" width="900" alt="Network-Policy Flows Dashboard">
 
-<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-1.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-1.png" width="900" alt="Network-Policy Flows Dashboard">
 
 We can filter on desired fields, e.g. for egress/ingressNetworkPolicyRuleAction
 value:
@@ -682,12 +682,12 @@ value:
 Here is an example if we filter on traffic with only ingressNetworkPolicyRuleAction
 equals to "Allow".
 
-<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-2.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-2.png" width="900" alt="Network-Policy Flows Dashboard">
 
 Mouse over or click on source/destination highlights only the related traffic.
 Mouse out or click on the background will bring all the traffic back.
 
-<img src="https://downloads.antrea.io/static/05232022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
+<img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
 
 ### Dashboard Customization
 

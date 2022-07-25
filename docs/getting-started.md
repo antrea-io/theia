@@ -46,7 +46,7 @@ commands:
 
 ```bash
 helm repo add antrea https://charts.antrea.io
-helm install antrea antrea/antrea -n kube-system --set featureGate.FlowExporter=true
+helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true
 ```
 
 This will install the latest available version of Antrea with the Flow Exporter

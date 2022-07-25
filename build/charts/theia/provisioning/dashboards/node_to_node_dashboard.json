@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 3,
-  "iteration": 1653419912594,
+  "iteration": 1659133528716,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -47,14 +47,14 @@
       "pluginVersion": "7.5.2",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
+          "format": 1,
           "queryType": "sql",
           "rawSql": "SELECT SUM(octetDeltaCount) as bytes, sourceNodeName as source, destinationNodeName as destination\nFrom flows_node_view\nWHERE source != '' AND destination != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nORDER BY bytes DESC\nLIMIT 50",
-          "format": 1
+          "refId": "A"
         }
       ],
       "title": "Cumulative Bytes of Node-to-Node",
@@ -88,14 +88,14 @@
       "pluginVersion": "7.5.2",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
+          "format": 1,
           "queryType": "sql",
           "rawSql": "SELECT SUM(reverseOctetDeltaCount) as bytes, sourceNodeName as source, destinationNodeName as destination\nFrom flows_node_view\nWHERE source != '' AND destination != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(flowEndSeconds)\nGROUP BY source, destination\nORDER BY bytes DESC\nLIMIT 50",
-          "format": 1
+          "refId": "A"
         }
       ],
       "title": "Cumulative Reverse Bytes of Node-to-Node",
@@ -131,7 +131,7 @@
               "type": "linear"
             },
             "showPoints": "always",
-            "spanNulls": true,
+            "spanNulls": 90000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -168,9 +168,7 @@
       "interval": "60s",
       "options": {
         "legend": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": [],
           "displayMode": "table",
           "placement": "right"
         },
@@ -181,21 +179,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
-          "queryType": "sql",
-          "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, CONCAT(sourceNodeName, '->', destinationNodeName) as pair, SUM(throughput) as Node\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nORDER BY time\nLIMIT 50",
+          "format": 2,
           "meta": {
             "builderOptions": {
-              "mode": "list",
               "fields": [],
-              "limit": 100
+              "limit": 100,
+              "mode": "list"
             }
           },
-          "format": 2
+          "queryType": "sql",
+          "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, CONCAT(sourceNodeName, '->', destinationNodeName) as pair, SUM(throughput) as Node\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nORDER BY time",
+          "refId": "A"
         }
       ],
       "title": "Throughput of Node-to-Node",
@@ -250,7 +248,7 @@
               "type": "linear"
             },
             "showPoints": "always",
-            "spanNulls": true,
+            "spanNulls": 90000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -287,9 +285,7 @@
       "interval": "60s",
       "options": {
         "legend": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": [],
           "displayMode": "table",
           "placement": "right"
         },
@@ -300,21 +296,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
-          "queryType": "sql",
-          "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, CONCAT(sourceNodeName, '->', destinationNodeName) as pair, SUM(reverseThroughput) as Node\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nORDER BY time\nLIMIT 50",
+          "format": 2,
           "meta": {
             "builderOptions": {
-              "mode": "list",
               "fields": [],
-              "limit": 100
+              "limit": 100,
+              "mode": "list"
             }
           },
-          "format": 2
+          "queryType": "sql",
+          "rawSql": "SELECT $__timeInterval(flowEndSeconds) as time, CONCAT(sourceNodeName, '->', destinationNodeName) as pair, SUM(reverseThroughput) as Node\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, pair\nORDER BY time",
+          "refId": "A"
         }
       ],
       "title": "Reverse Throughput of Node-to-Node",
@@ -369,7 +365,7 @@
               "type": "linear"
             },
             "showPoints": "always",
-            "spanNulls": true,
+            "spanNulls": 90000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -406,9 +402,7 @@
       "interval": "60s",
       "options": {
         "legend": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": [],
           "displayMode": "table",
           "placement": "right"
         },
@@ -419,21 +413,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
-          "queryType": "sql",
-          "rawSql": "SELECT $__timeInterval(flowEndSecondsFromSourceNode) as time, sourceNodeName, SUM(throughputFromSourceNode)\nFROM flows_node_view\nWHERE sourceNodeName != '' \nAND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, sourceNodeName\nORDER BY time\nLIMIT 50",
+          "format": 2,
           "meta": {
             "builderOptions": {
-              "mode": "list",
               "fields": [],
-              "limit": 100
+              "limit": 100,
+              "mode": "list"
             }
           },
-          "format": 2
+          "queryType": "sql",
+          "rawSql": "SELECT $__timeInterval(flowEndSecondsFromSourceNode) as time, sourceNodeName, SUM(throughputFromSourceNode)\nFROM flows_node_view\nWHERE sourceNodeName != '' \nAND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, sourceNodeName\nORDER BY time",
+          "refId": "A"
         }
       ],
       "title": "Throughput of Node as Source",
@@ -556,7 +550,7 @@
               "type": "linear"
             },
             "showPoints": "always",
-            "spanNulls": true,
+            "spanNulls": 90000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -593,9 +587,7 @@
       "interval": "60s",
       "options": {
         "legend": {
-          "calcs": [
-            "mean"
-          ],
+          "calcs": [],
           "displayMode": "table",
           "placement": "right"
         },
@@ -606,21 +598,21 @@
       "pluginVersion": "8.3.3",
       "targets": [
         {
-          "refId": "A",
           "datasource": {
-            "uid": "PDEE91DDB90597936",
-            "type": "grafana-clickhouse-datasource"
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
           },
-          "queryType": "sql",
-          "rawSql": "SELECT $__timeInterval(flowEndSecondsFromDestinationNode) as time, destinationNodeName, SUM(throughputFromDestinationNode)\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, destinationNodeName\nORDER BY time\nLIMIT 50",
+          "format": 2,
           "meta": {
             "builderOptions": {
-              "mode": "list",
               "fields": [],
-              "limit": 100
+              "limit": 100,
+              "mode": "list"
             }
           },
-          "format": 2
+          "queryType": "sql",
+          "rawSql": "SELECT $__timeInterval(flowEndSecondsFromDestinationNode) as time, destinationNodeName, SUM(throughputFromDestinationNode)\nFROM flows_node_view\nWHERE sourceNodeName != '' AND destinationNodeName != ''\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND $__timeFilter(time)\nGROUP BY time, destinationNodeName\nORDER BY time",
+          "refId": "A"
         }
       ],
       "title": "Throughput of Node as Destination",
@@ -747,6 +739,6 @@
   "timezone": "",
   "title": "node_to_node_dashboard",
   "uid": "1F56RJh7z",
-  "version": 5,
+  "version": 2,
   "weekStart": ""
 }

@@ -24,6 +24,10 @@ bin:
 	@mkdir -p $(BINDIR)
 	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/...
 
+.PHONY: .coverage
+.coverage:
+	mkdir -p $(CURDIR)/.coverage
+
 .PHONY: test-unit
 ifeq ($(UNAME_S),Linux)
 test-unit: .linux-test-unit
@@ -71,10 +75,10 @@ add-copyright:
 	@GO=$(GO) $(CURDIR)/hack/add-license.sh --add
 
 .PHONY: .linux-test-unit
-.linux-test-unit:
+.linux-test-unit: .coverage
 	@echo
 	@echo "==> Running unit tests <=="
-	$(GO) test -race -covermode=atomic -cover antrea.io/theia/plugins/... antrea.io/theia/pkg/... 
+	$(GO) test -race -coverprofile=.coverage/coverage-unit.txt -covermode=atomic -cover antrea.io/theia/plugins/... antrea.io/theia/pkg/... 
 
 .PHONY: tidy
 tidy:

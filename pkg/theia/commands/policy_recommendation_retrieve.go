@@ -18,9 +18,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"net/url"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 )
@@ -53,9 +51,9 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 		if recoID == "" && len(args) == 1 {
 			recoID = args[0]
 		}
-		_, err = uuid.Parse(recoID)
+		err = ParseRecommendationID(recoID)
 		if err != nil {
-			return fmt.Errorf("failed to decode input id %s into a UUID, err: %v", recoID, err)
+			return err
 		}
 		kubeconfig, err := ResolveKubeConfig(cmd)
 		if err != nil {
@@ -66,9 +64,9 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 			return err
 		}
 		if endpoint != "" {
-			_, err := url.ParseRequestURI(endpoint)
+			err = ParseEndpoint(endpoint)
 			if err != nil {
-				return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
+				return err
 			}
 		}
 		useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")

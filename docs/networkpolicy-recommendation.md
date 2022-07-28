@@ -9,6 +9,8 @@
   - [Run a policy recommendation job](#run-a-policy-recommendation-job)
   - [Check the status of a policy recommendation job](#check-the-status-of-a-policy-recommendation-job)
   - [Retrieve the result of a policy recommendation job](#retrieve-the-result-of-a-policy-recommendation-job)
+  - [List all policy recommendation jobs](#list-all-policy-recommendation-jobs)
+  - [Delete a policy recommendation job](#delete-a-policy-recommendation-job)
 <!-- /toc -->
 
 ## Introduction
@@ -36,17 +38,22 @@ CLI. `theia` is the command-line tool which provides access to Theia network
 flow visibility capabilities. To get more information about `theia`, please
 refer to its [user guide](theia-cli.md).
 
-There are 3 `theia` commands for the NetworkPolicy Recommendation feature:
+The following `theia` commands for the NetworkPolicy Recommendation feature are
+available:
 
 - `theia policy-recommendation run`
 - `theia policy-recommendation status`
 - `theia policy-recommendation retrieve`
+- `theia policy-recommendation list`
+- `theia policy-recommendation delete`
 
 Or you could use `pr` as a short alias of `policy-recommendation`:
 
 - `theia pr run`
 - `theia pr status`
 - `theia pr retrieve`
+- `theia pr list`
+- `theia pr delete`
 
 To see all options and usage examples of these commands, you may run
 `theia policy-recommendation [subcommand] --help`.
@@ -133,4 +140,28 @@ policies to a YAML file and apply it using `kubectl`:
 ```bash
 theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 -f recommended_policies.yml
 kubectl apply -f recommended_policies.yml
+```
+
+### List all policy recommendation jobs
+
+The `theia policy-recommendation list` command lists all undeleted policy
+recommendation jobs. `CreationTime`, `CompletionTime`, `ID` and `Status` of each
+policy recommendation job will be displayed in table format. For example:
+
+```bash
+> theia policy-recommendation list
+CreationTime          CompletionTime        ID                                   Status
+2022-06-17 18:33:15   N/A                   2cf13427-cbe5-454c-b9d3-e1124af7baa2 RUNNING
+2022-06-17 18:06:56   2022-06-17 18:08:37   e998433e-accb-4888-9fc8-06563f073e86 COMPLETED
+```
+
+### Delete a policy recommendation job
+
+The `theia policy-recommendation delete` command is used to delete a policy
+recommendation job. Please proceed with caution since deletion cannot be
+undone. To delete the policy recommendation job created above, run:
+
+```bash
+$ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
+Successfully deleted policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
 ```

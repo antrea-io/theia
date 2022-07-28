@@ -741,16 +741,24 @@ Mouse out or click on the background will bring all the traffic back.
 
 ### Dashboard Customization
 
-If you would like to make any changes to any of the pre-built dashboards, or build
+If you would like to make any change to any of the pre-built dashboards, or build
 a new dashboard, please follow this [doc](https://grafana.com/docs/grafana/latest/dashboards/)
 on how to build a dashboard.
 
-By clicking on the "Save dashboard" button in the Grafana UI, the changes to the
-dashboards will be persisted in the Grafana database at runtime, but they will be
-lost after restarting the Grafana deployment. To restore those changes after a restart,
+From Theia 0.2, we use PersistentVolume for the Grafana configuration database.
+If you create a new dashboard or modify the pre-built dashboards, once you click
+on the "Save dashboard" button, the changes will be kept after a Grafana
+Deployment restart. Other changes in settings like passwords and preferences will
+also be kept. By default, we use HostPath PersistentVolume, which only works when
+the Grafana Pod is deployed on the same host. In order to make sure settings are
+preserved regardless of where the Grafana Pod is deployed, please choose to use
+Local PV, NFS PV or other dynamic provisioning by defining your own StorageClasses.
+
+In Theia 0.1, the changes to dashboards and settings will be lost after restarting
+the Grafana Deployment. To restore those changes to dashboards after a restart,
 as the first step, you will need to export the dashboard JSON file following the
-[doc](https://grafana.com/docs/grafana/latest/dashboards/export-import/), then there
-are two ways to import the dashboard depending on your needs:
+[doc](https://grafana.com/docs/grafana/latest/dashboards/export-import/),
+then there are two ways to import the dashboard depending on your needs:
 
 - In the running Grafana UI, manually import the dashboard JSON files.
 - If you want the changed dashboards to be automatically provisioned in Grafana

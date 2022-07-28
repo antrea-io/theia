@@ -5,10 +5,16 @@ metadata:
   name: grafana-pvc
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if .Values.grafana.storage.persistentVolumeClaimSpec }}
+  {{- with .Values.grafana.storage.persistentVolumeClaimSpec }}
+  {{- toYaml . | trim | nindent 2 }}
+  {{- end }}
+  {{- else }}
   storageClassName: grafana-storage
+  {{- end }}
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1Gi
+      storage: {{ .Values.grafana.storage.size }}
 {{- end }}

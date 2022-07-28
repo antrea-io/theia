@@ -36,7 +36,7 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.service.httpPort | int | `8123` | HTTP port number for the ClickHouse service. |
 | clickhouse.service.tcpPort | int | `9000` | TCP port number for the ClickHouse service. |
 | clickhouse.service.type | string | `"ClusterIP"` | The type of Service exposing ClickHouse. It can be one of ClusterIP, NodePort or LoadBalancer. |
-| clickhouse.storage.createPersistentVolume.local.affinity | object | `{}` | Affinity for the Local Persistent Volume. By default it requires to label the Node used to store the ClickHouse data with "antrea.io/clickhouse-data-node=". |
+| clickhouse.storage.createPersistentVolume.local.affinity | object | `{}` | Affinity for the Local PersistentVolume. By default it requires to label the Node used to store the ClickHouse data with "antrea.io/clickhouse-data-node=". |
 | clickhouse.storage.createPersistentVolume.local.nodes | list | `["kind-worker"]` | A list of Node hostnames. Required when type is "Local". Please make sure to provide (shards * replicas) Nodes. Each Node should meet affinity and have the path created on it. |
 | clickhouse.storage.createPersistentVolume.local.path | string | `"/data/clickhouse"` | The local path. Required when type is "Local". |
 | clickhouse.storage.createPersistentVolume.nfs.addresses | list | `["nfs.svc.cluster.local:/data"]` | A list of addresses for NFS shares in the format hostname:path, where hostname refers to NFS server hostname or IP address, and path refers to the path exported on the NFS server. Please provide (shards * replicas) addresses. |
@@ -51,6 +51,14 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a Secret. |
 | grafana.service.tcpPort | int | `3000` | TCP port number for the Grafana service. |
 | grafana.service.type | string | `"NodePort"` | The type of Service exposing Grafana. It must be one of NodePort or LoadBalancer. |
+| grafana.storage.createPersistentVolume.hostPath.path | string | `"/data/grafana"` | The host path. Required when type is "HostPath". |
+| grafana.storage.createPersistentVolume.local.affinity | object | `{}` | Affinity for the Local PersistentVolume. By default it requires to label the Node used to store the Grafana configuration files with "antrea.io/grafana-config-node=". |
+| grafana.storage.createPersistentVolume.local.path | string | `"/data/grafana"` | The local path. Required when type is "Local". |
+| grafana.storage.createPersistentVolume.nfs.host | string | `""` | The NFS server hostname or IP address. Required when type is "NFS". |
+| grafana.storage.createPersistentVolume.nfs.path | string | `""` | The path exported on the NFS server. Required when type is "NFS". |
+| grafana.storage.createPersistentVolume.type | string | `"HostPath"` | Type of PersistentVolume. Can be set to "HostPath", "Local" or "NFS". Please set this value to use a PersistentVolume created by Theia. |
+| grafana.storage.persistentVolumeClaimSpec | object | `{}` | Specification for PersistentVolumeClaim. This is ignored if createPersistentVolume.type is non-empty. To use a custom PersistentVolume, please set storageClassName: "" volumeName: "<my-pv>". To dynamically provision a PersistentVolume, please set storageClassName: "<my-storage-class>". HostPath storage is used if both createPersistentVolume.type and persistentVolumeClaimSpec are empty. |
+| grafana.storage.size | string | `"1Gi"` | Grafana storage size. It is used to store Grafana configuration files. Can be a plain integer or as a fixed-point number using one of these quantity suffixes: E, P, T, G, M, K. Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki. |
 | sparkOperator.enable | bool | `false` | Determine whether to install Spark Operator. It is required to run Network Policy Recommendation jobs. |
 | sparkOperator.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-spark-operator","tag":"v1beta2-1.3.3-3.1.1"}` | Container image used by Spark Operator. |
 | sparkOperator.name | string | `"policy-recommendation"` | Name of Spark Operator. |

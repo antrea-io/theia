@@ -5,4 +5,4 @@ providers:
     type: file
     allowUiUpdates: true
     options:
-      path: /var/lib/grafana/dashboards
+      path: /opt/grafana/dashboards

@@ -19,6 +19,9 @@ on:
       spark-operator-tag:
         description: 'Tag for spark-operator Docker image'
         required: true
+      zookeeper-tag:
+        description: 'Tag for zookeeper Docker image'
+        required: true
 
 jobs:
   build:
@@ -59,3 +62,9 @@ jobs:
           src: ghcr.io/googlecloudplatform/spark-operator:${{ github.event.inputs.spark-operator-tag }}
           dst: |
             docker.io/antrea/theia-spark-operator:${{ github.event.inputs.spark-operator-tag }}
+      - name: Push antrea/theia-zookeeper
+        uses: akhilerm/tag-push-action@v2.0.0
+        with:
+          src: docker.io/zookeeper:${{ github.event.inputs.zookeeper-tag }}
+          dst: |
+            docker.io/antrea/theia-zookeeper:${{ github.event.inputs.zookeeper-tag }}

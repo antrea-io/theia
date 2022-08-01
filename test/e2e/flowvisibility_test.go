@@ -176,8 +176,6 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	if err != nil {
 		failOnError(fmt.Errorf("error when creating perftest Services: %v", err), t, data)
 	}
-	// Wait for the Service to be realized.
-	time.Sleep(3 * time.Second)
 
 	// IntraNodeFlows tests the case, where Pods are deployed on same Node
 	// and their flow information is exported as IPFIX flow records.

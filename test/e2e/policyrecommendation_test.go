@@ -81,8 +81,6 @@ func TestPolicyRecommendation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error when creating perftest-b Service: %v", err)
 	}
-	// Wait for the Service to be realized.
-	time.Sleep(3 * time.Second)
 	// In dual stack cluster, Service IP can be assigned as different IP family from specified.
 	// In that case, source IP and destination IP will align with IP family of Service IP.
 	// For IPv4-only and IPv6-only cluster, IP family of Service IP will be same as Pod IPs.
@@ -444,7 +442,7 @@ func createTestService(data *TestData, isIPv6 bool) (svcB *corev1.Service, err e
 
 	svcB, err = data.CreateService("perftest-b", testNamespace, iperfPort, iperfPort, map[string]string{"antrea-e2e": "perftest-b"}, false, false, corev1.ServiceTypeClusterIP, &svcIPFamily)
 	if err != nil {
-		return nil, fmt.Errorf("Error when creating perftest-b Service: %v", err)
+		return nil, fmt.Errorf("error when creating perftest-b Service: %v", err)
 	}
 
 	return svcB, nil

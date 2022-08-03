@@ -1,0 +1,65 @@
+name: Typescript
+
+on:
+  pull_request:
+    branches:
+    - main
+    - release-*
+    - feature/*
+  push:
+    branches:
+    - main
+    - release-*
+    - feature/*
+
+jobs:
+  check-typescript-changes:
+    name: Check whether tests need to be run based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: antrea-io/has-changes@v2
+      id: check_diff
+      with:
+        paths: plugins/grafana-custom-plugins/*
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+
+  test-unit:
+    needs: check-typescript-changes
+    if: ${{ needs.check-typescript-changes.outputs.has_changes == 'yes' }}
+    name: Unit test
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Install Yarn
+      run: npm install -g yarn
+
+    - name: Install dependencies and run the tests
+      run: |
+        cd plugins/grafana-custom-plugins/grafana-sankey-plugin/
+        yarn install
+        yarn test --coverage
+
+        cd ../grafana-chord-plugin/
+        yarn install
+        yarn test --coverage
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Uninstall Yarn
+      if: always()
+      run: npm uninstall -g yarn

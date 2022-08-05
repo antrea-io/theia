@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 
+	"antrea.io/theia/pkg/theia/commands/config"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -73,7 +74,7 @@ $ theia policy-recommendation list
 		sparkApplicationList := &sparkv1.SparkApplicationList{}
 		err = clientset.CoreV1().RESTClient().Get().
 			AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-			Namespace(flowVisibilityNS).
+			Namespace(config.FlowVisibilityNS).
 			Resource("sparkapplications").
 			Do(context.TODO()).Into(sparkApplicationList)
 		if err != nil {
@@ -121,7 +122,7 @@ $ theia policy-recommendation list
 }
 
 func getCompletedPolicyRecommendationList(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (completedPolicyRecommendationList []policyRecommendationRow, err error) {
-	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	connect, portForward, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if portForward != nil {
 		defer portForward.Stop()
 	}

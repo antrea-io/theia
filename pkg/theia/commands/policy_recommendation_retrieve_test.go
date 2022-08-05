@@ -22,6 +22,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"antrea.io/theia/pkg/theia/commands/config"
 )
 
 func TestGetClickHouseSecret(t *testing.T) {
@@ -38,7 +40,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"username": []byte("clickhouse_operator"),
@@ -63,7 +65,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"password": []byte("clickhouse_operator_password"),
@@ -80,7 +82,7 @@ func TestGetClickHouseSecret(t *testing.T) {
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-secret",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Data: map[string][]byte{
 						"username": []byte("clickhouse_operator"),

@@ -62,27 +62,28 @@ const (
 	defaultInterval = 1 * time.Second
 	realizeTimeout  = 5 * time.Minute
 
-	antreaNamespace            string = "kube-system"
-	kubeNamespace              string = "kube-system"
-	flowAggregatorNamespace    string = "flow-aggregator"
-	flowVisibilityNamespace    string = "flow-visibility"
-	testNamespace              string = "antrea-test"
-	iperfPort                  int32  = 5201
-	clickHouseHTTPPort         string = "8123"
-	busyboxContainerName       string = "busybox"
-	defaultBridgeName          string = "br-int"
-	antreaYML                  string = "antrea.yml"
-	antreaDaemonSet            string = "antrea-agent"
-	antreaDeployment           string = "antrea-controller"
-	flowAggregatorDeployment   string = "flow-aggregator"
-	flowAggregatorYML          string = "flow-aggregator.yml"
-	flowVisibilityYML          string = "flow-visibility.yml"
-	flowVisibilityWithSparkYML string = "flow-visibility-with-spark.yml"
-	chOperatorYML              string = "clickhouse-operator-install-bundle.yaml"
-	flowVisibilityCHPodName    string = "chi-clickhouse-clickhouse-0-0-0"
-	policyOutputYML            string = "output.yaml"
-	sparkOperatorPodLabel      string = "app.kubernetes.io/name=spark-operator"
-	grafanaPodLabel            string = "app=grafana"
+	antreaNamespace               string = "kube-system"
+	kubeNamespace                 string = "kube-system"
+	flowAggregatorNamespace       string = "flow-aggregator"
+	flowVisibilityNamespace       string = "flow-visibility"
+	testNamespace                 string = "antrea-test"
+	iperfPort                     int32  = 5201
+	clickHouseHTTPPort            string = "8123"
+	busyboxContainerName          string = "busybox"
+	defaultBridgeName             string = "br-int"
+	antreaYML                     string = "antrea.yml"
+	antreaDaemonSet               string = "antrea-agent"
+	antreaDeployment              string = "antrea-controller"
+	flowAggregatorDeployment      string = "flow-aggregator"
+	flowAggregatorYML             string = "flow-aggregator.yml"
+	flowVisibilityYML             string = "flow-visibility.yml"
+	flowVisibilityWithSparkYML    string = "flow-visibility-with-spark.yml"
+	flowVisibilityChOnlyYML       string = "flow-visibility-ch-only.yml"
+	chOperatorYML                 string = "clickhouse-operator-install-bundle.yaml"
+	flowVisibilityCHPodNamePrefix string = "chi-clickhouse-clickhouse"
+	policyOutputYML               string = "output.yaml"
+	sparkOperatorPodLabel         string = "app.kubernetes.io/name=spark-operator"
+	grafanaPodLabel               string = "app=grafana"
 
 	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
@@ -91,6 +92,8 @@ const (
 	exporterActiveFlowExportTimeout    = 2 * time.Second
 	aggregatorActiveFlowRecordTimeout  = 3500 * time.Millisecond
 	aggregatorClickHouseCommitInterval = 1 * time.Second
+
+	shardNum = 1
 )
 
 type ClusterNode struct {
@@ -1089,10 +1092,16 @@ func (data *TestData) createTestNamespace() error {
 // deployFlowVisibility deploys ClickHouse Operator and DB. If withSparkOperator/
 // withGrafana is set to true, it also deploys Spark Operator/Grafana.
 func (data *TestData) deployFlowVisibility(withSparkOperator, withGrafana bool) (string, error) {
-	flowVisibilityManifest := flowVisibilityYML
-	if withSparkOperator {
+
+	var flowVisibilityManifest string
+	if !withGrafana && !withSparkOperator {
+		flowVisibilityManifest = flowVisibilityChOnlyYML
+	} else if withSparkOperator {
 		flowVisibilityManifest = flowVisibilityWithSparkYML
+	} else {
+		flowVisibilityManifest = flowVisibilityYML
 	}
+
 	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", chOperatorYML))
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when deploying the ClickHouse Operator YML; %s not available on the control-plane Node", chOperatorYML)
@@ -1126,10 +1135,12 @@ func (data *TestData) deployFlowVisibility(withSparkOperator, withGrafana bool) 
 	}
 
 	// check for ClickHouse Pod ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
-	if err = data.podWaitForReady(2*defaultTimeout, flowVisibilityCHPodName, flowVisibilityNamespace); err != nil {
-		return "", err
+	for i := 0; i < shardNum; i++ {
+		chPodName := fmt.Sprintf("%s-%v-0-0", flowVisibilityCHPodNamePrefix, i)
+		if err = data.podWaitForReady(2*defaultTimeout, chPodName, flowVisibilityNamespace); err != nil {
+			return "", err
+		}
 	}
-
 	// check ClickHouse Service http port for Service connectivity
 	chSvc, err := data.GetService("flow-visibility", "clickhouse-clickhouse")
 	if err != nil {
@@ -1226,11 +1237,11 @@ func (data *TestData) deleteClickHouseOperator() error {
 	return nil
 }
 
-func teardownFlowVisibility(tb testing.TB, data *TestData, withSparkOperator bool) {
+func teardownFlowVisibility(tb testing.TB, data *TestData, withSparkOperator bool, withGrafana bool) {
 	if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
 		tb.Logf("Error when tearing down flow aggregator: %v", err)
 	}
-	if err := data.deleteFlowVisibility(withSparkOperator); err != nil {
+	if err := data.deleteFlowVisibility(withSparkOperator, withGrafana); err != nil {
 		tb.Logf("Error when deleting K8s resources created by flow visibility: %v", err)
 	}
 	if err := data.deleteClickHouseOperator(); err != nil {
@@ -1238,10 +1249,14 @@ func teardownFlowVisibility(tb testing.TB, data *TestData, withSparkOperator boo
 	}
 }
 
-func (data *TestData) deleteFlowVisibility(withSparkOperator bool) error {
-	flowVisibilityManifest := flowVisibilityYML
-	if withSparkOperator {
+func (data *TestData) deleteFlowVisibility(withSparkOperator bool, withGrafana bool) error {
+	var flowVisibilityManifest string
+	if !withGrafana && !withSparkOperator {
+		flowVisibilityManifest = flowVisibilityChOnlyYML
+	} else if withSparkOperator {
 		flowVisibilityManifest = flowVisibilityWithSparkYML
+	} else {
+		flowVisibilityManifest = flowVisibilityYML
 	}
 	startTime := time.Now()
 	defer func() {
@@ -1352,7 +1367,7 @@ func (data *TestData) Cleanup(namespaces []string) {
 	}
 }
 
-func flowVisibilityCleanup(tb testing.TB, data *TestData, withSparkOperator bool) {
+func flowVisibilityCleanup(tb testing.TB, data *TestData, withSparkOperator bool, withGrafana bool) {
 	teardownTest(tb, data)
-	teardownFlowVisibility(tb, data, withSparkOperator)
+	teardownFlowVisibility(tb, data, withSparkOperator, withGrafana)
 }

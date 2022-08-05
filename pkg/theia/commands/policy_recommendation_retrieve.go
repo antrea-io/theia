@@ -100,7 +100,7 @@ $ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 --us
 }
 
 func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, filePath string, recoID string) (recoResult string, err error) {
-	connect, portForward, err := setupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	connect, portForward, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
 	if portForward != nil {
 		defer portForward.Stop()
 	}

@@ -21,6 +21,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+
+	"antrea.io/theia/pkg/theia/commands/config"
 )
 
 func TestGetServiceAddr(t *testing.T) {
@@ -38,7 +40,7 @@ func TestGetServiceAddr(t *testing.T) {
 				&v1.Service{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse-clickhouse",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 					},
 					Spec: v1.ServiceSpec{
 						Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000}},
@@ -84,7 +86,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "clickhouse",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels:    map[string]string{"app": "clickhouse"},
 					},
 					Status: v1.PodStatus{
@@ -94,7 +96,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "spark-operator",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels: map[string]string{
 							"app.kubernetes.io/name": "spark-operator",
 						},
@@ -117,7 +119,7 @@ func TestPolicyRecoPreCheck(t *testing.T) {
 				&v1.Pod{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "spark-operator",
-						Namespace: flowVisibilityNS,
+						Namespace: config.FlowVisibilityNS,
 						Labels: map[string]string{
 							"app.kubernetes.io/name": "spark-operator",
 						},

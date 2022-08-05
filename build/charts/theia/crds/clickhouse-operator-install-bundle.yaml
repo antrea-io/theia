@@ -3487,7 +3487,7 @@ data:
                 "containers" : [
                   {
                     "name": "clickhouse",
-                    "image": "projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11",
+                    "image": "projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6",
                     "ports": [
                       {
                         "name": "http",

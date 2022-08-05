@@ -360,11 +360,13 @@ function deliver_antrea {
     docker pull antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker pull projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
+    docker pull projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6
 
     docker save -o antrea-ubuntu.tar antrea/antrea-ubuntu:latest
     docker save -o flow-aggregator.tar antrea/flow-aggregator:latest
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker save -o theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
+    docker save -o theia-clickhouse-server.tar projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6
 
     (cd $GIT_CHECKOUT_DIR && make policy-recommendation && make clickhouse-monitor)
     docker save -o theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
@@ -387,6 +389,7 @@ function deliver_antrea {
         ssh-keygen -f "/var/lib/jenkins/.ssh/known_hosts" -R ${IPs[$i]}
         copy_image antrea-ubuntu.tar docker.io/antrea/antrea-ubuntu ${IPs[$i]} latest true
         copy_image flow-aggregator.tar docker.io/antrea/flow-aggregator ${IPs[$i]} latest  true
+        copy_image theia-clickhouse-server.tar projects.registry.vmware.com/antrea/theia-clickhouse-server ${IPs[$i]} 22.6 true
         copy_image theia-clickhouse-operator.tar projects.registry.vmware.com/antrea/theia-clickhouse-operator  ${IPs[$i]} $image_tag true
         copy_image theia-metrics-exporter.tar projects.registry.vmware.com/antrea/theia-metrics-exporter  ${IPs[$i]} $image_tag true
         copy_image theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper  ${IPs[$i]} 3.8.0 true

@@ -281,7 +281,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	return testData, nil
 }
 
-func setupTestForFlowVisibility(tb testing.TB, withSparkOperator bool, withGrafana bool, withFlowAggregator bool) (*TestData, bool, bool, error) {
+func setupTestForFlowVisibility(tb testing.TB, config FlowVisibiltiySetUpConfig) (*TestData, bool, bool, error) {
 	v4Enabled := clusterInfo.podV4NetworkCIDR != ""
 	v6Enabled := clusterInfo.podV6NetworkCIDR != ""
 	testData, err := setupTest(tb)
@@ -290,12 +290,12 @@ func setupTestForFlowVisibility(tb testing.TB, withSparkOperator bool, withGrafa
 	}
 
 	tb.Logf("Applying flow visibility YAML")
-	chSvcIP, err := testData.deployFlowVisibility(withSparkOperator, withGrafana)
+	chSvcIP, err := testData.deployFlowVisibility(config)
 	if err != nil {
 		return testData, v4Enabled, v6Enabled, err
 	}
 	tb.Logf("ClickHouse Service created with ClusterIP: %v", chSvcIP)
-	if withFlowAggregator {
+	if config.withFlowAggregator {
 		tb.Logf("Applying flow aggregator YAML")
 		if err := testData.deployFlowAggregator(); err != nil {
 			return testData, v4Enabled, v6Enabled, err

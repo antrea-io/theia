@@ -35,6 +35,8 @@ Kustomize, and print it to stdout.
                                             Ei, Pi, Ti, Gi, Mi, Ki. (default is 8Gi)
         --ch-monitor-threshold <threshold>  Deploy the ClickHouse monitor with a specific threshold. Can
                                             vary from 0 to 1. (default is 0.5)
+        --local <path>                      Create the PersistentVolume for Clickhouse DB with a provided
+                                            local path.
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
 to generate manifests for Theia. You can set the HELM and KUSTOMIZE environment variables to
 the paths of the helm and kustomize binaries you want us to use. Otherwise we will download the
@@ -54,6 +56,7 @@ SPARK_OP=false
 GRAFANA=true
 CH_SIZE="8Gi"
 CH_THRESHOLD=0.5
+LOCALPATH=""
 
 while [[ $# -gt 0 ]]
 do
@@ -78,6 +81,10 @@ case $key in
     ;;
     --ch-monitor-threshold)
     CH_THRESHOLD="$2"
+    shift 2
+    ;;
+    --local)
+    LOCALPATH="$2"
     shift 2
     ;;
     -h|--help)
@@ -140,6 +147,9 @@ fi
 if [ "$GRAFANA" == false ]; then
     HELM_VALUES+=("grafana.enable=false")
 fi
+if [[ $LOCALPATH != "" ]]; then
+    HELM_VALUES+=("clickhouse.storage.createPersistentVolume.type=Local" "clickhouse.storage.createPersistentVolume.local.path=$LOCALPATH")
+fi
 
 delim=""
 HELM_VALUES_OPTION=""
@@ -191,6 +201,14 @@ $HELM template \
       > $MANIFEST
 
 cd $KUSTOMIZATION_DIR/flow-visibility
+
+# This version number is used for ClickHouse data schema auto-migration.
+# We ignore minor versions like dev versions.
+VERSION=$(head -n1 $THIS_DIR/../VERSION)
+VERSION=${VERSION:1} # strip leading 'v'
+VERSION=${VERSION%-*} # strip "-dev" suffix if present
+# Replace version placeholder
+sed -i.bak "s/0\.0\.0/$VERSION/g" $MANIFEST
 
 # Add Spark Operator CRDs with Kustomize
 if $SPARK_OP; then

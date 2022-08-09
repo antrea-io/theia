@@ -227,18 +227,19 @@ to learn more about ClickHouse configuration options in Flow Aggregator.
 
 ##### ClickHouse Cluster
 
-In v0.1, Theia deploys ClickHouse in a non-cluster mode, which cannot switch to
-ClickHouse cluster directly. You need to uninstall ClickHouse, delete related
-data if you use PersistenVolume and redeploy it when upgrading or downgrading
-between v0.1 and v0.2.
+In v0.1, Theia deploys ClickHouse in a non-cluster mode. Starting with v0.2,
+Theia supports ClickHouse clustering in lieu of the non-clustered mode supported
+in v0.1. You can upgrade from v0.1 to v0.2 without data loss if
+you use PersistentVolume for ClickHouse. To downgrade from v0.2 to v0.1, you
+need to uninstall ClickHouse, delete related data if you use PersistenVolume
+and redeploy it.
 
-Starting with v0.2, Theia supports ClickHouse clustering in lieu of the
-non-clustered mode supported in v0.1. A ClickHouse cluster consists of one or more
-shards. Shards refer to the servers that contain different parts of the data. You
-can deploy multiple shards to scale the cluster horizontally. Each shard consists
-of one or more replica hosts. Replicas indicate storing the same data on multiple
-Pods to improve data availability and accessibility. You can deploy multiple
-replicas in a shard to ensure reliability.
+A ClickHouse cluster consists of one or more shards. Shards refer to the servers
+that contain different parts of the data. You can deploy multiple shards to scale
+the cluster horizontally. Each shard consists of one or more replica hosts.
+Replicas indicate storing the same data on multiple Pods to improve data
+availability and accessibility. You can deploy multiple replicas in a shard to
+ensure reliability.
 
 By default, Theia deploys a 1-shard-1-replica ClickHouse cluster and a 1-replica
 ZooKeeper. To scale the ClickHouse cluster, please set `clickhouse.cluster.shards`

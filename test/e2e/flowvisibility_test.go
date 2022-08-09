@@ -99,8 +99,7 @@ trusted: 0
 */
 
 const (
-	clickHousePodName = "chi-clickhouse-clickhouse-0-0-0"
-	iperfTimeSec      = 12
+	iperfTimeSec = 12
 	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
 	// (default unlimited for TCP), to reduce the variances caused by network performance
 	// during 12s, and make the throughput test more stable.
@@ -128,6 +127,7 @@ var (
 	expectedNumDataRecords = 3
 	grafanaPorts           = fmt.Sprintf("%s:%s", grafanaLocalPort, grafanaSvcPort)
 	portForwardCmd         = exec.Command("kubectl", "port-forward", "service/grafana", "-n", "flow-visibility", grafanaPorts)
+	clickHousePodName      = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 )
 
 type testFlow struct {
@@ -138,7 +138,13 @@ type testFlow struct {
 }
 
 func TestFlowVisibility(t *testing.T) {
-	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, false, true, true)
+	config := FlowVisibiltiySetUpConfig{
+		withSparkOperator:     false,
+		withGrafana:           true,
+		withClickHouseLocalPv: false,
+		withFlowAggregator:    true,
+	}
+	data, v4Enabled, v6Enabled, err := setupTestForFlowVisibility(t, config)
 	if err != nil {
 		t.Errorf("Error when setting up test: %v", err)
 		failOnError(err, t, data)
@@ -149,7 +155,7 @@ func TestFlowVisibility(t *testing.T) {
 		failOnError(err, t, data)
 	}
 	defer portForwardCmd.Process.Kill()
-	defer flowVisibilityCleanup(t, data, false, true)
+	defer flowVisibilityCleanup(t, data, config)
 
 	podAIPs, podBIPs, podCIPs, podDIPs, podEIPs, err := createPerftestPods(data)
 	if err != nil {
@@ -1250,9 +1256,15 @@ type ClickHouseFullRow struct {
 }
 
 func failOnError(err error, t *testing.T, data *TestData) {
+	config := FlowVisibiltiySetUpConfig{
+		withSparkOperator:     false,
+		withGrafana:           true,
+		withClickHouseLocalPv: false,
+		withFlowAggregator:    true,
+	}
 	if portForwardCmd.Process != nil {
 		portForwardCmd.Process.Kill()
 	}
-	flowVisibilityCleanup(t, data, false, true)
+	flowVisibilityCleanup(t, data, config)
 	t.Fatalf("test failed: %v", err)
 }

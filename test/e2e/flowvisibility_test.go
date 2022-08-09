@@ -650,13 +650,13 @@ func checkClickHouseMonitorLogs(t *testing.T, data *TestData, deleted bool, numR
 	} else {
 		assert.Greater(t, percentage, monitorThreshold)
 		// Monitor deletes records from table flows and related MVs
-		assert.Contains(t, logString, "ALTER TABLE default.flows DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from Table flows")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_pod_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_pod_view")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_node_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_node_view")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_policy_view DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_policy_view")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from Table flows")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_pod_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_pod_view")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_node_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_node_view")
+		assert.Contains(t, logString, "ALTER TABLE default.flows_policy_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_policy_view")
 		assert.Contains(t, logString, "Skip rounds after a successful deletion", "Monitor should skip rounds after a successful deletion")
-		require.Contains(t, logString, "SELECT timeInserted FROM default.flows LIMIT 1 OFFSET ", "Monitor should log the deletion SQL command")
-		deletedRecordLog := strings.Split(logString, "SELECT timeInserted FROM default.flows LIMIT 1 OFFSET ")[1]
+		require.Contains(t, logString, "SELECT timeInserted FROM default.flows_local LIMIT 1 OFFSET ", "Monitor should log the deletion SQL command")
+		deletedRecordLog := strings.Split(logString, "SELECT timeInserted FROM default.flows_local LIMIT 1 OFFSET ")[1]
 		deletedRecordLog = strings.Split(deletedRecordLog, "\n")[0]
 		numDeletedRecord, err := strconv.ParseInt(deletedRecordLog, 10, 64)
 		require.NoErrorf(t, err, "Failed when parsing the number of deleted records %v", err)

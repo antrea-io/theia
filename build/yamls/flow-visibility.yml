@@ -70,10 +70,11 @@ data:
     # See the License for the specific language governing permissions and
     # limitations under the License.
 
+    # ttlTimeout is calculated by the smaller value in its default value and TTL
     set -e
     clickhouse client -n -h 127.0.0.1 <<-EOSQL
-
-        CREATE TABLE IF NOT EXISTS flows (
+        --Create a table to store records
+        CREATE TABLE IF NOT EXISTS flows_local (
             timeInserted DateTime DEFAULT now(),
             flowStartSeconds DateTime,
             flowEndSeconds DateTime,
@@ -123,13 +124,14 @@ data:
             reverseThroughputFromSourceNode UInt64,
             reverseThroughputFromDestinationNode UInt64,
             trusted UInt8 DEFAULT 0
-        ) engine=MergeTree
+        ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds)
-        TTL timeInserted + INTERVAL 1 HOUR
-        SETTINGS merge_with_ttl_timeout = 3600;
+        TTL timeInserted + INTERVAL 12 HOUR
+        SETTINGS merge_with_ttl_timeout = 14400;
 
-        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view
-        ENGINE = SummingMergeTree
+        --Create a Materialized View to aggregate data for pods
+        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view_local
+        ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (
             timeInserted,
             flowEndSeconds,
@@ -145,8 +147,8 @@ data:
             destinationPodNamespace,
             sourceTransportPort,
             destinationTransportPort)
-        TTL timeInserted + INTERVAL 1 HOUR
-        SETTINGS merge_with_ttl_timeout = 3600
+        TTL timeInserted + INTERVAL 12 HOUR
+        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -169,7 +171,7 @@ data:
             sum(reverseThroughput) AS reverseThroughput,
             sum(throughputFromSourceNode) AS throughputFromSourceNode,
             sum(throughputFromDestinationNode) AS throughputFromDestinationNode
-        FROM flows
+        FROM flows_local
         GROUP BY
             timeInserted,
             flowEndSeconds,
@@ -186,8 +188,9 @@ data:
             sourceTransportPort,
             destinationTransportPort;
 
-        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view
-        ENGINE = SummingMergeTree
+        --Create a Materialized View to aggregate data for nodes
+        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
+        ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (
             timeInserted,
             flowEndSeconds,
@@ -197,8 +200,8 @@ data:
             destinationNodeName,
             sourcePodNamespace,
             destinationPodNamespace)
-        TTL timeInserted + INTERVAL 1 HOUR
-        SETTINGS merge_with_ttl_timeout = 3600
+        TTL timeInserted + INTERVAL 12 HOUR
+        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -217,7 +220,7 @@ data:
             sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
             sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
             sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-        FROM flows
+        FROM flows_local
         GROUP BY
             timeInserted,
             flowEndSeconds,
@@ -228,8 +231,9 @@ data:
             sourcePodNamespace,
             destinationPodNamespace;
 
-        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view
-        ENGINE = SummingMergeTree
+        --Create a Materialized View to aggregate data for network policies
+        CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
+        ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (
             timeInserted,
             flowEndSeconds,
@@ -250,8 +254,8 @@ data:
             destinationServicePort,
             destinationServicePortName,
             destinationIP)
-        TTL timeInserted + INTERVAL 1 HOUR
-        SETTINGS merge_with_ttl_timeout = 3600
+        TTL timeInserted + INTERVAL 12 HOUR
+        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -281,7 +285,7 @@ data:
             sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
             sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
             sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-        FROM flows
+        FROM flows_local
         GROUP BY
             timeInserted,
             flowEndSeconds,
@@ -303,14 +307,30 @@ data:
             destinationServicePortName,
             destinationIP;
 
-        CREATE TABLE IF NOT EXISTS recommendations (
+        --Create a table to store the network policy recommendation results
+        CREATE TABLE IF NOT EXISTS recommendations_local (
             id String,
             type String,
             timeCreated DateTime,
             yamls String
-        ) engine=MergeTree
+        ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeCreated);
 
+        --Create distributed tables for cluster
+        CREATE TABLE IF NOT EXISTS flows AS flows_local
+        engine=Distributed('{cluster}', default, flows_local, rand());
+
+        CREATE TABLE IF NOT EXISTS flows_pod_view AS flows_pod_view_local
+        engine=Distributed('{cluster}', default, flows_pod_view_local, rand());
+
+        CREATE TABLE IF NOT EXISTS flows_node_view AS flows_node_view_local
+        engine=Distributed('{cluster}', default, flows_node_view_local, rand());
+
+        CREATE TABLE IF NOT EXISTS flows_policy_view AS flows_policy_view_local
+        engine=Distributed('{cluster}', default, flows_policy_view_local, rand());
+
+        CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
+        engine=Distributed('{cluster}', default, recommendations_local, rand());
     EOSQL
 kind: ConfigMap
 metadata:
@@ -4392,6 +4412,41 @@ spec:
   type: NodePort
 ---
 apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: zookeeper
+  name: zookeeper
+  namespace: flow-visibility
+spec:
+  ports:
+  - name: client
+    port: 2181
+  - name: prometheus
+    port: 7000
+  selector:
+    app: zookeeper
+    what: node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: zookeeper
+  name: zookeepers
+  namespace: flow-visibility
+spec:
+  clusterIP: None
+  ports:
+  - name: server
+    port: 2888
+  - name: leader-election
+    port: 3888
+  selector:
+    app: zookeeper
+    what: node
+---
+apiVersion: v1
 kind: PersistentVolume
 metadata:
   name: grafana-pv
@@ -4519,6 +4574,185 @@ spec:
           name: grafana-dashboard-config
         name: grafana-dashboard-config
 ---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: zookeeper
+  name: zookeeper
+  namespace: flow-visibility
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  serviceName: zookeepers
+  template:
+    metadata:
+      annotations:
+        prometheus.io/port: "7000"
+        prometheus.io/scrape: "true"
+      labels:
+        app: zookeeper
+        what: node
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - zookeeper
+            topologyKey: kubernetes.io/hostname
+      containers:
+      - command:
+        - bash
+        - -x
+        - -c
+        - |
+          SERVERS=1 &&
+          HOST=`hostname -s` &&
+          DOMAIN=`hostname -d` &&
+          CLIENT_PORT=2181 &&
+          SERVER_PORT=2888 &&
+          ELECTION_PORT=3888 &&
+          PROMETHEUS_PORT=7000 &&
+          ZOO_DATA_DIR=/var/lib/zookeeper/data &&
+          ZOO_DATA_LOG_DIR=/var/lib/zookeeper/datalog &&
+          {
+            echo "clientPort=${CLIENT_PORT}"
+            echo 'tickTime=2000'
+            echo 'initLimit=300'
+            echo 'syncLimit=10'
+            echo 'maxClientCnxns=2000'
+            echo 'maxSessionTimeout=60000000'
+            echo "dataDir=${ZOO_DATA_DIR}"
+            echo "dataLogDir=${ZOO_DATA_LOG_DIR}"
+            echo 'autopurge.snapRetainCount=10'
+            echo 'autopurge.purgeInterval=1'
+            echo 'preAllocSize=131072'
+            echo 'snapCount=3000000'
+            echo 'leaderServes=yes'
+            echo 'standaloneEnabled=false'
+            echo '4lw.commands.whitelist=*'
+            echo 'metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider'
+            echo "metricsProvider.httpPort=${PROMETHEUS_PORT}"
+          } > /conf/zoo.cfg &&
+          {
+            echo "zookeeper.root.logger=CONSOLE"
+            echo "zookeeper.console.threshold=INFO"
+            echo "log4j.rootLogger=\${zookeeper.root.logger}"
+            echo "log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender"
+            echo "log4j.appender.CONSOLE.Threshold=\${zookeeper.console.threshold}"
+            echo "log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout"
+            echo "log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n"
+          } > /conf/log4j.properties &&
+          echo 'JVMFLAGS="-Xms128M -Xmx4G -XX:+UseG1GC -XX:+CMSParallelRemarkEnabled -XX:ActiveProcessorCount=8"' > /conf/java.env &&
+          if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
+              NAME=${BASH_REMATCH[1]}
+              ORD=${BASH_REMATCH[2]}
+          else
+              echo "Failed to parse name and ordinal of Pod"
+              exit 1
+          fi &&
+          mkdir -p ${ZOO_DATA_DIR} &&
+          mkdir -p ${ZOO_DATA_LOG_DIR} &&
+          export MY_ID=$((ORD+1)) &&
+          echo $MY_ID > $ZOO_DATA_DIR/myid &&
+          for (( i=1; i<=$SERVERS; i++ )); do
+              echo "server.$i=$NAME-$((i-1)).$DOMAIN:$SERVER_PORT:$ELECTION_PORT" >> /conf/zoo.cfg;
+          done &&
+          if [[ $SERVERS -eq 1 ]]; then
+              echo "group.1=1" >> /conf/zoo.cfg;
+          else
+              groupstr="group.1=1"
+              for (( i=2; i<=$SERVERS; i++ )); do
+                groupstr+=":$i"
+              done
+              echo $groupstr >> /conf/zoo.cfg;
+          fi &&
+          for (( i=1; i<=$SERVERS; i++ )); do
+              WEIGHT=1
+              if [[ $i == 1 ]]; then
+                WEIGHT=10
+              fi
+              echo "weight.$i=$WEIGHT" >> /conf/zoo.cfg;
+          done &&
+          chown -Rv zookeeper "$ZOO_DATA_DIR" "$ZOO_DATA_LOG_DIR" "$ZOO_LOG_DIR" "$ZOO_CONF_DIR" &&
+          zkServer.sh start-foreground
+        image: projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - OK=$(echo ruok | nc 127.0.0.1 2181); if [[ "$OK" == "imok" ]]; then
+              exit 0; else exit 1; fi
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        name: kubernetes-zookeeper
+        ports:
+        - containerPort: 2181
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        - containerPort: 7000
+          name: prometheus
+        readinessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - OK=$(echo ruok | nc 127.0.0.1 2181); if [[ "$OK" == "imok" ]]; then
+              STATE=$(echo mntr | nc 127.0.0.1 2181 | grep zk_server_state | cut -d
+              " " -f 2); if [[ "$STATE" == "leader" ]]; then SYNCED_FOLLOWERS=$(echo
+              mntr | nc 127.0.0.1 2181 | grep zk_synced_followers | cut -d " " -f
+              2 | cut -d "." -f 1); if [[ $SYNCED_FOLLOWERS == $(( $SERVERS - 1 ))
+              ]]; then ./bin/zkCli.sh ls /; exit $?; else exit 1; fi; elif [[ "$STATE"
+              == "follower" ]]; then PEER_STATE=$(echo mntr | nc 127.0.0.1 2181 |
+              grep zk_peer_state); if [[ "$PEER_STATE" == "following - broadcast"
+              ]]; then ./bin/zkCli.sh ls /; exit $?; else exit 1; fi; fi; else exit
+              1; fi
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "1"
+            memory: 512M
+        volumeMounts:
+        - mountPath: /var/lib/zookeeper
+          name: datadir-volume
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      volumes:
+      - emptyDir:
+          medium: ""
+          sizeLimit: 5Gi
+        name: datadir-volume
+  updateStrategy:
+    type: RollingUpdate
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zookeeper-pod-disruption-budget
+  namespace: flow-visibility
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+---
 apiVersion: clickhouse.altinity.com/v1
 kind: ClickHouseInstallation
 metadata:
@@ -4536,6 +4770,9 @@ spec:
     users:
       clickhouse_operator/k8s_secret_password: flow-visibility/clickhouse-secret/password
       clickhouse_operator/networks/ip: ::/0
+    zookeeper:
+      nodes:
+      - host: zookeeper.flow-visibility
   defaults:
     templates:
       podTemplate: pod-template
@@ -4543,6 +4780,10 @@ spec:
   templates:
     podTemplates:
     - name: pod-template
+      podDistribution:
+      - number: 1
+        topologyKey: kubernetes.io/hostname
+        type: MaxNumberPerNode
       spec:
         containers:
         - image: projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11
@@ -4567,9 +4808,9 @@ spec:
           - name: DB_URL
             value: tcp://localhost:9000
           - name: TABLE_NAME
-            value: default.flows
+            value: default.flows_local
           - name: MV_NAMES
-            value: default.flows_pod_view default.flows_node_view default.flows_policy_view
+            value: default.flows_pod_view_local default.flows_node_view_local default.flows_policy_view_local
           - name: STORAGE_SIZE
             value: 8Gi
           - name: THRESHOLD

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ttlTimeout is calculated by the smaller value in its default value and TTL
 {{- $ttl := split " " .Values.clickhouse.ttl }}
 {{- $ttlTimeout := 14400 }}
 {{- if eq $ttl._1 "SECOND" }}
@@ -23,11 +24,10 @@
 {{- else if eq $ttl._1 "HOUR" }}
 {{- $ttlTimeout = min (mul $ttl._0 60 60) $ttlTimeout }}
 {{- end }}
-
 set -e
 clickhouse client -n -h 127.0.0.1 <<-EOSQL
-
-    CREATE TABLE IF NOT EXISTS flows (
+    --Create a table to store records
+    CREATE TABLE IF NOT EXISTS flows_local (
         timeInserted DateTime DEFAULT now(),
         flowStartSeconds DateTime,
         flowEndSeconds DateTime,
@@ -77,13 +77,14 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         reverseThroughputFromSourceNode UInt64,
         reverseThroughputFromDestinationNode UInt64,
         trusted UInt8 DEFAULT 0
-    ) engine=MergeTree
+    ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeInserted, flowEndSeconds)
     TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
     SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }};
 
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view
-    ENGINE = SummingMergeTree
+    --Create a Materialized View to aggregate data for pods
+    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view_local
+    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (
         timeInserted,
         flowEndSeconds,
@@ -123,7 +124,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(reverseThroughput) AS reverseThroughput,
         sum(throughputFromSourceNode) AS throughputFromSourceNode,
         sum(throughputFromDestinationNode) AS throughputFromDestinationNode
-    FROM flows
+    FROM flows_local
     GROUP BY
         timeInserted,
         flowEndSeconds,
@@ -140,8 +141,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourceTransportPort,
         destinationTransportPort;
 
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view
-    ENGINE = SummingMergeTree
+    --Create a Materialized View to aggregate data for nodes
+    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
+    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (
         timeInserted,
         flowEndSeconds,
@@ -171,7 +173,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
         sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
         sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-    FROM flows
+    FROM flows_local
     GROUP BY
         timeInserted,
         flowEndSeconds,
@@ -182,8 +184,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodNamespace,
         destinationPodNamespace;
 
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view
-    ENGINE = SummingMergeTree
+    --Create a Materialized View to aggregate data for network policies
+    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
+    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (
         timeInserted,
         flowEndSeconds,
@@ -235,7 +238,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
         sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
         sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-    FROM flows
+    FROM flows_local
     GROUP BY
         timeInserted,
         flowEndSeconds,
@@ -257,12 +260,28 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePortName,
         destinationIP;
 
-    CREATE TABLE IF NOT EXISTS recommendations (
+    --Create a table to store the network policy recommendation results
+    CREATE TABLE IF NOT EXISTS recommendations_local (
         id String,
         type String,
         timeCreated DateTime,
         yamls String
-    ) engine=MergeTree
+    ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeCreated);
 
+    --Create distributed tables for cluster
+    CREATE TABLE IF NOT EXISTS flows AS flows_local
+    engine=Distributed('{cluster}', default, flows_local, rand());
+
+    CREATE TABLE IF NOT EXISTS flows_pod_view AS flows_pod_view_local
+    engine=Distributed('{cluster}', default, flows_pod_view_local, rand());
+
+    CREATE TABLE IF NOT EXISTS flows_node_view AS flows_node_view_local
+    engine=Distributed('{cluster}', default, flows_node_view_local, rand());
+
+    CREATE TABLE IF NOT EXISTS flows_policy_view AS flows_policy_view_local
+    engine=Distributed('{cluster}', default, flows_policy_view_local, rand());
+
+    CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
+    engine=Distributed('{cluster}', default, recommendations_local, rand());
 EOSQL

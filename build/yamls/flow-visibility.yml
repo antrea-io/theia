@@ -4763,7 +4763,7 @@ data:
         type: file
         allowUiUpdates: true
         options:
-          path: /var/lib/grafana/dashboards
+          path: /opt/grafana/dashboards
 kind: ConfigMap
 metadata:
   name: grafana-dashboard-provider
@@ -4868,7 +4868,7 @@ spec:
   accessModes:
   - ReadWriteOnce
   capacity:
-    storage: 2Gi
+    storage: 1Gi
   hostPath:
     path: /data/grafana
   storageClassName: grafana-storage
@@ -4961,14 +4961,26 @@ spec:
             cpu: 250m
             memory: 750Mi
         volumeMounts:
-        - mountPath: /data
+        - mountPath: /var/lib/grafana
           name: grafana-pv
         - mountPath: /etc/grafana/provisioning/datasources
           name: grafana-datasource-provider
         - mountPath: /etc/grafana/provisioning/dashboards
           name: grafana-dashboard-provider
-        - mountPath: /var/lib/grafana/dashboards
+        - mountPath: /opt/grafana/dashboards
           name: grafana-dashboard-config
+      initContainers:
+      - command:
+        - chown
+        - -R
+        - 472:472
+        - /data
+        image: projects.registry.vmware.com/antrea/busybox
+        imagePullPolicy: IfNotPresent
+        name: init-pv
+        volumeMounts:
+        - mountPath: /data
+          name: grafana-pv
       securityContext:
         fsGroup: 472
         supplementalGroups:

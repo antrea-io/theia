@@ -20,6 +20,14 @@ spec:
         fsGroup: 472
         supplementalGroups:
           - 0
+      initContainers:
+        - name: init-pv
+          image: projects.registry.vmware.com/antrea/busybox
+          imagePullPolicy: IfNotPresent
+          command: ["chown", "-R", "472:472", "/data"]
+          volumeMounts:
+          - mountPath: /data
+            name: grafana-pv
       containers:
         - name: grafana
           image: {{ .Values.grafana.image.repository }}:{{ .Values.grafana.image.tag }}
@@ -78,13 +86,13 @@ spec:
               cpu: 250m
               memory: 750Mi
           volumeMounts:
-            - mountPath: /data
+            - mountPath: /var/lib/grafana
               name: grafana-pv
             - mountPath: /etc/grafana/provisioning/datasources
               name: grafana-datasource-provider
             - mountPath: /etc/grafana/provisioning/dashboards
               name: grafana-dashboard-provider
-            - mountPath: /var/lib/grafana/dashboards
+            - mountPath: /opt/grafana/dashboards
               name: grafana-dashboard-config
       volumes:
         - name: grafana-pv

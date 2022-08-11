@@ -5,6 +5,108 @@
     git_credentials_id: ANTREA_GIT_CREDENTIAL
     org_repo: antrea-io/theia
     jobs:
+      - '{name}-{test_name}-for-period':
+         test_name: daily-flow-visibility-validate
+         node: 'antrea-test-node'
+         description: 'This is for validating the flow visibility manifest daily'
+         builders:
+           - builder-e2e
+         branches:
+         - '*/main'
+         included_regions: []
+         cron: 'H H * * *'
+         ignore_post_commit_hooks: false
+         publishers:
+         - email:
+             recipients: projectantrea-dev@goolegroups.com
+         wrappers:
+         - timeout:
+             fail: true
+             timeout: 150
+             type: absolute
+         - credentials-binding:
+           - text:
+               credential-id: VMC_NETWORK_0
+               variable: VMC_NETWORK_0
+           - text:
+               credential-id: VMC_NETWORK_1
+               variable: VMC_NETWORK_1
+           - text:
+               credential-id: VCENTERNAME
+               variable: VCENTERNAME
+           - text:
+               credential-id: DATACENTERNAME
+               variable: DATACENTERNAME
+           - text:
+               credential-id: RESOURCEPOOLPATH
+               variable: RESOURCEPOOLPATH
+           - text:
+               credential-id: CAPVC_USERNAME
+               variable: CAPVC_USERNAME
+           - text:
+               credential-id: CAPVC_PASSWORD
+               variable: CAPVC_PASSWORD
+           - text:
+               credential-id: DATASTORE
+               variable: DATASTORE
+           - text:
+               credential-id: VMFOLDERNAME
+               variable: VMFOLDERNAME
+           - text:
+               credential-id: THEIA_DOCKERHUB_USERNAME
+               variable: DOCKERHUB_USERNAME
+           - text:
+               credential-id: THEIA_DOCKERHUB_TOKEN
+               variable: DOCKERHUB_TOKEN
+      - '{name}-{test_name}-no-scm':
+         test_name: e2e-pending-label
+         node: null
+         description: "This is for marking PR as pending for e2e test."
+         branches:
+         - ${{sha1}}
+         builders:
+           - builder-pending-label
+         trigger_phrase: null
+         white_list_target_branches: []
+         allow_whitelist_orgs_as_admins: false
+         admin_list: []
+         org_list: []
+         white_list: []
+         only_trigger_phrase: false
+         trigger_permit_all: true
+         status_context: jenkins-e2e
+         status_url: --none--
+         success_status: Pending test. Mark as failure. Add comment /theia-test-e2e to trigger.
+         failure_status: Pending test. Mark as failure. Add comment /theia-test-e2e to trigger.
+         error_status: Pending test. Mark as failure. Add comment /theia-test-e2e to trigger.
+         triggered_status: null
+         started_status: null
+         wrappers: []
+         publishers: []
+      - '{name}-{test_name}-no-scm':
+         test_name: e2e-skip
+         node: null
+         description: "This is for marking PR as passed."
+         branches:
+           - ${{sha1}}
+         builders: []
+         allow_whitelist_orgs_as_admins: true
+         admin_list: '{theia_admin_list}'
+         org_list: '{theia_org_list}'
+         white_list: '{theia_white_list}'
+         only_trigger_phrase: true
+         trigger_permit_all: false
+         trigger_phrase:  ^(?!Thanks for your PR).*/theia-skip-(e2e|all).*
+         white_list_target_branches: []
+         status_context: jenkins-e2e
+         status_url: --none--
+         success_status: Skipped test. Mark as succeeded.
+         failure_status: Skipped test. Mark as succeeded.
+         error_status: Skipped test. Mark as succeeded.
+         triggered_status: null
+         started_status: null
+         wrappers: []
+         publishers: []
       - '{name}-{test_name}-for-pull-request':
           test_name: e2e
           node: 'antrea-test-node'
@@ -65,6 +167,12 @@
             - text:
                 credential-id: VMFOLDERNAME
                 variable: VMFOLDERNAME
+            - text:
+                credential-id: THEIA_DOCKERHUB_USERNAME
+                variable: DOCKERHUB_USERNAME
+            - text:
+                credential-id: THEIA_DOCKERHUB_TOKEN
+                variable: DOCKERHUB_TOKEN
           publishers:
           - archive:
               allow-empty: true

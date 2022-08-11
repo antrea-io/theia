@@ -43,6 +43,8 @@ The following credentials on jenkins server should also be present for the jobs 
  | CAPVC_PASSWORD | vCenter password              |
 | DATASTORE | Datastore name                    |
 | VMFOLDERNAME | Folder name for VM                |
+| THEIA_DOCKERHUB_USERNAME | Username for dockerhub, for image pull |
+ | THEIA_DOCKERHUB_TOKEN | Login token for dockerhub, for image pull |
 
 ### Apply the jobs
 

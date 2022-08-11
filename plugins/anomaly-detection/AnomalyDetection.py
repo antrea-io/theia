@@ -39,7 +39,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-url = "jdbc:clickhouse://localhost:30002" #Changes based on port-forwarding, can be used on custom port.
+url = "jdbc:clickhouse://localhost:30002" #This is a local instance. Changes based on port-forwarding, can be used on custom port.
 table_name = "default.flows"
 
 
@@ -250,7 +250,6 @@ def calculate_dbscan_anomaly(dataframe):
 
 	return anomaly_result
 
-
 def anomaly_detection():
 	spark = SparkSession.builder.config("spark.jars","./clickhouse-jdbc-0.3.2-test3-all.jar").getOrCreate()
 	sc = spark.sparkContext
@@ -320,7 +319,6 @@ def anomaly_detection():
 	#Write anomalous records to DB/CSV - Module WIP
 	#Module to write to CSV. Optional.
 	plotDF5 = plotDF5.withColumn("Throughput Standard Deviation", f.col("Throughput Standard Deviation").cast("string")).withColumn("EWMA", f.col("EWMA").cast("string")).withColumn("ARIMA", f.col("ARIMA").cast("string")).withColumn("Throughputs", f.col("Throughputs").cast("string")).withColumn("EWMA Anomaly(T/F)", f.col("EWMA Anomaly(T/F)").cast("string")).withColumn("ARIMA Anomaly(T/F)", f.col("ARIMA Anomaly(T/F)").cast("string")).withColumn("DBSCAN Anomaly(T/F)", f.col("DBSCAN Anomaly(T/F)").cast("string"))
-	print(plotDF5.printSchema())
 	plotDF5.write.option("header",True).csv("./csv-outputs/anomaly-detection-results-{}".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
 
 

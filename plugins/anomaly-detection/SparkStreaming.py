@@ -74,7 +74,7 @@ def calculate_ewma_anomaly(diff_secs_throughput, throughput_stddev):
 	After calculation, it uses a threshold parameter to identify if the record is anomalous or not
 	A network flow record is anomalous if abs(throughput - ewma) > Standard Deviation. 
 	True - Anomalous Traffic, False - Not Anomalous
-
+	
 	Args:
 		diff_secs_throughput: Column of a dataframe containing difference in seconds between connection start and current flow, along with its throughput as a tuple
 		throughput_stddev: Standard Deviation of all the throughput values for a specific connection

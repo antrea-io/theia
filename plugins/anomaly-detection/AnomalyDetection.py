@@ -40,10 +40,14 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 url = "jdbc:clickhouse://localhost:30002" #This is a local instance. Changes based on port-forwarding, can be used on custom port.
 =======
 url = "jdbc:clickhouse://localhost:30002" #Changes based on port-forwarding, can be used on custom port.
 >>>>>>> Anomaly Detection Module - Internship
+=======
+url = "jdbc:clickhouse://localhost:30002" #This is a local instance. Changes based on port-forwarding, can be used on custom port.
+>>>>>>> Final Internship Data Submission along with Outputs
 table_name = "default.flows"
 
 
@@ -255,9 +259,12 @@ def calculate_dbscan_anomaly(dataframe):
 	return anomaly_result
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> Anomaly Detection Module - Internship
+=======
+>>>>>>> Final Internship Data Submission along with Outputs
 def anomaly_detection():
 	spark = SparkSession.builder.config("spark.jars","./clickhouse-jdbc-0.3.2-test3-all.jar").getOrCreate()
 	sc = spark.sparkContext
@@ -328,9 +335,12 @@ def anomaly_detection():
 	#Module to write to CSV. Optional.
 	plotDF5 = plotDF5.withColumn("Throughput Standard Deviation", f.col("Throughput Standard Deviation").cast("string")).withColumn("EWMA", f.col("EWMA").cast("string")).withColumn("ARIMA", f.col("ARIMA").cast("string")).withColumn("Throughputs", f.col("Throughputs").cast("string")).withColumn("EWMA Anomaly(T/F)", f.col("EWMA Anomaly(T/F)").cast("string")).withColumn("ARIMA Anomaly(T/F)", f.col("ARIMA Anomaly(T/F)").cast("string")).withColumn("DBSCAN Anomaly(T/F)", f.col("DBSCAN Anomaly(T/F)").cast("string"))
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 	print(plotDF5.printSchema())
 >>>>>>> Anomaly Detection Module - Internship
+=======
+>>>>>>> Final Internship Data Submission along with Outputs
 	plotDF5.write.option("header",True).csv("./csv-outputs/anomaly-detection-results-{}".format(datetime.now().strftime("%d-%m-%Y-%H-%M-%S")))
 
 

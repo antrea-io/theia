@@ -7,7 +7,7 @@ clickhouse:
   monitor:
     # -- Determine whether to run a monitor to periodically check the ClickHouse
     # memory usage and clean data.
-    enable: true
+    enable: false
     # -- The storage percentage at which the monitor starts to delete old records.
     # Vary from 0 to 1.
     threshold: 0.5
@@ -40,7 +40,7 @@ clickhouse:
   # -- Time to live for data in the ClickHouse. Can be a plain integer using
   # one of these unit suffixes SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER,
   # YEAR.
-  ttl: 12 HOUR
+  ttl: 1 WEEK
   storage:
     # -- ClickHouse storage size. Can be a plain integer or as a fixed-point
     # number using one of these quantity suffixes: E, P, T, G, M, K. Or the

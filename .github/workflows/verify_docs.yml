@@ -21,8 +21,8 @@ jobs:
     - name: Checking for broken Markdown links for main branch
       uses: gaurav-nelson/github-action-markdown-link-check@v1
       with:
-        folder-path: './docs'
-        file-path: './README.md, ./CHANGELOG.md, ./CONTRIBUTING.md, ./GOVERNANCE.md, ./MAINTAINERS.md, ./SECURITY.md'
+        folder-path: './docs, ./CHANGELOG'
+        file-path: './README.md, ./CONTRIBUTING.md, ./GOVERNANCE.md, ./MAINTAINERS.md, ./SECURITY.md'
         config-file: 'hack/.md_links_config.json'
     - name: Markdownlint
       run: |

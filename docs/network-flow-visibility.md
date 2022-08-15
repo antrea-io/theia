@@ -707,15 +707,14 @@ and throughput is shown in the line graphs.
 
 Network-Policy Flows Dashboard visualizes the traffic with NetworkPolicies enforced.
 The Chord diagram visualizes the cumulative bytes of all the traffic in the selected
-time range. We use green color ![#228B22](https://via.placeholder.com/15/228B22/000000?text=+)
-to highlight traffic with "Allow" NetworkPolicy enforced, red color
-![#EE4B2B](https://via.placeholder.com/15/EE4B2B/000000?text=+) to highlight
-traffic with "Deny" NetworkPolicy enforced. Specifically, "Deny" NetworkPolicy
-refers to NetworkPolicy with egressNetworkPolicyRuleAction or
-ingressNetworkPolicyRuleAction set to `Drop` or `Reject`. Unprotected traffic
-without NetworkPolicy enforced has the same color with its source Pod. Every
-link is in the shape of an arrow, pointing from source to destination. Line
-graphs show the evolution of traffic throughput with NetworkPolicy enforced.
+time range. We use green color to highlight traffic with "Allow" NetworkPolicy
+enforced, red color to highlight traffic with "Deny" NetworkPolicy enforced.
+Specifically, "Deny" NetworkPolicy refers to NetworkPolicy with
+egressNetworkPolicyRuleAction or ingressNetworkPolicyRuleAction set to `Drop`
+or `Reject`. Unprotected traffic without NetworkPolicy enforced has the same
+color with its source Pod. Every link is in the shape of an arrow, pointing
+from source to destination. Line graphs show the evolution of traffic throughput
+with NetworkPolicy enforced.
 
 <img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-0.png" width="900" alt="Network-Policy Flows Dashboard">
 

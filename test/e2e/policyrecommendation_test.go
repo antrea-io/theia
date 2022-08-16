@@ -251,7 +251,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 	})
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Truef(strings.Contains(stdout, "Error message: driver pod not found") || strings.Contains(stdout, "Error message: driver container failed"), "stdout: %s", stdout)
+	assert.Truef(strings.Contains(stdout, "Error message: driver pod not found") || strings.Contains(stdout, "Error message: driver container failed") || strings.Contains(stdout, "Error message: driver container status missing"), "stdout: %s", stdout)
 }
 
 // Example output:

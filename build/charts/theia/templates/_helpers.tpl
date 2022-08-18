@@ -2,7 +2,7 @@
 {{- $clickhouse := .clickhouse }}
 {{- $version := .version }}
 - name: clickhouse-monitor
-  image: {{ $clickhouse.monitor.image.repository }}:{{ default $version $clickhouse.monitor.image.tag }}
+  image: {{ include "clickHouseMonitorImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.monitor.image.pullPolicy }}
   env:
     - name: CLICKHOUSE_USERNAME
@@ -79,3 +79,17 @@
     sizeLimit: {{ $clickhouse.storage.size }}
 {{- end }}
 {{- end }}
+
+{{- define "clickHouseMonitorImageTag" -}}
+{{- if .clickhouse.monitor.image.tag }}
+{{- .clickhouse.monitor.image.tag -}}
+{{- else if eq .version "latest" }}
+{{- print "latest" -}}
+{{- else }}
+{{- print "v" .version -}}
+{{- end }}
+{{- end -}}
+
+{{- define "clickHouseMonitorImage" -}}
+{{- print .clickhouse.monitor.image.repository ":" (include "clickHouseMonitorImageTag" .) -}}
+{{- end -}}

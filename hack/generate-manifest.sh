@@ -133,10 +133,10 @@ HELM_VALUES=()
 HELM_VALUES+=("clickhouse.storage.size=$CH_SIZE" "clickhouse.monitor.threshold=$CH_THRESHOLD")
 
 if [ "$MODE" == "dev" ] && [ -n "$IMG_NAME" ]; then
-    HELM_VALUES+=("clickhouse.monitorImage.repository=$IMG_NAME")
+    HELM_VALUES+=("clickhouse.monitor.image.repository=$IMG_NAME")
 fi
 if [ "$MODE" == "release" ]; then
-    HELM_VALUES+=("clickhouse.monitorImage.repository=$IMG_NAME" "clickhouse.monitorImage.tag=$IMG_TAG")
+    HELM_VALUES+=("clickhouse.monitor.image.repository=$IMG_NAME" "clickhouse.monitor.image.tag=$IMG_TAG")
 fi
 if [ "$MODE" == "antrea-e2e" ]; then
     HELM_VALUES+=("grafana.enable=false" "clickhouse.monitor.enable=false")

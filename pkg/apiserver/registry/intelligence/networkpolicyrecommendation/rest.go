@@ -17,16 +17,19 @@ package networkpolicyrecommendation
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
+	"antrea.io/theia/pkg/querier"
 )
 
 // REST implements rest.Storage for NetworkPolicyRecommendation.
 type REST struct {
+	npRecommendationQuerier querier.NPRecommendationQuerier
 }
 
 var (
@@ -36,26 +39,43 @@ var (
 )
 
 // NewREST returns a REST object that will work against API services.
-func NewREST() *REST {
-	return &REST{}
+func NewREST(nprq querier.NPRecommendationQuerier) *REST {
+	return &REST{npRecommendationQuerier: nprq}
 }
 
 func (r *REST) New() runtime.Object {
 	return &intelligence.NetworkPolicyRecommendation{}
 }
 
-func (r *REST) getNetworkPolicyRecommendation(jobType int) *intelligence.NetworkPolicyRecommendation {
-	job := new(intelligence.NetworkPolicyRecommendation)
-	if jobType == 0 {
-		job.JobType = intelligence.NPRecommendationJobInitial
-	} else {
-		job.JobType = intelligence.NPRecommendationJobSubsequent
+func (r *REST) getNetworkPolicyRecommendation(name string) *intelligence.NetworkPolicyRecommendation {
+	npReco, err := r.npRecommendationQuerier.GetNetworkPolicyRecommendation("flow-visibility", name)
+	if err != nil {
+		return nil
 	}
+
+	job := new(intelligence.NetworkPolicyRecommendation)
+	job.Name = npReco.Name
+	job.Type = npReco.Spec.Type
+	job.Limit = npReco.Spec.Limit
+	job.PolicyType = npReco.Spec.PolicyType
+	job.StartTime = npReco.Spec.StartTime
+	job.EndTime = npReco.Spec.EndTime
+	job.NSAllowList = npReco.Spec.NSAllowList
+	job.ExcludeLabels = npReco.Spec.ExcludeLabels
+	job.ToServices = npReco.Spec.ToServices
+	job.ExecutorInstances = npReco.Spec.ExecutorInstances
+	job.DriverCoreRequest = npReco.Spec.DriverCoreRequest
+	job.DriverMemory = npReco.Spec.DriverMemory
+	job.ExecutorCoreRequest = npReco.Spec.ExecutorCoreRequest
+	job.ExecutorMemory = npReco.Spec.ExecutorMemory
 	return job
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	job := r.getNetworkPolicyRecommendation(0)
+	job := r.getNetworkPolicyRecommendation(name)
+	if job == nil {
+		return nil, errors.NewNotFound(intelligence.Resource("networkpolicyrecommendations"), name)
+	}
 	return job, nil
 }
 
@@ -65,8 +85,6 @@ func (r *REST) NewList() runtime.Object {
 
 func (r *REST) List(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
 	list := new(intelligence.NetworkPolicyRecommendationList)
-	list.Items = append(list.Items, *r.getNetworkPolicyRecommendation(0))
-	list.Items = append(list.Items, *r.getNetworkPolicyRecommendation(1))
 	return list, nil
 }
 

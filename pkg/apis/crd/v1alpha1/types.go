@@ -12,26 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen=package
+// +k8s:defaulter-gen=TypeMeta
+// +groupName=crd.theia.antrea.io
+
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-type JobType string
-
-const (
-	NPRecommendationJobInitial    JobType = "Initial"
-	NPRecommendationJobSubsequent JobType = "Subsequent"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +genclient
-// +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type NetworkPolicyRecommendation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Type                string      `json:"jobType,omitempty"`
+	Spec   NetworkPolicyRecommendationSpec   `json:"spec,omitempty"`
+	Status NetworkPolicyRecommendationStatus `json:"status,omitempty"`
+}
+
+type NetworkPolicyRecommendationSpec struct {
+	Type                string      `json:"type,omitempty"`
 	Limit               int         `json:"limit,omitempty"`
 	PolicyType          string      `json:"policyType,omitempty"`
 	StartTime           metav1.Time `json:"startTime,omitempty"`
@@ -46,11 +50,14 @@ type NetworkPolicyRecommendation struct {
 	ExecutorMemory      string      `json:"executorMemory,omitempty"`
 }
 
+type NetworkPolicyRecommendationStatus struct {
+	State string `json:"state,omitempty"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 type NetworkPolicyRecommendationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-
-	Items []NetworkPolicyRecommendation `json:"items"`
+	Items           []NetworkPolicyRecommendation `json:"items"`
 }

@@ -16,4 +16,7 @@ rules:
     resourceNames: ["extension-apiserver-authentication"]
     resources: ["configmaps"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["crd.theia.antrea.io"]
+    resources: ["networkpolicyrecommendations"]
+    verbs: ["get", "list", "watch"]
 {{- end }}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2019 Antrea Authors
+# Copyright 2022 Antrea Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,8 +36,31 @@ function reset_year_change {
   done
 }
 
+# Generate clientset and apis code with K8s codegen tools.
+$GOPATH/bin/client-gen \
+  --clientset-name versioned \
+  --input-base "${THEIA_PKG}/pkg/apis/" \
+  --input "crd/v1alpha1" \
+  --output-package "${THEIA_PKG}/pkg/client/clientset" \
+  --go-header-file hack/boilerplate/license_header.go.txt
+
+# Generate listers with K8s codegen tools.
+$GOPATH/bin/lister-gen \
+  --input-dirs "${THEIA_PKG}/pkg/apis/crd/v1alpha1" \
+  --output-package "${THEIA_PKG}/pkg/client/listers" \
+  --go-header-file hack/boilerplate/license_header.go.txt
+
+# Generate informers with K8s codegen tools.
+$GOPATH/bin/informer-gen \
+  --input-dirs "${THEIA_PKG}/pkg/apis/crd/v1alpha1" \
+  --versioned-clientset-package "${THEIA_PKG}/pkg/client/clientset/versioned" \
+  --listers-package "${THEIA_PKG}/pkg/client/listers" \
+  --output-package "${THEIA_PKG}/pkg/client/informers" \
+  --go-header-file hack/boilerplate/license_header.go.txt
+
 $GOPATH/bin/deepcopy-gen \
   --input-dirs "${THEIA_PKG}/pkg/apis/intelligence/v1alpha1" \
+  --input-dirs "${THEIA_PKG}/pkg/apis/crd/v1alpha1" \
   -O zz_generated.deepcopy \
   --go-header-file hack/boilerplate/license_header.go.txt
 

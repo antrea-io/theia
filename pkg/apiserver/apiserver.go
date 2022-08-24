@@ -32,6 +32,7 @@ import (
 	intelligenceinstall "antrea.io/theia/pkg/apis/intelligence/install"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/apiserver/registry/intelligence/networkpolicyrecommendation"
+	"antrea.io/theia/pkg/querier"
 )
 
 const (
@@ -62,18 +63,12 @@ func init() {
 }
 
 type theiaManagerAPIServer struct {
-	GenericAPIServer *genericapiserver.GenericAPIServer
+	GenericAPIServer        *genericapiserver.GenericAPIServer
+	NPRecommendationQuerier querier.NPRecommendationQuerier
 }
 
 func (s *theiaManagerAPIServer) Run(stopCh <-chan struct{}) error {
-	if s == nil {
-		return fmt.Errorf("nil s")
-	}
-	p := s.GenericAPIServer
-	if p == nil {
-		return fmt.Errorf("nil")
-	}
-	return p.PrepareRun().Run(stopCh)
+	return s.GenericAPIServer.PrepareRun().Run(stopCh)
 }
 
 func newConfig(bindPort int) (*genericapiserver.CompletedConfig, error) {
@@ -114,7 +109,7 @@ func newConfig(bindPort int) (*genericapiserver.CompletedConfig, error) {
 }
 
 func installAPIGroup(s *theiaManagerAPIServer) error {
-	npRecommendationStorage := networkpolicyrecommendation.NewREST()
+	npRecommendationStorage := networkpolicyrecommendation.NewREST(s.NPRecommendationQuerier)
 	intelligenceGroup := genericapiserver.NewDefaultAPIGroupInfo(intelligence.GroupName, scheme, parameterCodec, codecs)
 	v1alpha1Storage := map[string]rest.Storage{}
 	v1alpha1Storage["networkpolicyrecommendations"] = npRecommendationStorage
@@ -130,7 +125,7 @@ func installAPIGroup(s *theiaManagerAPIServer) error {
 	return nil
 }
 
-func New(bindPort int, cipherSuites []uint16, tlsMinVersion uint16) (*theiaManagerAPIServer, error) {
+func New(nprq querier.NPRecommendationQuerier, bindPort int, cipherSuites []uint16, tlsMinVersion uint16) (*theiaManagerAPIServer, error) {
 	cfg, err := newConfig(bindPort)
 	if err != nil {
 		return nil, err
@@ -141,7 +136,7 @@ func New(bindPort int, cipherSuites []uint16, tlsMinVersion uint16) (*theiaManag
 	}
 	s.SecureServingInfo.CipherSuites = cipherSuites
 	s.SecureServingInfo.MinTLSVersion = tlsMinVersion
-	apiServer := &theiaManagerAPIServer{GenericAPIServer: s}
+	apiServer := &theiaManagerAPIServer{GenericAPIServer: s, NPRecommendationQuerier: nprq}
 	if err := installAPIGroup(apiServer); err != nil {
 		return nil, err
 	}

@@ -39,9 +39,9 @@ func parseReport(jsonPath string) (*vulnerabilityReport, error) {
 	return &report, nil
 }
 
-func parseAndAnalyze(jsonPath string) *reportStats {
+func parseAndAnalyze(jsonPath string) {
 	if jsonPath == "" {
-		return nil
+		return
 	}
 	report, err := parseReport(jsonPath)
 	if err != nil {
@@ -53,12 +53,10 @@ func parseAndAnalyze(jsonPath string) *reportStats {
 		klog.Fatalf("Failed to analyze report '%s': %v", jsonPath, err)
 	}
 	stats.Print()
-	return stats
 }
 
 func main() {
 	fileReport := flag.String("report", "", "The JSON report produced by clair-scanner that we need to analyze.")
-	maxScore := flag.Int("max-score", defaultMaxScore, "Max vulnerability score for which no email notification is generated.")
 	fileReportCmp := flag.String("report-cmp", "", "A second JSON report produced by clair-scanner, to compare to the first one.")
 	flag.Parse()
 
@@ -66,11 +64,6 @@ func main() {
 		klog.Fatalf("--report is required")
 	}
 
-	stats := parseAndAnalyze(*fileReport)
-	statsCmp := parseAndAnalyze(*fileReportCmp)
-
-	err := notifyIfNeeded(stats, *maxScore, statsCmp, *fileReport, *fileReportCmp)
-	if err != nil {
-		klog.Fatalf("Failed to send email: %v", err)
-	}
+	parseAndAnalyze(*fileReport)
+	parseAndAnalyze(*fileReportCmp)
 }

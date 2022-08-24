@@ -93,3 +93,17 @@
 {{- define "clickHouseMonitorImage" -}}
 {{- print .clickhouse.monitor.image.repository ":" (include "clickHouseMonitorImageTag" .) -}}
 {{- end -}}
+
+{{- define "theiaManagerImageTag" -}}
+{{- if .Values.theiaManager.image.tag }}
+{{- .Values.theiaManager.image.tag -}}
+{{- else if eq .Chart.AppVersion "latest" }}
+{{- print "latest" -}}
+{{- else }}
+{{- print "v" .Chart.AppVersion -}}
+{{- end }}
+{{- end -}}
+
+{{- define "theiaManagerImage" -}}
+{{- print .Values.theiaManager.image.repository ":" (include "theiaManagerImageTag" .) -}}
+{{- end -}}

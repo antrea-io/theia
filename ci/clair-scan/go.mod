@@ -1,6 +1,6 @@
 module antrea.io/theia/ci/clair
 
-go 1.17
+go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.30.23

@@ -17,9 +17,9 @@ package exec
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 // TODO: we could use the Docker Go SDK for this, but it seems like a big dependency to pull in just
@@ -75,8 +75,18 @@ func RunDockerExecCommand(container, cmd, workdir string, envs map[string]string
 	if err := dockerCmd.Start(); err != nil {
 		return 0, "", "", fmt.Errorf("error when starting command: %v", err)
 	}
-	stdoutBytes, _ := ioutil.ReadAll(stdoutPipe)
-	stderrBytes, _ := ioutil.ReadAll(stderrPipe)
+	var stdoutBytes, stderrBytes []byte
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		stdoutBytes, _ = io.ReadAll(stdoutPipe)
+	}()
+	go func() {
+		defer wg.Done()
+		stderrBytes, _ = io.ReadAll(stderrPipe)
+	}()
+	wg.Wait()
 
 	if err := dockerCmd.Wait(); err != nil {
 		if e, ok := err.(*exec.ExitError); ok {
@@ -108,8 +118,8 @@ func RunDockerPsFilterCommand(filter string) (
 		return 0, "", "", fmt.Errorf("error when starting command: %v", err)
 	}
 
-	stdoutBytes, _ := ioutil.ReadAll(stdoutPipe)
-	stderrBytes, _ := ioutil.ReadAll(stderrPipe)
+	stdoutBytes, _ := io.ReadAll(stdoutPipe)
+	stderrBytes, _ := io.ReadAll(stderrPipe)
 
 	if err := dockerCmd.Wait(); err != nil {
 		if e, ok := err.(*exec.ExitError); ok {

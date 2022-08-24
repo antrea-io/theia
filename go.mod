@@ -1,6 +1,6 @@
 module antrea.io/theia
 
-go 1.17
+go 1.19
 
 require (
 	antrea.io/antrea v1.6.0

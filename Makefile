@@ -54,7 +54,7 @@ DOCKER_ENV := \
 		-v $(DOCKER_CACHE)/gopath:/tmp/gopath \
 		-v $(DOCKER_CACHE)/gocache:/tmp/gocache \
 		-v $(CURDIR):/usr/src/antrea.io/theia \
-		golang:1.17
+		golang:1.19
 
 .PHONY: docker-test-unit
 docker-test-unit: $(DOCKER_CACHE)
@@ -98,7 +98,7 @@ fmt:
 
 .golangci-bin:
 	@echo "===> Installing Golangci-lint <==="
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.41.1
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.48.0
 
 .PHONY: golangci
 golangci: .golangci-bin

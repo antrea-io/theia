@@ -16,8 +16,10 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -44,6 +46,8 @@ const (
 var (
 	// Storage size allocated for the ClickHouse in number of bytes
 	allocatedSpace uint64
+	// identifierPartRegex is used to validate ClickHouse SQL identifiers coming from the environment.
+	identifierPartRegex = regexp.MustCompile("^[a-zA-Z_][0-9a-zA-Z_]*$")
 	// The name of the table to store the flow records
 	tableName = os.Getenv("TABLE_NAME")
 	// The names of the materialized views
@@ -60,6 +64,21 @@ var (
 	monitorExecInterval time.Duration
 )
 
+var notAValidIdentifierError = errors.New("not a valid identifier")
+
+func sanitizeIdentifier(identifier string) (string, error) {
+	identifierParts := strings.Split(identifier, ".")
+	if len(identifierParts) > 2 {
+		return "", notAValidIdentifierError
+	}
+	for _, part := range identifierParts {
+		if !identifierPartRegex.MatchString(part) {
+			return "", notAValidIdentifierError
+		}
+	}
+	return identifier, nil
+}
+
 func main() {
 	// Check environment variables
 	allocatedSpaceStr := os.Getenv("STORAGE_SIZE")
@@ -72,7 +91,23 @@ func main() {
 		klog.ErrorS(nil, "Unable to load environment variables, TABLE_NAME, MV_NAMES, STORAGE_SIZE, THRESHOLD, DELETE_PERCENTAGE, SKIP_ROUNDS_NUM, and EXEC_INTERVAL must be defined")
 		return
 	}
+
 	var err error
+
+	tableName, err = sanitizeIdentifier(tableName)
+	if err != nil {
+		klog.ErrorS(err, "Invalid TABLE_NAME")
+		return
+	}
+	for idx := range mvNames {
+		var err error
+		mvNames[idx], err = sanitizeIdentifier(mvNames[idx])
+		if err != nil {
+			klog.ErrorS(err, "Invalid MV_NAMES")
+			return
+		}
+	}
+
 	quantity, err := resource.ParseQuantity(allocatedSpaceStr)
 	if err != nil {
 		klog.ErrorS(err, "Error when parsing STORAGE_SIZE")
@@ -231,8 +266,9 @@ func monitorMemory(connect *sql.DB) {
 		tables := append([]string{tableName}, mvNames...)
 		for _, table := range tables {
 			// Delete all records inserted earlier than an upper boundary of timeInserted
-			command := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('%v')", table, timeBoundary.Format(timeFormat))
-			if _, err := connect.Exec(command); err != nil {
+			query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('$1')", table)
+			// #nosec G201: table and view names were sanitized earlier
+			if _, err := connect.Exec(query, timeBoundary.Format(timeFormat)); err != nil {
 				klog.ErrorS(err, "Failed to delete records from ClickHouse", "table", table)
 				return
 			}
@@ -249,9 +285,10 @@ func getTimeBoundary(connect *sql.DB) (time.Time, error) {
 	if err != nil {
 		return timeBoundary, err
 	}
-	command := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET %d", tableName, deleteRowNum-1)
+	query := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET $1", tableName)
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
-		if err := connect.QueryRow(command).Scan(&timeBoundary); err != nil {
+		// #nosec G201: table name was sanitized earlier
+		if err := connect.QueryRow(query, deleteRowNum-1).Scan(&timeBoundary); err != nil {
 			klog.ErrorS(err, "Failed to get timeInserted boundary", "table name", tableName)
 			return false, nil
 		} else {
@@ -266,9 +303,10 @@ func getTimeBoundary(connect *sql.DB) (time.Time, error) {
 // Calculates number of rows to be deleted depending on number of rows in the table and the percentage to be deleted.
 func getDeleteRowNum(connect *sql.DB) (uint64, error) {
 	var deleteRowNum, count uint64
-	command := fmt.Sprintf("SELECT COUNT() FROM %s", tableName)
+	query := fmt.Sprintf("SELECT COUNT() FROM %s", tableName)
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
-		if err := connect.QueryRow(command).Scan(&count); err != nil {
+		// #nosec G201: table name was sanitized earlier
+		if err := connect.QueryRow(query).Scan(&count); err != nil {
 			klog.ErrorS(err, "Failed to get the number of records", "table name", tableName)
 			return false, nil
 		} else {

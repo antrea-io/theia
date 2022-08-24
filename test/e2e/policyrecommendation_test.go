@@ -255,10 +255,12 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 }
 
 // Example output:
-// apiVersion: crd.antrea.io/v1alpha1
-// kind: NetworkPolicy
-// metadata:
-//   name: recommend-allow-anp-fj3hd
+//
+//	apiVersion: crd.antrea.io/v1alpha1
+//	kind: NetworkPolicy
+//	metadata:
+//	  name: recommend-allow-anp-fj3hd
+//
 // ...
 func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool, testFlowPodToPod, testFlowPodToSvc, testFlowPodToExternal testFlow) {
 	// With the workload traffic perftest-a -> perftest-b, perftest-a ->

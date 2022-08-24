@@ -17,7 +17,7 @@ package commands
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -112,7 +112,7 @@ func getPolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig st
 		return "", fmt.Errorf("error when getting result from ClickHouse, %v", err)
 	}
 	if filePath != "" {
-		if err := ioutil.WriteFile(filePath, []byte(recoResult), 0600); err != nil {
+		if err := os.WriteFile(filePath, []byte(recoResult), 0600); err != nil {
 			return "", fmt.Errorf("error when writing recommendation result to file: %v", err)
 		}
 	} else {

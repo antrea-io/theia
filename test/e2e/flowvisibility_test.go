@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os/exec"
@@ -570,7 +569,7 @@ func getQueriesByDashboard(apiEndpoint, dashboardUid, httpMethod string, queryLi
 	}
 	defer resp.Body.Close()
 
-	dashboard, err := ioutil.ReadAll(resp.Body)
+	dashboard, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return queries, fmt.Errorf("error while reading the response bytes: %v", err)
 	}
@@ -596,7 +595,7 @@ func checkQueryResult(t *testing.T, apiEndpoint, httpMethod string, queries []st
 		}
 		defer resp.Body.Close()
 
-		result, err := ioutil.ReadAll(resp.Body)
+		result, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("error while reading the response bytes: %v", err)
 		}

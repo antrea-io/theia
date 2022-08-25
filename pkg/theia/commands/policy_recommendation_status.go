@@ -18,7 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -239,7 +239,7 @@ func getResponseFromSparkMonitoringSvc(url string) ([]byte, error) {
 	if res.Body != nil {
 		defer res.Body.Close()
 	}
-	body, readErr := ioutil.ReadAll(res.Body)
+	body, readErr := io.ReadAll(res.Body)
 	if readErr != nil {
 		return nil, readErr
 	}

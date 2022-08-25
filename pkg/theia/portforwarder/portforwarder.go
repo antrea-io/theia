@@ -17,7 +17,7 @@ package portforwarder
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	v1 "k8s.io/api/core/v1"
@@ -166,7 +166,7 @@ func (p *PortForwarder) Start() error {
 		p.listenAddress,
 	}
 
-	pf, err := portforward.NewOnAddresses(dialer, addresses, ports, p.stopCh, readyCh, ioutil.Discard, ioutil.Discard)
+	pf, err := portforward.NewOnAddresses(dialer, addresses, ports, p.stopCh, readyCh, io.Discard, io.Discard)
 	if err != nil {
 		return fmt.Errorf("port forward request failed: %v", err)
 	}

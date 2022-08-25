@@ -427,7 +427,6 @@ function run_e2e {
 
     mkdir -p ${GIT_CHECKOUT_DIR}/theia-test-logs
     go version
-    go mod tidy -compat=1.17
 
     set +e
     # HACK: see https://github.com/antrea-io/antrea/issues/2292

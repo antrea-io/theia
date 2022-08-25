@@ -62,10 +62,10 @@ func testMonitorMemoryWithDeletion(t *testing.T, db *sql.DB, mock sqlmock.Sqlmoc
 	mock.ExpectQuery("SELECT free_space, total_space FROM system.disks").WillReturnRows(diskRow)
 	mock.ExpectQuery("SELECT SUM(bytes) FROM system.parts").WillReturnRows(partsRow)
 	mock.ExpectQuery("SELECT COUNT() FROM flows").WillReturnRows(countRow)
-	mock.ExpectQuery("SELECT timeInserted FROM flows LIMIT 1 OFFSET 4").WillReturnRows(timeRow)
+	mock.ExpectQuery("SELECT timeInserted FROM flows LIMIT 1 OFFSET $1").WithArgs(4).WillReturnRows(timeRow)
 	for _, table := range []string{"flows", "flows_pod_view", "flows_node_view", "flows_policy_view"} {
-		command := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('%v')", table, baseTime.Add(5*time.Second).Format(timeFormat))
-		mock.ExpectExec(command).WillReturnResult(sqlmock.NewResult(0, 5))
+		query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('$1')", table)
+		mock.ExpectExec(query).WithArgs(baseTime.Add(5 * time.Second).Format(timeFormat)).WillReturnResult(sqlmock.NewResult(0, 5))
 	}
 
 	monitorMemory(db)
@@ -100,5 +100,39 @@ func testGetDeleteRowNum(t *testing.T, db *sql.DB, mock sqlmock.Sqlmock) {
 
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestSanitizeIdentifier(t *testing.T) {
+	testCases := []struct {
+		identifier string
+		err        error
+	}{
+		{
+			identifier: "default.flows_local",
+			err:        nil,
+		},
+		{
+			identifier: "flows",
+			err:        nil,
+		},
+		{
+			identifier: "a.b.c",
+			err:        notAValidIdentifierError,
+		},
+		{
+			identifier: "a b",
+			err:        notAValidIdentifierError,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.identifier, func(t *testing.T) {
+			identifier, err := sanitizeIdentifier(tc.identifier)
+			assert.Equal(t, tc.err, err)
+			if err == nil {
+				assert.Equal(t, tc.identifier, identifier)
+			}
+		})
 	}
 }

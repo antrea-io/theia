@@ -38,7 +38,8 @@ func skipIfNotUpgradeTest(t *testing.T) {
 // TestUpgrade tests that some basic functionalities are not broken when
 // upgrading from one version of Theia to another. At the moment it checks
 // that:
-//  * ClickHouse data schema version
+//   - ClickHouse data schema version
+//
 // To run the test, provide the -upgrade.toVersion flag.
 func TestUpgrade(t *testing.T) {
 	skipIfNotUpgradeTest(t)

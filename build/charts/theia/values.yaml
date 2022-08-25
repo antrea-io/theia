@@ -144,12 +144,15 @@ grafana:
   # -- The dashboards to be displayed in Grafana UI. The files must be put under
   # provisioning/dashboards.
   dashboards:
+    - homepage.json
     - flow_records_dashboard.json
     - pod_to_pod_dashboard.json
     - pod_to_service_dashboard.json
     - pod_to_external_dashboard.json
     - node_to_node_dashboard.json
     - networkpolicy_dashboard.json
+  # -- Default home dashboard.
+  homeDashboard: homepage.json
   storage:
     # -- Grafana storage size. It is used to store Grafana configuration files.
     # Can be a plain integer or as a fixed-point number using one of these

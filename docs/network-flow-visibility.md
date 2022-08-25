@@ -21,6 +21,7 @@
         - [Performance Configuration](#performance-configuration)
         - [Persistent Volumes](#persistent-volumes)
 - [Grafana Dashboards](#grafana-dashboards)
+  - [Home Dashboard](#home-dashboard)
   - [Pre-built Dashboards](#pre-built-dashboards)
     - [Flow Records Dashboard](#flow-records-dashboard)
     - [Pod-to-Pod Flows Dashboard](#pod-to-pod-flows-dashboard)
@@ -118,23 +119,27 @@ kubectl get all -n flow-visibility
 The expected results will be like:
 
 ```bash  
-NAME                                  READY   STATUS    RESTARTS   AGE
-pod/chi-clickhouse-clickhouse-0-0-0   2/2     Running   0          1m
-pod/grafana-5c6c5b74f7-x4v5b          1/1     Running   0          1m
+NAME                                  READY   STATUS    RESTARTS      AGE
+pod/chi-clickhouse-clickhouse-0-0-0   2/2     Running   1 (19m ago)   19m
+pod/grafana-7d8c44f55-lhrcc           1/1     Running   0             19m
+pod/zookeeper-0                       1/1     Running   0             19m
 
-NAME                                    TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                         AGE
-service/chi-clickhouse-clickhouse-0-0   ClusterIP      None             <none>        8123/TCP,9000/TCP,9009/TCP      1m
-service/clickhouse-clickhouse           ClusterIP      10.102.124.56    <none>        8123/TCP,9000/TCP               1m
-service/grafana                         NodePort       10.97.171.150    <none>        3000:31171/TCP                  1m
+NAME                                    TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+service/chi-clickhouse-clickhouse-0-0   ClusterIP   None            <none>        8123/TCP,9000/TCP,9009/TCP   19m
+service/clickhouse-clickhouse           ClusterIP   10.99.235.79    <none>        8123/TCP,9000/TCP            19m
+service/grafana                         NodePort    10.99.215.177   <none>        3000:30914/TCP               19m
+service/zookeeper                       ClusterIP   10.106.196.44   <none>        2181/TCP,7000/TCP            19m
+service/zookeepers                      ClusterIP   None            <none>        2888/TCP,3888/TCP            19m
 
 NAME                      READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/grafana   1/1     1            1           1m
+deployment.apps/grafana   1/1     1            1           19m
 
-NAME                                 DESIRED   CURRENT   READY   AGE
-replicaset.apps/grafana-5c6c5b74f7   1         1         1       1m
+NAME                                DESIRED   CURRENT   READY   AGE
+replicaset.apps/grafana-7d8c44f55   1         1         1       19m
 
 NAME                                             READY   AGE
-statefulset.apps/chi-clickhouse-clickhouse-0-0   1/1     1m
+statefulset.apps/chi-clickhouse-clickhouse-0-0   1/1     19m
+statefulset.apps/zookeeper                       1/1     19m
 
 ```
 
@@ -605,12 +610,19 @@ should be set to your storage size.
 
 ## Grafana Dashboards
 
+### Home Dashboard
+
+Home dashboard is the first dashboard you will see after login to Grafana. It
+provides an overview of the monitored Kubernetes cluster, introduction of
+Theia flow visualization, and links to the other pre-built dashboards for
+more specific flow visualization.
+
+<img src="https://downloads.antrea.io/static/08242022/flow-visibility-homepage.png" width="900" alt="Grafana Homepage">
+
 ### Pre-built Dashboards
 
-The following dashboards are pre-built and are recommended for Theia flow
-visualization. They can be found in the Home page of Grafana, by clicking
-the Magnifier button on the left menu bar.
-<img src="https://downloads.antrea.io/static/02152022/flow-visibility-grafana-intro-1.png" width="900" alt="Grafana Search Dashboards Guide">
+The dashboards listed in the `Dashboard Links` panel are pre-built and are
+recommended for Theia flow visualization.
 
 - Note that all pre-built dashboards (except for the "Flow Records Dashboard")
 filter out Pod traffic for which the source or destination Namespace is one of

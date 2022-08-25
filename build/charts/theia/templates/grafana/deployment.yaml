@@ -59,6 +59,8 @@ spec:
                 secretKeyRef:
                   name: grafana-secret
                   key: admin-password
+            - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
+              value: /opt/grafana/dashboards/{{ .Values.grafana.homeDashboard }}
           ports:
             - containerPort: 3000
               name: http-grafana

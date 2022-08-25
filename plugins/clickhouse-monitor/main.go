@@ -72,6 +72,10 @@ func sanitizeIdentifier(identifier string) (string, error) {
 		return "", notAValidIdentifierError
 	}
 	for _, part := range identifierParts {
+		// see https://clickhouse.com/docs/en/sql-reference/syntax/#identifiers
+		// Identifiers also cannot be equal to keywords. This is not something we check for
+		// here: as long as the identifier parts match the regex, there should be no risk of
+		// SQL injection. ClickHouse will reject an identifier equal to a keyword.
 		if !identifierPartRegex.MatchString(part) {
 			return "", notAValidIdentifierError
 		}

@@ -43,12 +43,8 @@ VERSION=$(git ls-remote --tags --ref https://github.com/antrea-io/theia.git | \
 
 echo "Scanning Theia version $VERSION"
 
-docker pull "antrea/theia-clickhouse-monitor:$VERSION"
-docker pull "antrea/theia-clickhouse-monitor:latest"
-docker pull "antrea/theia-clickhouse-server:21.11"
-docker pull "antrea/theia-metrics-exporter:0.18.2"
-docker pull "antrea/theia-grafana:8.3.3"
-docker pull "antrea/theia-clickhouse-operator:0.18.2"
+docker pull "antrea/theia-policy-recommendation:$VERSION"
+docker pull "antrea/theia-policy-recommendation:latest"
 
 echo "Downloading clair-scanner"
 curl -Lo ./clair-scanner "https://github.com/arminc/clair-scanner/releases/download/v12/clair-scanner_${ostype}_amd64"
@@ -82,16 +78,12 @@ else
     CLAIR_SCANNER_IP="$EN0_IP"
 fi
 
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.$VERSION.json" "antrea/theia-clickhouse-monitor:$VERSION" || test -f "clair.$VERSION.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.latest.json" "antrea/theia-clickhouse-monitor:latest" || test -f "clair.latest.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.latest.json" "antrea/theia-clickhouse-server:21.11" || test -f "clair.latest.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.latest.json" "antrea/theia-metrics-exporter:0.18.2" || test -f "clair.latest.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.latest.json" "antrea/theia-grafana:8.3.3" || test -f "clair.latest.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "clair.latest.json" "antrea/theia-clickhouse-operator:0.18.2" || test -f "clair.latest.json"
+./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "policy-recommendation.clair.$VERSION.json" "antrea/theia-policy-recommendation:$VERSION" || test -f "policy-recommendation.clair.$VERSION.json"
+./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "policy-recommendation.clair.latest.json" "antrea/theia-policy-recommendation:latest" || test -f "policy-recommendation.clair.latest.json"
 
 if [ -n "$REPORTS_OUT_DIR" ]; then
     echo "Copying Clair scan reports to $REPORTS_OUT_DIR"
-    cp "clair.$VERSION.json" "clair.latest.json" "$REPORTS_OUT_DIR"
+    cp *.clair.$VERSION.json *.clair.latest.json "$REPORTS_OUT_DIR"
 fi
 
-go run . --report "clair.$VERSION.json" --report-cmp "clair.latest.json"
+go run . --report "policy-recommendation.clair.$VERSION.json" --report-cmp "policy-recommendation.clair.latest.json"

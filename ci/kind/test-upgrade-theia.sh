@@ -154,8 +154,7 @@ DOCKER_IMAGES=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$THEIA_FROM_TAG" \
-                "antrea/antrea-ubuntu:latest" \
-                "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest")
+                "antrea/antrea-ubuntu:latest")
 
 for img in "${DOCKER_IMAGES[@]}"; do
     echo "Pulling $img"
@@ -164,6 +163,8 @@ for img in "${DOCKER_IMAGES[@]}"; do
         sleep 1
     done
 done
+
+DOCKER_IMAGES+=("projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest")
 
 echo "Creating Kind cluster"
 IMAGES="${DOCKER_IMAGES[@]}"

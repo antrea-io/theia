@@ -5,6 +5,12 @@ bin
 .vscode/
 .idea/
 
+# VIM
+.*.swp
+
+# Emacs
+*~
+
 # Common backup files
 *.bak
 

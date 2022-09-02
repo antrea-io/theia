@@ -270,7 +270,7 @@ func monitorMemory(connect *sql.DB) {
 		tables := append([]string{tableName}, mvNames...)
 		for _, table := range tables {
 			// Delete all records inserted earlier than an upper boundary of timeInserted
-			query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('$1')", table)
+			query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime(?)", table)
 			// #nosec G201: table and view names were sanitized earlier
 			if _, err := connect.Exec(query, timeBoundary.Format(timeFormat)); err != nil {
 				klog.ErrorS(err, "Failed to delete records from ClickHouse", "table", table)
@@ -289,7 +289,7 @@ func getTimeBoundary(connect *sql.DB) (time.Time, error) {
 	if err != nil {
 		return timeBoundary, err
 	}
-	query := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET $1", tableName)
+	query := fmt.Sprintf("SELECT timeInserted FROM %s LIMIT 1 OFFSET (?)", tableName)
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
 		// #nosec G201: table name was sanitized earlier
 		if err := connect.QueryRow(query, deleteRowNum-1).Scan(&timeBoundary); err != nil {

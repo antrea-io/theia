@@ -62,9 +62,9 @@ func testMonitorMemoryWithDeletion(t *testing.T, db *sql.DB, mock sqlmock.Sqlmoc
 	mock.ExpectQuery("SELECT free_space, total_space FROM system.disks").WillReturnRows(diskRow)
 	mock.ExpectQuery("SELECT SUM(bytes) FROM system.parts").WillReturnRows(partsRow)
 	mock.ExpectQuery("SELECT COUNT() FROM flows").WillReturnRows(countRow)
-	mock.ExpectQuery("SELECT timeInserted FROM flows LIMIT 1 OFFSET $1").WithArgs(4).WillReturnRows(timeRow)
+	mock.ExpectQuery("SELECT timeInserted FROM flows LIMIT 1 OFFSET (?)").WithArgs(4).WillReturnRows(timeRow)
 	for _, table := range []string{"flows", "flows_pod_view", "flows_node_view", "flows_policy_view"} {
-		query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime('$1')", table)
+		query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE timeInserted < toDateTime(?)", table)
 		mock.ExpectExec(query).WithArgs(baseTime.Add(5 * time.Second).Format(timeFormat)).WillReturnResult(sqlmock.NewResult(0, 5))
 	}
 

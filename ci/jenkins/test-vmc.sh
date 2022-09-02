@@ -326,6 +326,7 @@ function deliver_antrea {
     chmod a+x ~/bin/yq
 
     FA_YAML=${GIT_CHECKOUT_DIR}/build/yamls/flow-aggregator.yml
+    sed -i -e "s|image: projects.registry.vmware.com/antrea/flow-aggregator:latest|image: antrea/flow-aggregator:latest|g" $FA_YAML
     flow_aggregator_conf=$(
         ~/bin/yq e 'select(.metadata.name == "flow-aggregator-configmap*").data."flow-aggregator.conf"' $FA_YAML \
             | ~/bin/yq e  \
@@ -356,17 +357,18 @@ function deliver_antrea {
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
 
     docker pull antrea/antrea-ubuntu:latest
-    docker pull projects.registry.vmware.com/antrea/flow-aggregator:latest
+    docker pull antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker pull projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
 
     docker save -o antrea-ubuntu.tar antrea/antrea-ubuntu:latest
-    docker save -o flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator:latest
+    docker save -o flow-aggregator.tar antrea/flow-aggregator:latest
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker save -o theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
 
-    (cd $GIT_CHECKOUT_DIR && make policy-recommendation)
+    (cd $GIT_CHECKOUT_DIR && make policy-recommendation && make clickhouse-monitor)
     docker save -o theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
+    docker save -o theia-clickhouse-monitor.tar projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
 
     # not sure the exact image tag, so read from yaml
     # and we assume the image tag is the same for all images in this yaml
@@ -384,12 +386,13 @@ function deliver_antrea {
     do
         ssh-keygen -f "/var/lib/jenkins/.ssh/known_hosts" -R ${IPs[$i]}
         copy_image antrea-ubuntu.tar docker.io/antrea/antrea-ubuntu ${IPs[$i]} latest true
-        copy_image flow-aggregator.tar projects.registry.vmware.com/antrea/flow-aggregator ${IPs[$i]} latest  true
+        copy_image flow-aggregator.tar docker.io/antrea/flow-aggregator ${IPs[$i]} latest  true
         copy_image theia-clickhouse-operator.tar projects.registry.vmware.com/antrea/theia-clickhouse-operator  ${IPs[$i]} $image_tag true
         copy_image theia-metrics-exporter.tar projects.registry.vmware.com/antrea/theia-metrics-exporter  ${IPs[$i]} $image_tag true
         copy_image theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper  ${IPs[$i]} 3.8.0 true
         copy_image theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator ${IPs[$i]} v1beta2-1.3.3-3.1.1 true
         copy_image theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation ${IPs[$i]} latest true
+        copy_image theia-clickhouse-monitor.tar projects.registry.vmware.com/antrea/theia-clickhouse-monitor ${IPs[$i]} latest true
     done
 }
 

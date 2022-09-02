@@ -45,10 +45,29 @@ jobs:
         name: policy-recommendation
         path: policy-recommendation.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+  
+  build-clickhouse-monitor-image:
+    name: Build ClickHouse monitor image to be used for Kind e2e tests
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    runs-on: [ ubuntu-latest ]
+    steps:
+    - uses: actions/checkout@v3
+    - run: make clickhouse-monitor
+    - name: Save ClickHouse monitor image to tarball
+      run: docker save -o clickhouse-monitor.tar antrea/theia-clickhouse-monitor
+    - name: Upload ClickHouse monitor image for subsequent jobs
+      uses: actions/upload-artifact@v3
+      with:
+        name: clickhouse-monitor
+        path: clickhouse-monitor.tar
+        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
   test-e2e-encap:
     name: E2e tests on a Kind cluster on Linux
-    needs: build-policy-recommendation-image
+    needs: 
+      - build-policy-recommendation-image
+      - build-clickhouse-monitor-image
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -60,14 +79,20 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: 'go.mod'
-      - name: Download Theia images from previous jobs
+      - name: Download Policy Recommendation images from previous jobs
         uses: actions/download-artifact@v3
         with:
           name: policy-recommendation
+      - name: Download ClickHouse monitor images from previous jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: clickhouse-monitor
       - name: Load Theia image
         run:  |
           docker load -i policy-recommendation.tar
           docker tag antrea/theia-policy-recommendation:latest projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
+          docker load -i clickhouse-monitor.tar
+          docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
@@ -90,6 +115,7 @@ jobs:
 
   test-upgrade-from-N-1:
     name: Upgrade from Theia version N-1
+    needs: build-clickhouse-monitor-image
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -101,6 +127,14 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: 'go.mod'
+      - name: Download ClickHouse monitor images from previous jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: clickhouse-monitor
+      - name: Load Theia image
+        run:  |
+          docker load -i clickhouse-monitor.tar
+          docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
@@ -121,14 +155,17 @@ jobs:
           path: log.tar.gz
           retention-days: 30
 
-  # Runs after all other jobs in the workflow and deletes Theia Docker images uploaded as temporary
+  # Runs after all other jobs in the workflow succeed and deletes Theia Docker images uploaded as temporary
   # artifacts. It uses a third-party, MIT-licensed action (geekyeggo/delete-artifact). While Github
   # exposes an API for deleting artifacts, they do not support an official delete-artifact action
   # yet.
   artifact-cleanup:
     name: Delete uploaded images
-    needs: [build-policy-recommendation-image, test-e2e-encap]
-    if: ${{ always() && needs.build-policy-recommendation-image.result == 'success' }}
+    needs:
+    - build-policy-recommendation-image
+    - build-clickhouse-monitor-image
+    - test-e2e-encap
+    - test-upgrade-from-N-1
     runs-on: [ubuntu-latest]
     steps:
     - name: Delete policy-recommendation
@@ -136,3 +173,8 @@ jobs:
       uses: geekyeggo/delete-artifact@v1
       with:
         name: policy-recommendation
+    - name: Delete clickhouse-monitor
+      if: ${{ needs.build-clickhouse-monitor-image.result == 'success' }}
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: clickhouse-monitor

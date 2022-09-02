@@ -3,7 +3,7 @@ clickhouse:
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-clickhouse-server"
     pullPolicy: "IfNotPresent"
-    tag: "21.11"
+    tag: "22.6"
   monitor:
     # -- Determine whether to run a monitor to periodically check the ClickHouse
     # memory usage and clean data.

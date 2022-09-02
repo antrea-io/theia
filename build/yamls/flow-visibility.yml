@@ -5215,7 +5215,7 @@ spec:
         - env:
           - name: THEIA_VERSION
             value: 0.3.0
-          image: projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11
+          image: projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6
           imagePullPolicy: IfNotPresent
           name: clickhouse
           volumeMounts:

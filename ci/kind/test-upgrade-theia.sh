@@ -149,7 +149,7 @@ DOCKER_IMAGES=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/perftool" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                 "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
-                "projects.registry.vmware.com/antrea/theia-clickhouse-server:21.11" \
+                "projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6" \
                 "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
                 "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \

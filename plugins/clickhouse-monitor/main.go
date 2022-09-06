@@ -44,14 +44,20 @@ const (
 )
 
 var (
+	getEnv     = os.Getenv
+	openSql    = sql.Open
+	foreverRun = wait.Forever
+)
+
+var (
 	// Storage size allocated for the ClickHouse in number of bytes
 	allocatedSpace uint64
 	// identifierPartRegex is used to validate ClickHouse SQL identifiers coming from the environment.
 	identifierPartRegex = regexp.MustCompile("^[a-zA-Z_][0-9a-zA-Z_]*$")
 	// The name of the table to store the flow records
-	tableName = os.Getenv("TABLE_NAME")
+	tableName string
 	// The names of the materialized views
-	mvNames = strings.Split(os.Getenv("MV_NAMES"), " ")
+	mvNames []string
 	// The remaining number of rounds to be skipped
 	remainingRoundsNum = 0
 	// The storage percentage at which the monitor starts to delete old records.
@@ -64,12 +70,12 @@ var (
 	monitorExecInterval time.Duration
 )
 
-var notAValidIdentifierError = errors.New("not a valid identifier")
+var errNotAValidIdentifier = errors.New("not a valid identifier")
 
 func sanitizeIdentifier(identifier string) (string, error) {
 	identifierParts := strings.Split(identifier, ".")
 	if len(identifierParts) > 2 {
-		return "", notAValidIdentifierError
+		return "", errNotAValidIdentifier
 	}
 	for _, part := range identifierParts {
 		// see https://clickhouse.com/docs/en/sql-reference/syntax/#identifiers
@@ -77,76 +83,27 @@ func sanitizeIdentifier(identifier string) (string, error) {
 		// here: as long as the identifier parts match the regex, there should be no risk of
 		// SQL injection. ClickHouse will reject an identifier equal to a keyword.
 		if !identifierPartRegex.MatchString(part) {
-			return "", notAValidIdentifierError
+			return "", errNotAValidIdentifier
 		}
 	}
 	return identifier, nil
 }
 
 func main() {
-	// Check environment variables
-	allocatedSpaceStr := os.Getenv("STORAGE_SIZE")
-	thresholdStr := os.Getenv("THRESHOLD")
-	deletePercentageStr := os.Getenv("DELETE_PERCENTAGE")
-	skipRoundsNumStr := os.Getenv("SKIP_ROUNDS_NUM")
-	monitorExecIntervalStr := os.Getenv("EXEC_INTERVAL")
-
-	if len(tableName) == 0 || len(mvNames) == 0 || len(allocatedSpaceStr) == 0 || len(thresholdStr) == 0 || len(deletePercentageStr) == 0 || len(skipRoundsNumStr) == 0 || len(monitorExecIntervalStr) == 0 {
-		klog.ErrorS(nil, "Unable to load environment variables, TABLE_NAME, MV_NAMES, STORAGE_SIZE, THRESHOLD, DELETE_PERCENTAGE, SKIP_ROUNDS_NUM, and EXEC_INTERVAL must be defined")
-		return
+	if err := loadEnvVariables(); err != nil {
+		klog.ErrorS(err, "Error when loading environment variables")
 	}
-
-	var err error
-
-	tableName, err = sanitizeIdentifier(tableName)
-	if err != nil {
-		klog.ErrorS(err, "Invalid TABLE_NAME")
-		return
-	}
-	for idx := range mvNames {
-		var err error
-		mvNames[idx], err = sanitizeIdentifier(mvNames[idx])
-		if err != nil {
-			klog.ErrorS(err, "Invalid MV_NAMES")
-			return
-		}
-	}
-
-	quantity, err := resource.ParseQuantity(allocatedSpaceStr)
-	if err != nil {
-		klog.ErrorS(err, "Error when parsing STORAGE_SIZE")
-		return
-	}
-	allocatedSpace = uint64(quantity.Value())
-
-	threshold, err = strconv.ParseFloat(thresholdStr, 64)
-	if err != nil {
-		klog.ErrorS(err, "Error when parsing THRESHOLD")
-		return
-	}
-	deletePercentage, err = strconv.ParseFloat(deletePercentageStr, 64)
-	if err != nil {
-		klog.ErrorS(err, "Error when parsing DELETE_PERCENTAGE")
-		return
-	}
-	skipRoundsNum, err = strconv.Atoi(skipRoundsNumStr)
-	if err != nil {
-		klog.ErrorS(err, "Error when parsing SKIP_ROUNDS_NUM")
-		return
-	}
-	monitorExecInterval, err = time.ParseDuration(monitorExecIntervalStr)
-	if err != nil {
-		klog.ErrorS(err, "Error when parsing EXEC_INTERVAL")
-		return
-	}
-
 	connect, err := connectLoop()
 	if err != nil {
 		klog.ErrorS(err, "Error when connecting to ClickHouse")
 		os.Exit(1)
 	}
 	checkStorageCondition(connect)
-	wait.Forever(func() {
+	startMonitor(connect)
+}
+
+func startMonitor(connect *sql.DB) {
+	foreverRun(func() {
 		// The monitor stops working for several rounds after a deletion
 		// as the release of memory space by the ClickHouse MergeTree engine requires time
 		if remainingRoundsNum > 0 {
@@ -161,12 +118,65 @@ func main() {
 	}, monitorExecInterval)
 }
 
+func loadEnvVariables() error {
+	// Check environment variables
+	tableName = getEnv("TABLE_NAME")
+	mvNames = strings.Split(getEnv("MV_NAMES"), " ")
+	allocatedSpaceStr := getEnv("STORAGE_SIZE")
+	thresholdStr := getEnv("THRESHOLD")
+	deletePercentageStr := getEnv("DELETE_PERCENTAGE")
+	skipRoundsNumStr := getEnv("SKIP_ROUNDS_NUM")
+	monitorExecIntervalStr := getEnv("EXEC_INTERVAL")
+
+	if len(tableName) == 0 || len(mvNames) == 0 || len(allocatedSpaceStr) == 0 || len(thresholdStr) == 0 || len(deletePercentageStr) == 0 || len(skipRoundsNumStr) == 0 || len(monitorExecIntervalStr) == 0 {
+		return fmt.Errorf("unable to load environment variables, TABLE_NAME, MV_NAMES, STORAGE_SIZE, THRESHOLD, DELETE_PERCENTAGE, SKIP_ROUNDS_NUM, and EXEC_INTERVAL must be defined")
+	}
+
+	var err error
+
+	tableName, err = sanitizeIdentifier(tableName)
+	if err != nil {
+		return fmt.Errorf("invalid TABLE_NAME: %v", err)
+	}
+	for idx := range mvNames {
+		var err error
+		mvNames[idx], err = sanitizeIdentifier(mvNames[idx])
+		if err != nil {
+			return fmt.Errorf("invalid MV_NAMES: %v", err)
+		}
+	}
+
+	quantity, err := resource.ParseQuantity(allocatedSpaceStr)
+	if err != nil {
+		return fmt.Errorf("error when parsing STORAGE_SIZE: %v", err)
+	}
+	allocatedSpace = uint64(quantity.Value())
+
+	threshold, err = strconv.ParseFloat(thresholdStr, 64)
+	if err != nil {
+		return fmt.Errorf("error when parsing THRESHOLD: %v", err)
+	}
+	deletePercentage, err = strconv.ParseFloat(deletePercentageStr, 64)
+	if err != nil {
+		return fmt.Errorf("error when parsing DELETE_PERCENTAGE: %v", err)
+	}
+	skipRoundsNum, err = strconv.Atoi(skipRoundsNumStr)
+	if err != nil {
+		return fmt.Errorf("error when parsing SKIP_ROUNDS_NUM: %v", err)
+	}
+	monitorExecInterval, err = time.ParseDuration(monitorExecIntervalStr)
+	if err != nil {
+		return fmt.Errorf("error when parsing EXEC_INTERVAL: %v", err)
+	}
+	return nil
+}
+
 // Connects to ClickHouse in a loop
 func connectLoop() (*sql.DB, error) {
 	// ClickHouse configuration
-	userName := os.Getenv("CLICKHOUSE_USERNAME")
-	password := os.Getenv("CLICKHOUSE_PASSWORD")
-	databaseURL := os.Getenv("DB_URL")
+	userName := getEnv("CLICKHOUSE_USERNAME")
+	password := getEnv("CLICKHOUSE_PASSWORD")
+	databaseURL := getEnv("DB_URL")
 	if len(userName) == 0 || len(password) == 0 || len(databaseURL) == 0 {
 		return nil, fmt.Errorf("unable to load environment variables, CLICKHOUSE_USERNAME, CLICKHOUSE_PASSWORD and DB_URL must be defined")
 	}
@@ -175,7 +185,7 @@ func connectLoop() (*sql.DB, error) {
 		// Open the database and ping it
 		dataSourceName := fmt.Sprintf("%s?debug=true&username=%s&password=%s", databaseURL, userName, password)
 		var err error
-		connect, err = sql.Open("clickhouse", dataSourceName)
+		connect, err = openSql("clickhouse", dataSourceName)
 		if err != nil {
 			klog.ErrorS(err, "Failed to connect to ClickHouse")
 			return false, nil

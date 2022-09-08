@@ -4,13 +4,12 @@
 
 Grafana Chord Panel Plugin enables users to create Chord Diagram panel in Grafana
 Dashboards. It is used to visualize the network connections. Connections with
-NetworkPolicy enforced will be highlighted. We use green color
-![#228B22](https://via.placeholder.com/15/228B22/000000?text=+)
-to highlight the connection with "Allow" NetworkPolicy enforced, red color
-![#EE4B2B](https://via.placeholder.com/15/EE4B2B/000000?text=+) to highlight
-the connection with "Deny" NetworkPolicy enforced. Panels are the building blocks
-of Grafana. They allow you to visualize data in different ways. For more information
-about panels, refer to the documentation on [Panels](https://grafana.com/docs/grafana/latest/features/panels/panels/).
+NetworkPolicy enforced will be highlighted. We use green color to highlight
+the connection with "Allow" NetworkPolicy enforced, red color to highlight the
+connection with "Deny" NetworkPolicy enforced. Panels are the building blocks
+of Grafana. They allow you to visualize data in different ways. For more
+information about panels, refer to the documentation on
+[Panels](https://grafana.com/docs/grafana/latest/features/panels/panels/).
 An example of Chord Panel Plugin:
 
 <img src="https://downloads.antrea.io/static/05232022/chord-plugin-example.png" width="900" alt="Chord Panel Plugin Example">

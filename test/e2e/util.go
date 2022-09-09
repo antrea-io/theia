@@ -34,6 +34,7 @@ const (
 	egressAntreaNetworkPolicyName      = "test-flow-aggregator-antrea-networkpolicy-egress"
 	testIngressRuleName                = "test-ingress-rule-name"
 	testEgressRuleName                 = "test-egress-rule-name"
+	homeDashboardUid                   = "Yw6zwRkVk"
 	flowRecordsDashboardUid            = "t1UGX7t7k"
 	podToPodDashboardUid               = "Yxn0Ghh7k"
 	podToServiceDashboardUid           = "LGdxbW17z"
@@ -93,6 +94,22 @@ var grafanaTestCases = []struct {
 	dashboardUid  string
 	queryList     []query
 }{
+	{
+		dashboardName: "homepage",
+		dashboardUid:  homeDashboardUid,
+		queryList: []query{
+			{
+				queryId:      11,
+				panelName:    "Number of NetworkPolicies",
+				expectResult: []string{"16"},
+			},
+			{
+				queryId:      15,
+				panelName:    "Top 10 Active Source Pods",
+				expectResult: []string{"antrea-test/perftest-a"},
+			},
+		},
+	},
 	{
 		dashboardName: "flow_records_dashboard",
 		dashboardUid:  flowRecordsDashboardUid,

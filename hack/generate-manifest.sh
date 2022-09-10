@@ -28,6 +28,7 @@ Kustomize, and print it to stdout.
                                             repository, which only includes a ClickHouse server with default
                                             credentials.
         --spark-operator                    Generate a manifest with Spark Operator enabled.
+        --theia-manager                     Generate a manifest with Theia Manager enabled.
         --no-grafana                        Generate a manifest with Grafana disabled.
         --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
                                             plain integer or as a fixed-point number using one of these quantity
@@ -53,6 +54,7 @@ function print_help {
 
 MODE="dev"
 SPARK_OP=false
+THEIA_MANAGER=false
 GRAFANA=true
 CH_SIZE="8Gi"
 CH_THRESHOLD=0.5
@@ -69,6 +71,10 @@ case $key in
     ;;
     --spark-operator)
     SPARK_OP=true
+    shift 1
+    ;;
+    --theia-manager)
+    THEIA_MANAGER=true
     shift 1
     ;;
     --no-grafana)
@@ -144,6 +150,9 @@ fi
 if $SPARK_OP; then
     HELM_VALUES+=("sparkOperator.enable=true")
 fi
+if $THEIA_MANAGER; then
+  HELM_VALUES+=("theiaManager.enable=true")
+fi
 if [ "$GRAFANA" == false ]; then
     HELM_VALUES+=("grafana.enable=false")
 fi
@@ -210,23 +219,34 @@ VERSION=${VERSION%-*} # strip "-dev" suffix if present
 # Replace version placeholder
 sed -i.bak "s/0\.0\.0/$VERSION/g" $MANIFEST
 
-# Add Spark Operator CRDs with Kustomize
-if $SPARK_OP; then
+INCLUDE_CRD=false
+if $SPARK_OP || $THEIA_MANAGER; then
+    INCLUDE_CRD=true
     CRDS_DIR=$THIS_DIR/../build/charts/theia/crds
     TMP_DIR=$(mktemp -d $KUSTOMIZATION_DIR/overlays.XXXXXXXX)
     pushd $TMP_DIR > /dev/null
-    mkdir sparkop && cd sparkop
-    cp $CRDS_DIR/spark-operator-crds.yaml spark-operator-crds.yaml
     touch kustomization.yml
-    $KUSTOMIZE edit add base ../../flow-visibility
-    $KUSTOMIZE edit add base spark-operator-crds.yaml
+    $KUSTOMIZE edit add base ../flow-visibility
+fi
+# Add Spark Operator CRDs with Kustomize
+if $SPARK_OP; then
+    mkdir sparkop
+    cp $CRDS_DIR/spark-operator-crds.yaml sparkop/spark-operator-crds.yaml
+    $KUSTOMIZE edit add base sparkop/spark-operator-crds.yaml
+fi
+
+# Add Theia Manager CRDs with Kustomize
+if $THEIA_MANAGER; then
+   mkdir manager
+   cp $CRDS_DIR/network-policy-recommendation-crd.yaml manager/network-policy-recommendation-crd.yaml
+   $KUSTOMIZE edit add base manager/network-policy-recommendation-crd.yaml
 fi
 
 $KUSTOMIZE build
 
 # clean
-if $SPARK_OP; then
-    rm -rf $TMP_DIR
+if $INCLUDE_CRD; then
     popd > /dev/null
+    rm -rf $TMP_DIR
 fi
 rm -rf $MANIFEST

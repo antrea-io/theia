@@ -1,0 +1,17 @@
+ARG GO_VERSION
+FROM golang:${GO_VERSION} as theia-manager-build
+
+COPY . /theia
+WORKDIR /theia
+
+RUN make theia-manager-bin
+
+# Chose this base image so that a shell is available for users to exec into the container
+FROM ubuntu:20.04
+
+LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
+LABEL description="A docker image to deploy theia manager."
+
+COPY --from=theia-manager-build /theia/bin/theia-manager /
+
+ENTRYPOINT ["/theia-manager"]

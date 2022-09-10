@@ -163,6 +163,19 @@ clickhouse-monitor-plugin:
 	@mkdir -p $(BINDIR)
 	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-monitor
 
+.PHONY: theia-manager
+theia-manager:
+	@echo "===> Building antrea/theia-manager Docker image <==="
+	docker build --pull -t antrea/theia-manager:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.theia-manager.ubuntu $(DOCKER_BUILD_ARGS) .
+	docker tag antrea/theia-manager:$(DOCKER_IMG_VERSION) antrea/theia-manager
+	docker tag antrea/theia-manager:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-manager
+	docker tag antrea/theia-manager:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-manager:$(DOCKER_IMG_VERSION)
+
+.PHONY: theia-manager-bin
+theia-manager-bin:
+	@mkdir -p $(BINDIR)
+	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/cmd/theia-manager
+
 .PHONY: policy-recommendation
 policy-recommendation:
 	@echo "===> Building antrea/theia-policy-recommendation Docker image <==="

@@ -69,7 +69,7 @@ The `--diskInfo` flag will list disk usage information of each ClickHouse shard.
 , `Total` and `Used_Percentage`of each ClickHouse shard will be displayed in table format. For example:
 
 ```bash
-> theia clickhouse status --diskInfo
+$ theia clickhouse status --diskInfo
 Shard          DatabaseName   Path                 Free           Total          Used_Percentage
 1              default        /var/lib/clickhouse/ 1.84 GiB       1.84 GiB       0.04 %
 ```
@@ -80,7 +80,7 @@ The `--tableInfo` flag will list basic table information of each ClickHouse shar
 `TotalRows`, `TotalBytes` and `TotalCol`of tables in each ClickHouse shard will be displayed in table format. For example:
 
 ```bash
-> theia clickhouse status --tableInfo
+$ theia clickhouse status --tableInfo
 Shard          DatabaseName   TableName                TotalRows      TotalBytes     TotalCols
 1              default        .inner.flows_node_view   7              2.84 KiB       16
 1              default        .inner.flows_pod_view    131            5.00 KiB       20
@@ -94,7 +94,7 @@ The `--insertRate` flag will list the insertion rate of each ClickHouse shard. `
 `BytesPerSecond` of each ClickHouse shard will be displayed in table format. For example:
 
 ```bash
-> theia clickhouse status --insertRate
+$ theia clickhouse status --insertRate
 Shard          RowsPerSecond  BytesPerSecond
 1              230            6.31 KiB
 ```
@@ -108,7 +108,7 @@ The `--stackTraces` flag will list the stacktraces of each ClickHouse shard. `Sh
 `count()` of each ClickHouse shard will be displayed in table format. For example:
 
 ```bash
-> theia clickhouse status --stackTraces
+$ theia clickhouse status --stackTraces
 Row 1:
 -------
 Shard:           1

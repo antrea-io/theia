@@ -149,7 +149,7 @@ recommendation jobs. `CreationTime`, `CompletionTime`, `ID` and `Status` of each
 policy recommendation job will be displayed in table format. For example:
 
 ```bash
-> theia policy-recommendation list
+$ theia policy-recommendation list
 CreationTime          CompletionTime        ID                                   Status
 2022-06-17 18:33:15   N/A                   2cf13427-cbe5-454c-b9d3-e1124af7baa2 RUNNING
 2022-06-17 18:06:56   2022-06-17 18:08:37   e998433e-accb-4888-9fc8-06563f073e86 COMPLETED

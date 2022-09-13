@@ -77,6 +77,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         throughputFromDestinationNode UInt64,
         reverseThroughputFromSourceNode UInt64,
         reverseThroughputFromDestinationNode UInt64,
+        clusterUUID String,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeInserted, flowEndSeconds)
@@ -100,7 +101,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodNamespace,
         destinationPodNamespace,
         sourceTransportPort,
-        destinationTransportPort)
+        destinationTransportPort,
+        clusterUUID)
     TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
     SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
@@ -124,7 +126,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(throughput) AS throughput,
         sum(reverseThroughput) AS reverseThroughput,
         sum(throughputFromSourceNode) AS throughputFromSourceNode,
-        sum(throughputFromDestinationNode) AS throughputFromDestinationNode
+        sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
+        clusterUUID
     FROM flows_local
     GROUP BY
         timeInserted,
@@ -140,7 +143,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodNamespace,
         destinationPodNamespace,
         sourceTransportPort,
-        destinationTransportPort;
+        destinationTransportPort,
+        clusterUUID;
 
     --Create a Materialized View to aggregate data for nodes
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
@@ -153,7 +157,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourceNodeName,
         destinationNodeName,
         sourcePodNamespace,
-        destinationPodNamespace)
+        destinationPodNamespace,
+        clusterUUID)
     TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
     SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
@@ -173,7 +178,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(throughputFromSourceNode) AS throughputFromSourceNode,
         sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
         sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
+        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode,
+        clusterUUID
     FROM flows_local
     GROUP BY
         timeInserted,
@@ -183,7 +189,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourceNodeName,
         destinationNodeName,
         sourcePodNamespace,
-        destinationPodNamespace;
+        destinationPodNamespace,
+        clusterUUID;
 
     --Create a Materialized View to aggregate data for network policies
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
@@ -207,7 +214,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationPodNamespace,
         destinationServicePort,
         destinationServicePortName,
-        destinationIP)
+        destinationIP,
+        clusterUUID)
     TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
     SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
@@ -238,7 +246,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sum(throughputFromSourceNode) AS throughputFromSourceNode,
         sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
         sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
+        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode,
+        clusterUUID
     FROM flows_local
     GROUP BY
         timeInserted,
@@ -259,7 +268,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationPodNamespace,
         destinationServicePort,
         destinationServicePortName,
-        destinationIP;
+        destinationIP,
+        clusterUUID;
 
     --Create a table to store the network policy recommendation results
     CREATE TABLE IF NOT EXISTS recommendations_local (

@@ -16,16 +16,6 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-const (
-	NPRecommendationJobInitial     string = "Initial"
-	NPRecommendationJobSubsequent  string = "Subsequent"
-	NPRecommendationStateNew       string = "NEW"
-	NPRecommendationStateScheduled string = "SCHEDULED"
-	NPRecommendationStateRunning   string = "RUNNING"
-	NPRecommendationStateCompleted string = "COMPLETED"
-	NPRecommendationStateFailed    string = "FAILED"
-)
-
 // +genclient
 // +genclient:nonNamespaced
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -51,14 +41,14 @@ type NetworkPolicyRecommendation struct {
 }
 
 type NetworkPolicyRecommendationStatus struct {
-	State                 string      `json:"state,omitempty"`
-	SparkApplication      string      `json:"sparkApplication,omitempty"`
-	CompletedStages       int         `json:"completedStages,omitempty"`
-	TotalStages           int         `json:"totalStages,omitempty"`
-	RecommendationOutcome string      `json:"recommendationOutcome,omitempty"`
-	CompletionTimestamp   metav1.Time `json:"completionTimestamp,omitempty"`
-	ErrorCode             string      `json:"errorCode,omitempty"`
-	ErrorMsg              string      `json:"errorMsg,omitempty"`
+	State                    string      `json:"state,omitempty"`
+	SparkApplication         string      `json:"sparkApplication,omitempty"`
+	CompletedStages          int         `json:"completedStages,omitempty"`
+	TotalStages              int         `json:"totalStages,omitempty"`
+	RecommendedNetworkPolicy string      `json:"recommendedNetworkPolicy,omitempty"`
+	ErrorMsg                 string      `json:"errorMsg,omitempty"`
+	StartTime                metav1.Time `json:"startTime,omitempty"`
+	EndTime                  metav1.Time `json:"endTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -16,6 +16,7 @@ package networkpolicyrecommendation
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 
+	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/querier"
 )
@@ -33,10 +35,14 @@ type REST struct {
 }
 
 var (
-	_ rest.Scoper = &REST{}
-	_ rest.Getter = &REST{}
-	_ rest.Lister = &REST{}
+	_ rest.Scoper          = &REST{}
+	_ rest.Getter          = &REST{}
+	_ rest.Lister          = &REST{}
+	_ rest.Creater         = &REST{}
+	_ rest.GracefulDeleter = &REST{}
 )
+
+const defaultNameSpace = "flow-visibility"
 
 // NewREST returns a REST object that will work against API services.
 func NewREST(nprq querier.NPRecommendationQuerier) *REST {
@@ -47,36 +53,14 @@ func (r *REST) New() runtime.Object {
 	return &intelligence.NetworkPolicyRecommendation{}
 }
 
-func (r *REST) getNetworkPolicyRecommendation(name string) *intelligence.NetworkPolicyRecommendation {
-	npReco, err := r.npRecommendationQuerier.GetNetworkPolicyRecommendation("flow-visibility", name)
-	if err != nil {
-		return nil
-	}
-
-	job := new(intelligence.NetworkPolicyRecommendation)
-	job.Name = npReco.Name
-	job.Type = npReco.Spec.JobType
-	job.Limit = npReco.Spec.Limit
-	job.PolicyType = npReco.Spec.PolicyType
-	job.StartInterval = npReco.Spec.StartInterval
-	job.EndInterval = npReco.Spec.EndInterval
-	job.NSAllowList = npReco.Spec.NSAllowList
-	job.ExcludeLabels = npReco.Spec.ExcludeLabels
-	job.ToServices = npReco.Spec.ToServices
-	job.ExecutorInstances = npReco.Spec.ExecutorInstances
-	job.DriverCoreRequest = npReco.Spec.DriverCoreRequest
-	job.DriverMemory = npReco.Spec.DriverMemory
-	job.ExecutorCoreRequest = npReco.Spec.ExecutorCoreRequest
-	job.ExecutorMemory = npReco.Spec.ExecutorMemory
-	return job
-}
-
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	job := r.getNetworkPolicyRecommendation(name)
-	if job == nil {
+	npReco, err := r.npRecommendationQuerier.GetNetworkPolicyRecommendation(defaultNameSpace, name)
+	if err != nil {
 		return nil, errors.NewNotFound(intelligence.Resource("networkpolicyrecommendations"), name)
 	}
-	return job, nil
+	intelliNPR := new(intelligence.NetworkPolicyRecommendation)
+	r.copyNetworkPolicyRecommendation(intelliNPR, npReco)
+	return intelliNPR, nil
 }
 
 func (r *REST) NewList() runtime.Object {
@@ -84,7 +68,17 @@ func (r *REST) NewList() runtime.Object {
 }
 
 func (r *REST) List(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
-	list := new(intelligence.NetworkPolicyRecommendationList)
+	npRecoList, err := r.npRecommendationQuerier.ListNetworkPolicyRecommendation(defaultNameSpace)
+	if err != nil {
+		return nil, errors.NewBadRequest(fmt.Sprintf("error when getting NetworkPolicyRecommendationsList: %v", err))
+	}
+	items := make([]intelligence.NetworkPolicyRecommendation, 0, len(npRecoList))
+	for _, npReco := range npRecoList {
+		intelliNPR := new(intelligence.NetworkPolicyRecommendation)
+		r.copyNetworkPolicyRecommendation(intelliNPR, npReco)
+		items = append(items, *intelliNPR)
+	}
+	list := &intelligence.NetworkPolicyRecommendationList{Items: items}
 	return list, nil
 }
 
@@ -94,4 +88,74 @@ func (r *REST) NamespaceScoped() bool {
 
 func (r *REST) ConvertToTable(ctx context.Context, obj runtime.Object, tableOptions runtime.Object) (*metav1.Table, error) {
 	return rest.NewDefaultTableConvertor(intelligence.Resource("networkpolicyrecommendations")).ConvertToTable(ctx, obj, tableOptions)
+}
+
+func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation rest.ValidateObjectFunc, options *metav1.CreateOptions) (runtime.Object, error) {
+	npReco, ok := obj.(*intelligence.NetworkPolicyRecommendation)
+	if !ok {
+		return nil, errors.NewBadRequest(fmt.Sprintf("not a NetworkPolicyRecommendation object: %T", obj))
+	}
+	existNPReco, _ := r.npRecommendationQuerier.GetNetworkPolicyRecommendation(defaultNameSpace, npReco.Name)
+	if existNPReco != nil {
+		return nil, errors.NewBadRequest(fmt.Sprintf("networkPolicyRecommendation job exists, name: %s", npReco.Name))
+	}
+	job := new(crdv1alpha1.NetworkPolicyRecommendation)
+	job.Name = npReco.Name
+	job.Spec.JobType = npReco.Type
+	job.Spec.Limit = npReco.Limit
+	job.Spec.PolicyType = npReco.PolicyType
+	job.Spec.StartInterval = npReco.StartInterval
+	job.Spec.EndInterval = npReco.EndInterval
+	job.Spec.NSAllowList = npReco.NSAllowList
+	job.Spec.ExcludeLabels = npReco.ExcludeLabels
+	job.Spec.ToServices = npReco.ToServices
+	job.Spec.ExecutorInstances = npReco.ExecutorInstances
+	job.Spec.DriverCoreRequest = npReco.DriverCoreRequest
+	job.Spec.DriverMemory = npReco.DriverMemory
+	job.Spec.ExecutorCoreRequest = npReco.ExecutorCoreRequest
+	job.Spec.ExecutorMemory = npReco.ExecutorMemory
+	_, err := r.npRecommendationQuerier.CreateNetworkPolicyRecommendation(defaultNameSpace, job)
+	if err != nil {
+		return nil, errors.NewBadRequest(fmt.Sprintf("error when creating NetworkPolicyRecommendation CR: %v", err))
+	}
+	return &metav1.Status{Status: metav1.StatusSuccess}, nil
+}
+
+func (r *REST) Delete(ctx context.Context, name string, deleteValidation rest.ValidateObjectFunc, options *metav1.DeleteOptions) (runtime.Object, bool, error) {
+	_, err := r.npRecommendationQuerier.GetNetworkPolicyRecommendation(defaultNameSpace, name)
+	if err != nil {
+		return nil, false, errors.NewBadRequest(fmt.Sprintf("NetworkPolicyRecommendation job doesn't exist, name: %s", name))
+	}
+	err = r.npRecommendationQuerier.DeleteNetworkPolicyRecommendation(defaultNameSpace, name)
+	if err != nil {
+		return nil, false, err
+	}
+	return &metav1.Status{Status: metav1.StatusSuccess}, false, nil
+}
+
+// copyNetworkPolicyRecommendation is used to copy NetworkPolicyRecommendation from crd to intelligence
+func (r *REST) copyNetworkPolicyRecommendation(intelli *intelligence.NetworkPolicyRecommendation, crd *crdv1alpha1.NetworkPolicyRecommendation) error {
+	intelli.Name = crd.Name
+	intelli.Type = crd.Spec.JobType
+	intelli.Limit = crd.Spec.Limit
+	intelli.PolicyType = crd.Spec.PolicyType
+	intelli.StartInterval = crd.Spec.StartInterval
+	intelli.EndInterval = crd.Spec.EndInterval
+	intelli.NSAllowList = crd.Spec.NSAllowList
+	intelli.ExcludeLabels = crd.Spec.ExcludeLabels
+	intelli.ToServices = crd.Spec.ToServices
+	intelli.ExecutorInstances = crd.Spec.ExecutorInstances
+	intelli.DriverCoreRequest = crd.Spec.DriverCoreRequest
+	intelli.DriverMemory = crd.Spec.DriverMemory
+	intelli.ExecutorCoreRequest = crd.Spec.ExecutorCoreRequest
+	intelli.ExecutorMemory = crd.Spec.ExecutorMemory
+	intelli.Status.State = crd.Status.State
+	intelli.Status.SparkApplication = crd.Status.SparkApplication
+	intelli.Status.CompletedStages = crd.Status.CompletedStages
+	intelli.Status.TotalStages = crd.Status.TotalStages
+	intelli.Status.RecommendedNetworkPolicy = crd.Status.RecommendedNP.Spec.Yamls
+	intelli.Status.ErrorMsg = crd.Status.ErrorMsg
+	intelli.Status.StartTime = crd.Status.StartTime
+	intelli.Status.EndTime = crd.Status.EndTime
+	return nil
 }

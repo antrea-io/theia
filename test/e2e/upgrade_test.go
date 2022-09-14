@@ -84,10 +84,16 @@ func checkClickHouseDataSchema(t *testing.T, data *TestData, version string) {
 	queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SHOW TABLES\""})
 	require.NoErrorf(t, err, "Fail to get tables from ClickHouse: %v", stderr)
 	if version != "v0.1.0" {
-		require.Contains(t, queryOutput, "migrate_version")
-		queryOutput, stderr, err = data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT version FROM migrate_version\""})
-		require.NoErrorf(t, err, "Fail to get version from ClickHouse: %v", stderr)
-		// strip leading 'v'
-		assert.Contains(t, queryOutput, version[1:])
+		require.Contains(t, queryOutput, "flows")
+		require.Contains(t, queryOutput, "flows_local")
+		if version == "v0.2.0" {
+			require.Contains(t, queryOutput, "migrate_version")
+			queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT version FROM migrate_version\""})
+			require.NoErrorf(t, err, "Fail to get version from ClickHouse: %v", stderr)
+			// strip leading 'v'
+			assert.Contains(t, queryOutput, version[1:])
+		} else {
+			require.Contains(t, queryOutput, "schema_migrations")
+		}
 	}
 }

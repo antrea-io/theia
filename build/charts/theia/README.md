@@ -26,7 +26,7 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.cluster.shards | int | `1` | Number of ClickHouse shards in the cluster. |
 | clickhouse.cluster.zookeeperHosts | list | `[]` | To use a pre-installed ZooKeeper for ClickHouse data replication, please provide a list of your ZooKeeper hosts. To install a customized ZooKeeper, refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md> |
 | clickhouse.connectionSecret | object | `{"password":"clickhouse_operator_password","username":"clickhouse_operator"}` | Credentials to connect to ClickHouse. They will be stored in a secret. |
-| clickhouse.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-server","tag":"22.6"}` | Container image used by ClickHouse. |
+| clickhouse.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-server","tag":""}` | Container image used by ClickHouse. |
 | clickhouse.monitor.deletePercentage | float | `0.5` | The percentage of records in ClickHouse that will be deleted when the storage grows above threshold. Vary from 0 to 1. |
 | clickhouse.monitor.enable | bool | `true` | Determine whether to run a monitor to periodically check the ClickHouse memory usage and clean data. |
 | clickhouse.monitor.execInterval | string | `"1m"` | The time interval between two round of monitoring. Can be a plain integer using one of these unit suffixes ns, us (or µs), ms, s, m, h. |

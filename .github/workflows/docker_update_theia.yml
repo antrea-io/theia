@@ -13,9 +13,6 @@ on:
       grafana-tag:
         description: 'Tag for grafana Docker image'
         required: true
-      ch-server-tag:
-        description: 'Tag for clickhouse-server Docker image'
-        required: true
       spark-operator-tag:
         description: 'Tag for spark-operator Docker image'
         required: true
@@ -50,12 +47,6 @@ jobs:
           src: docker.io/grafana/grafana:${{ github.event.inputs.grafana-tag }}
           dst: |
             docker.io/antrea/theia-grafana:${{ github.event.inputs.grafana-tag }}
-      - name: Push antrea/theia-clickhouse-server
-        uses: akhilerm/tag-push-action@v2.0.0
-        with:
-          src: docker.io/clickhouse/clickhouse-server:${{ github.event.inputs.ch-server-tag }}
-          dst: |
-            docker.io/antrea/theia-clickhouse-server:${{ github.event.inputs.ch-server-tag }}
       - name: Push antrea/theia-spark-operator
         uses: akhilerm/tag-push-action@v2.0.0
         with:

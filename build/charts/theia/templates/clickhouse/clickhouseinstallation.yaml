@@ -64,7 +64,7 @@ spec:
       - name: pod-template-without-monitor
         spec:
           containers:
-            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "version" .Chart.Version) | indent 12 }}
+            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "Chart" .Chart) | indent 12 }}
           volumes:
             {{- include "clickhouse.volume" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "Files" .Files) | indent 12 }}
         {{- if .Values.clickhouse.cluster.podDistribution }}
@@ -77,9 +77,9 @@ spec:
       - name: pod-template
         spec:
           containers:
-            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "version" .Chart.Version) | indent 12 }}
+            {{- include "clickhouse.server.container" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "Chart" .Chart) | indent 12 }}
             {{- if .Values.clickhouse.monitor.enable }}
-            {{- include "clickhouse.monitor.container" (dict "clickhouse" .Values.clickhouse "version" .Chart.AppVersion) | indent 12 }}
+            {{- include "clickhouse.monitor.container" (dict "clickhouse" .Values.clickhouse "Chart" .Chart) | indent 12 }}
             {{- end }}
           volumes:
             {{- include "clickhouse.volume" (dict "clickhouse" .Values.clickhouse "enablePV" $enablePV "Files" .Files) | indent 12 }}

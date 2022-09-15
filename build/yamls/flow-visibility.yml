@@ -309,6 +309,18 @@ data:
     DROP TABLE recommendations;
   0-2-0_0-1-0.sql: |
     -- place holder
+  0-2-0_0-3-0.sql: |
+    --Alter table to add new columns
+    ALTER TABLE flows
+    ADD COLUMN clusterUUID String;
+    ALTER TABLE flows_local
+    ADD COLUMN clusterUUID String;
+  0-3-0_0-2-0.sql: |
+    --Alter table to drop new columns
+    ALTER TABLE flows
+    DROP clusterUUID String;
+    ALTER TABLE flows_local
+    DROP clusterUUID String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -380,6 +392,7 @@ data:
             throughputFromDestinationNode UInt64,
             reverseThroughputFromSourceNode UInt64,
             reverseThroughputFromDestinationNode UInt64,
+            clusterUUID String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds)
@@ -403,7 +416,8 @@ data:
             sourcePodNamespace,
             destinationPodNamespace,
             sourceTransportPort,
-            destinationTransportPort)
+            destinationTransportPort,
+            clusterUUID)
         TTL timeInserted + INTERVAL 12 HOUR
         SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
@@ -427,7 +441,8 @@ data:
             sum(throughput) AS throughput,
             sum(reverseThroughput) AS reverseThroughput,
             sum(throughputFromSourceNode) AS throughputFromSourceNode,
-            sum(throughputFromDestinationNode) AS throughputFromDestinationNode
+            sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
+            clusterUUID
         FROM flows_local
         GROUP BY
             timeInserted,
@@ -443,7 +458,8 @@ data:
             sourcePodNamespace,
             destinationPodNamespace,
             sourceTransportPort,
-            destinationTransportPort;
+            destinationTransportPort,
+            clusterUUID;
 
         --Create a Materialized View to aggregate data for nodes
         CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
@@ -456,7 +472,8 @@ data:
             sourceNodeName,
             destinationNodeName,
             sourcePodNamespace,
-            destinationPodNamespace)
+            destinationPodNamespace,
+            clusterUUID)
         TTL timeInserted + INTERVAL 12 HOUR
         SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
@@ -476,7 +493,8 @@ data:
             sum(throughputFromSourceNode) AS throughputFromSourceNode,
             sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
             sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-            sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
+            sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode,
+            clusterUUID
         FROM flows_local
         GROUP BY
             timeInserted,
@@ -486,7 +504,8 @@ data:
             sourceNodeName,
             destinationNodeName,
             sourcePodNamespace,
-            destinationPodNamespace;
+            destinationPodNamespace,
+            clusterUUID;
 
         --Create a Materialized View to aggregate data for network policies
         CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
@@ -510,7 +529,8 @@ data:
             destinationPodNamespace,
             destinationServicePort,
             destinationServicePortName,
-            destinationIP)
+            destinationIP,
+            clusterUUID)
         TTL timeInserted + INTERVAL 12 HOUR
         SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
@@ -541,7 +561,8 @@ data:
             sum(throughputFromSourceNode) AS throughputFromSourceNode,
             sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
             sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-            sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
+            sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode,
+            clusterUUID
         FROM flows_local
         GROUP BY
             timeInserted,
@@ -562,7 +583,8 @@ data:
             destinationPodNamespace,
             destinationServicePort,
             destinationServicePortName,
-            destinationIP;
+            destinationIP,
+            clusterUUID;
 
         --Create a table to store the network policy recommendation results
         CREATE TABLE IF NOT EXISTS recommendations_local (
@@ -6534,6 +6556,8 @@ spec:
         - env:
           - name: THEIA_VERSION
             value: 0.3.0
+          - name: CLICKHOUSE_INIT_TIMEOUT
+            value: "60"
           image: projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6
           imagePullPolicy: IfNotPresent
           name: clickhouse
@@ -6583,8 +6607,12 @@ spec:
               path: migrate.sh
             - key: 0-1-0_0-2-0.sql
               path: migrators/upgrade/0-1-0_0-2-0.sql
+            - key: 0-2-0_0-3-0.sql
+              path: migrators/upgrade/0-2-0_0-3-0.sql
             - key: 0-2-0_0-1-0.sql
               path: migrators/downgrade/0-2-0_0-1-0.sql
+            - key: 0-3-0_0-2-0.sql
+              path: migrators/downgrade/0-3-0_0-2-0.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

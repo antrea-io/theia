@@ -50,6 +50,8 @@
   env:
     - name: THEIA_VERSION
       value: {{ $version }}
+    - name: CLICKHOUSE_INIT_TIMEOUT
+      value: "60"
 {{- end }}
 
 {{- define "clickhouse.volume" }}

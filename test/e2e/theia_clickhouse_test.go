@@ -83,12 +83,13 @@ const (
                    throughputFromSourceNode,
                    throughputFromDestinationNode,
                    reverseThroughputFromSourceNode,
-                   reverseThroughputFromDestinationNode)
+                   reverseThroughputFromDestinationNode,
+                   clusterUUID)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                           ?, ?, ?, ?, ?, ?, ?)`
+                           ?, ?, ?, ?, ?, ?, ?, ?)`
 	recordPerCommit      = 1000
 	insertInterval       = 1
 	threshold            = 25
@@ -101,10 +102,10 @@ const (
 )
 
 var tableColumnNumberMap = map[string]string{
-	".inner.flows_node_view_local":   "16",
-	".inner.flows_pod_view_local":    "20",
-	".inner.flows_policy_view_local": "27",
-	"flows_local":                    "49",
+	".inner.flows_node_view_local":   "17",
+	".inner.flows_pod_view_local":    "21",
+	".inner.flows_policy_view_local": "28",
+	"flows_local":                    "50",
 	"recommendations_local":          "4",
 }
 
@@ -339,6 +340,7 @@ func addFakeRecord(t *testing.T, stmt *sql.Stmt) {
 		uint64(randInt(t, MaxInt32)),
 		uint64(randInt(t, MaxInt32)),
 		uint64(randInt(t, MaxInt32)),
+		"",
 	)
 	require.NoError(t, err)
 }

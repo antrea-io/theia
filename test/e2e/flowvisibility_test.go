@@ -94,6 +94,7 @@ throughputFromSourceNode: 15902813472
 throughputFromDestinationNode: 15902813472
 reverseThroughputFromSourceNode: 12381344
 reverseThroughputFromDestinationNode: 12381344
+clusterUUID: 7e2e1de2-c85f-476e-ab1a-fce1bf83ee2c
 trusted: 0
 */
 
@@ -1251,6 +1252,7 @@ type ClickHouseFullRow struct {
 	ThroughputFromDestinationNode        uint64    `json:"throughputFromDestinationNode,string"`
 	ReverseThroughputFromSourceNode      uint64    `json:"reverseThroughputFromSourceNode,string"`
 	ReverseThroughputFromDestinationNode uint64    `json:"reverseThroughputFromDestinationNode,string"`
+	ClusterUUID                          string    `json:"clusterUUID"`
 	Trusted                              uint8     `json:"trusted"`
 }
 

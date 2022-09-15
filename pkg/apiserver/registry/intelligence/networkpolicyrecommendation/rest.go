@@ -55,11 +55,11 @@ func (r *REST) getNetworkPolicyRecommendation(name string) *intelligence.Network
 
 	job := new(intelligence.NetworkPolicyRecommendation)
 	job.Name = npReco.Name
-	job.Type = npReco.Spec.Type
+	job.Type = npReco.Spec.JobType
 	job.Limit = npReco.Spec.Limit
 	job.PolicyType = npReco.Spec.PolicyType
-	job.StartInterval = npReco.Spec.StartTime
-	job.EndInterval = npReco.Spec.EndTime
+	job.StartInterval = npReco.Spec.StartInterval
+	job.EndInterval = npReco.Spec.EndInterval
 	job.NSAllowList = npReco.Spec.NSAllowList
 	job.ExcludeLabels = npReco.Spec.ExcludeLabels
 	job.ToServices = npReco.Spec.ToServices

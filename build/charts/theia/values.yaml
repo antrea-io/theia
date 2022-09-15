@@ -233,5 +233,5 @@ theiaManager:
     tlsCipherSuites: ""
     # -- TLS min version from: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13.
     tlsMinVersion: ""
-  ## -- Log verbosity switch for Theia Manager.
+  # -- Log verbosity switch for Theia Manager.
   logVerbosity: 0

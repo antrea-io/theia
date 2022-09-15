@@ -27,6 +27,7 @@ import (
 type CrdV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	NetworkPolicyRecommendationsGetter
+	RecommendedNetworkPoliciesGetter
 }
 
 // CrdV1alpha1Client is used to interact with features provided by the crd.theia.antrea.io group.
@@ -36,6 +37,10 @@ type CrdV1alpha1Client struct {
 
 func (c *CrdV1alpha1Client) NetworkPolicyRecommendations(namespace string) NetworkPolicyRecommendationInterface {
 	return newNetworkPolicyRecommendations(c, namespace)
+}
+
+func (c *CrdV1alpha1Client) RecommendedNetworkPolicies(namespace string) RecommendedNetworkPolicyInterface {
+	return newRecommendedNetworkPolicies(c, namespace)
 }
 
 // NewForConfig creates a new CrdV1alpha1Client for the given config.

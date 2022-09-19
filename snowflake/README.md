@@ -85,7 +85,7 @@ The command output will include a table like this one, with important informatio
 
 ### Configure the Flow Aggregator in your cluster(s)
 
-```
+```bash
 helm repo add antrea https://charts.antrea.io
 helm repo update
 helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true

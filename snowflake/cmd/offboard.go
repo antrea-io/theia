@@ -85,7 +85,7 @@ func init() {
 	offboardCmd.MarkFlagRequired("bucket-name")
 	offboardCmd.Flags().String("bucket-prefix", "antrea-flows-infra", "prefix to use to store infra state")
 	offboardCmd.Flags().String("bucket-region", "", "region where infra bucket is defined; if omitted, we will try to get the region from AWS")
-	offboardCmd.Flags().String("key-id", GetEnv("THEIA_SF_KMS_KEY_ID", ""), "Kms Key ID")
-	offboardCmd.Flags().String("key-region", "", "Kms Key region")
+	offboardCmd.Flags().String("key-id", GetEnv("THEIA_SF_KMS_KEY_ID", ""), "Kms key ID")
+	offboardCmd.Flags().String("key-region", "", "Kms key region")
 	offboardCmd.Flags().String("workdir", "", "use provided local workdir (by default a temporary one will be created")
 }

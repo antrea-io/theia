@@ -30,7 +30,7 @@ import (
 var createKmsKeyCmd = &cobra.Command{
 	Use:   "create-kms-key",
 	Short: "Create an AWS KMS key",
-	Long: `This command creates a new KMS key in your AWS account. They key
+	Long: `This command creates a new KMS key in your AWS account. This key
 can be used to encrypt infrastructure state in the backend (S3 bucket). If you
 already have a KMS key that you want to use, you won't need this command.
 

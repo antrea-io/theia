@@ -39,7 +39,7 @@ this command can prove useful if flow records don't get ingested into your
 Snowflake account as expected.
 
 To receive a message without deleting it (message will remain in the queue and
-become available to consummers again after a short time interval):
+become available to consumers again after a short time interval):
 "theia-sf receive-sqs-message --queue-arn <ARN>"
 
 To receive a message and delete it from the queue:

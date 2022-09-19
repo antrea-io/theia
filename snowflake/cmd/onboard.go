@@ -122,7 +122,7 @@ func init() {
 	onboardCmd.Flags().String("bucket-prefix", "antrea-flows-infra", "prefix to use to store infra state")
 	onboardCmd.Flags().String("bucket-region", "", "region where infra bucket is defined; if omitted, we will try to get the region from AWS")
 	onboardCmd.Flags().String("key-id", GetEnv("THEIA_SF_KMS_KEY_ID", ""), "Kms key ID")
-	onboardCmd.Flags().String("key-region", "", "Kms Key region")
+	onboardCmd.Flags().String("key-region", "", "Kms key region")
 	onboardCmd.Flags().String("workdir", "", "use provided local workdir (by default a temporary one will be created")
 	onboardCmd.Flags().String("warehouse-name", "", "Snowflake Virtual Warehouse to use for onboarding queries, by default we will use a temporary one")
 }

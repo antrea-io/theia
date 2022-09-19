@@ -1,6 +1,6 @@
 # Theia with Snowflake
 
-We are introducing the ability to use Snowflake as the storage and compute
+We are introducing the ability to use Snowflake as the storage and computing
 platform for Theia. When using Snowflake, it is no longer necessary to run
 ClickHouse DB (flow records are stored in a Snowflake database) or Spark (flow
 processing is done by Snowflake virtual warehouses). Using Snowflake for Theia
@@ -9,6 +9,10 @@ charged for resource usage) and some features available with "standard" Theia
 are not available yet with Snowflake.
 
 ## Getting started
+
+### Prerequisites
+
+Theia with Snowflake requires Antrea >= v1.9.0 and Theia >= v0.3.0.
 
 ### Install the theia-sf CLI
 
@@ -84,6 +88,7 @@ The command output will include a table like this one, with important informatio
 ```
 helm repo add antrea https://charts.antrea.io
 helm repo update
+helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true
 helm install flow-aggregator antrea/flow-aggregator \
      --set s3Uploader.enable=true \
      --set s3Uploader.bucketName=<BUCKET NAME> \

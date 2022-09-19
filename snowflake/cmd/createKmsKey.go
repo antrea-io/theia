@@ -50,7 +50,7 @@ To create a KMS key and obtain its ID:
 
 func createKey(ctx context.Context, kmsClient kmsclient.Interface) (string, error) {
 	logger.Info("Creating key")
-	description := "This key was created by theia-sf; it is used to encrypt infrastructure secrets"
+	description := "This key was created by theia-sf; it is used to encrypt infrastructure state"
 	output, err := kmsClient.CreateKey(ctx, &kms.CreateKeyInput{
 		Description: &description,
 		// we use default parameters for everything else

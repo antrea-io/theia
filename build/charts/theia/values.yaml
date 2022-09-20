@@ -224,6 +224,10 @@ theiaManager:
   apiServer:
     # -- The port for the Theia Manager APIServer to serve on.
     apiPort: 11347
+    # -- Indicates whether to use auto-generated self-signed TLS certificates. If
+    # false, a Secret named "theia-manager-tls" must be provided with the
+    # following keys: ca.crt, tls.crt, tls.key.
+    selfSignedCert: true
     # -- Comma-separated list of cipher suites that will be used by the Theia Manager
     # APIservers. If empty, the default Go Cipher Suites will be used.
     tlsCipherSuites: ""

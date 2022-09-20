@@ -1,4 +1,4 @@
-// Copyright 2020 Antre2 Authors
+// Copyright 2022 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,8 @@
 package apiserver
 
 import (
-	"fmt"
-	"net"
-	"os"
-	"path"
+	"context"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -26,21 +24,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	genericoptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	intelligenceinstall "antrea.io/theia/pkg/apis/intelligence/install"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
+	"antrea.io/theia/pkg/apiserver/certificate"
 	"antrea.io/theia/pkg/apiserver/registry/intelligence/networkpolicyrecommendation"
 	"antrea.io/theia/pkg/querier"
 )
 
 const (
-	Name = "theia-manager-api"
-	// authenticationTimeout specifies a time limit for requests made by the authorization webhook client
+	CertDir           = "/var/run/theia/theia-manager-tls"
+	SelfSignedCertDir = "/var/run/theia/theia-manager-self-signed"
+	Name              = "theia-manager-api"
+	// AuthenticationTimeout specifies a time limit for requests made by the authorization webhook client
 	// The default value (10 seconds) is not long enough as defined in
 	// https://pkg.go.dev/k8s.io/apiserver@v0.21.0/pkg/server/options#NewDelegatingAuthenticationOptions
 	// A value of zero means no timeout.
-	authenticationTimeout = 0
+	AuthenticationTimeout = 0
 )
 
 var (
@@ -48,7 +50,7 @@ var (
 	scheme = runtime.NewScheme()
 	// Codecs provides methods for retrieving codecs and serializers for specific
 	// versions and content types.
-	codecs = serializer.NewCodecFactory(scheme)
+	Codecs = serializer.NewCodecFactory(scheme)
 	// ParameterCodec defines methods for serializing and deserializing url values
 	// to versioned API objects and back.
 	parameterCodec = runtime.NewParameterCodec(scheme)
@@ -61,56 +63,52 @@ func init() {
 	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
 }
 
-type theiaManagerAPIServer struct {
+// ExtraConfig holds custom apiserver config.
+type ExtraConfig struct {
+	k8sClient               kubernetes.Interface
+	caCertController        *certificate.CACertController
+	npRecommendationQuerier querier.NPRecommendationQuerier
+}
+
+// Config defines the config for Theia manager apiserver.
+type Config struct {
+	genericConfig *genericapiserver.Config
+	extraConfig   ExtraConfig
+}
+
+type TheiaManagerAPIServer struct {
 	GenericAPIServer        *genericapiserver.GenericAPIServer
+	caCertController        *certificate.CACertController
 	NPRecommendationQuerier querier.NPRecommendationQuerier
 }
 
-func (s *theiaManagerAPIServer) Run(stopCh <-chan struct{}) error {
-	return s.GenericAPIServer.PrepareRun().Run(stopCh)
+func (s *TheiaManagerAPIServer) Run(ctx context.Context) error {
+	// Make sure CACertController runs once to publish the CA cert before starting APIServer.
+	if err := s.caCertController.RunOnce(ctx); err != nil {
+		klog.Warningf("caCertController RunOnce failed: %v", err)
+	}
+	go s.caCertController.Run(ctx, 1)
+	return s.GenericAPIServer.PrepareRun().Run(ctx.Done())
 }
 
-func newConfig(bindPort int) (*genericapiserver.CompletedConfig, error) {
-	secureServing := genericoptions.NewSecureServingOptions().WithLoopback()
-	authentication := genericoptions.NewDelegatingAuthenticationOptions()
-	authorization := genericoptions.NewDelegatingAuthorizationOptions()
-
-	// Set the PairName but leave certificate directory blank to generate in-memory by default.
-	secureServing.ServerCert.CertDirectory = ""
-	secureServing.ServerCert.PairName = Name
-	secureServing.BindAddress = net.IPv4zero
-	secureServing.BindPort = bindPort
-
-	authentication.WithRequestTimeout(authenticationTimeout)
-
-	if err := secureServing.MaybeDefaultWithSelfSignedCerts("localhost", nil, []net.IP{net.ParseIP("127.0.0.1"), net.IPv6loopback}); err != nil {
-		return nil, fmt.Errorf("error creating self-signed certificates: %v", err)
+func NewConfig(
+	genericConfig *genericapiserver.Config,
+	k8sClient kubernetes.Interface,
+	caCertController *certificate.CACertController,
+	npRecommendationQuerier querier.NPRecommendationQuerier) *Config {
+	return &Config{
+		genericConfig: genericConfig,
+		extraConfig: ExtraConfig{
+			k8sClient:               k8sClient,
+			caCertController:        caCertController,
+			npRecommendationQuerier: npRecommendationQuerier,
+		},
 	}
-	serverConfig := genericapiserver.NewConfig(codecs)
-	if err := secureServing.ApplyTo(&serverConfig.SecureServing, &serverConfig.LoopbackClientConfig); err != nil {
-		return nil, err
-	}
-	if err := authentication.ApplyTo(&serverConfig.Authentication, serverConfig.SecureServing, nil); err != nil {
-		return nil, err
-	}
-	if err := authorization.ApplyTo(&serverConfig.Authorization); err != nil {
-		return nil, err
-	}
-
-	if err := os.MkdirAll(path.Dir(TokenPath), os.ModeDir); err != nil {
-		return nil, fmt.Errorf("error when creating dirs of token file: %v", err)
-	}
-	if err := os.WriteFile(TokenPath, []byte(serverConfig.LoopbackClientConfig.BearerToken), 0600); err != nil {
-		return nil, fmt.Errorf("error when writing loopback access token to file: %v", err)
-	}
-
-	completedServerCfg := serverConfig.Complete(nil)
-	return &completedServerCfg, nil
 }
 
-func installAPIGroup(s *theiaManagerAPIServer) error {
+func installAPIGroup(s *TheiaManagerAPIServer) error {
 	npRecommendationStorage := networkpolicyrecommendation.NewREST(s.NPRecommendationQuerier)
-	intelligenceGroup := genericapiserver.NewDefaultAPIGroupInfo(intelligence.GroupName, scheme, parameterCodec, codecs)
+	intelligenceGroup := genericapiserver.NewDefaultAPIGroupInfo(intelligence.GroupName, scheme, parameterCodec, Codecs)
 	v1alpha1Storage := map[string]rest.Storage{}
 	v1alpha1Storage["networkpolicyrecommendations"] = npRecommendationStorage
 	intelligenceGroup.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1Storage
@@ -125,20 +123,30 @@ func installAPIGroup(s *theiaManagerAPIServer) error {
 	return nil
 }
 
-func New(nprq querier.NPRecommendationQuerier, bindPort int, cipherSuites []uint16, tlsMinVersion uint16) (*theiaManagerAPIServer, error) {
-	cfg, err := newConfig(bindPort)
+func (c Config) New() (*TheiaManagerAPIServer, error) {
+	completedServerCfg := c.genericConfig.Complete(nil)
+	s, err := completedServerCfg.New(Name, genericapiserver.NewEmptyDelegate())
 	if err != nil {
 		return nil, err
 	}
-	s, err := cfg.New(Name, genericapiserver.NewEmptyDelegate())
-	if err != nil {
-		return nil, err
-	}
-	s.SecureServingInfo.CipherSuites = cipherSuites
-	s.SecureServingInfo.MinTLSVersion = tlsMinVersion
-	apiServer := &theiaManagerAPIServer{GenericAPIServer: s, NPRecommendationQuerier: nprq}
+	apiServer := &TheiaManagerAPIServer{
+		GenericAPIServer:        s,
+		caCertController:        c.extraConfig.caCertController,
+		NPRecommendationQuerier: c.extraConfig.npRecommendationQuerier}
 	if err := installAPIGroup(apiServer); err != nil {
 		return nil, err
 	}
 	return apiServer, nil
+}
+
+func DefaultCAConfig() *certificate.CAConfig {
+	return &certificate.CAConfig{
+		CAConfigMapName:   certificate.TheiaCAConfigMapName,
+		CertDir:           CertDir,
+		SelfSignedCertDir: SelfSignedCertDir,
+		CertReadyTimeout:  2 * time.Minute,
+		MaxRotateDuration: time.Hour * (24 * 365),
+		ServiceName:       certificate.TheiaServiceName,
+		PairName:          Name,
+	}
 }

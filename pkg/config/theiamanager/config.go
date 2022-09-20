@@ -23,6 +23,13 @@ type APIServerConfig struct {
 	// APIPort is the port for the theia-manager APIServer to serve on.
 	// Defaults to 11347.
 	APIPort int `yaml:"apiPort,omitempty"`
+	// Indicates whether to use auto-generated self-signed TLS certificate.
+	// If false, a Secret named "theia-manager-tls" must be provided with the following keys:
+	//   ca.crt: <CA certificate>
+	//   tls.crt: <TLS certificate>
+	//   tls.key: <TLS private key>
+	// Defaults to true.
+	SelfSignedCert *bool `yaml:"selfSignedCert,omitempty"`
 	// Cipher suites to use.
 	TLSCipherSuites string `yaml:"tlsCipherSuites,omitempty"`
 	// TLS min version.

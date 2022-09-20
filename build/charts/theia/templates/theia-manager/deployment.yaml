@@ -47,6 +47,8 @@ spec:
             - mountPath: /etc/theia-manager
               name: theia-manager-config
               readOnly: true
+            - mountPath: /var/run/theia/theia-manager-tls
+              name: theia-manager-tls
             - mountPath: /var/log/antrea/theia-manager
               name: host-var-log-antrea-theia-manager
       nodeSelector:
@@ -57,6 +59,12 @@ spec:
         - name: theia-manager-config
           configMap:
             name: theia-manager-configmap
+        # Make it optional as we only read it when selfSignedCert=false.
+        - name: theia-manager-tls
+          secret:
+            secretName: theia-manager-tls
+            defaultMode: 0400
+            optional: true
         - name: host-var-log-antrea-theia-manager
           hostPath:
             path: /var/log/antrea/theia-manager

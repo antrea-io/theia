@@ -18,7 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
+	"net"
 	"os"
 	"strings"
 	"text/tabwriter"
@@ -30,10 +30,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"antrea.io/theia/pkg/apis"
+	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
+	"antrea.io/theia/pkg/apiserver/certificate"
 	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/theia/portforwarder"
+)
+
+var (
+	SetupTheiaClientAndConnection = setupTheiaClientAndConnection
 )
 
 func CreateK8sClient(kubeconfig string) (kubernetes.Interface, error) {
@@ -47,6 +55,96 @@ func CreateK8sClient(kubeconfig string) (kubernetes.Interface, error) {
 		return nil, err
 	}
 	return clientset, nil
+}
+
+func setupTheiaClientAndConnection(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+	kubeconfig, err := ResolveKubeConfig(cmd)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't resolve kubeconfig: %v", err)
+	}
+	clientset, err := CreateK8sClient(kubeconfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
+	}
+	theiaClient, portForward, err := CreateTheiaManagerClient(clientset, kubeconfig, useClusterIP)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't create Theia manager client: %v", err)
+	}
+	return theiaClient.CoreV1().RESTClient(), portForward, err
+}
+
+func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string, useClusterIP bool) (kubernetes.Interface, *portforwarder.PortForwarder, error) {
+	// check and get ca-cert.pem file
+	caCrt, err := GetCaCrt(k8sClient)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when getting ca-crt: %v", err)
+	}
+	// check and get token
+	token, err := GetToken(k8sClient)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when getting token: %v", err)
+	}
+	var host string
+	var portForward *portforwarder.PortForwarder
+	if useClusterIP {
+		serviceIP, servicePort, err := GetServiceAddr(k8sClient, config.TheiaManagerServiceName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service address: %v", err)
+		}
+		host = net.JoinHostPort(serviceIP, fmt.Sprint(servicePort))
+	} else {
+		listenAddress := "localhost"
+		listenPort := apis.TheiaManagerAPIPort
+		_, servicePort, err := GetServiceAddr(k8sClient, config.TheiaManagerServiceName)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service port: %v", err)
+		}
+		// Forward the Theia Manager service port
+		portForward, err = StartPortForward(kubeconfig, config.TheiaManagerServiceName, servicePort, listenAddress, listenPort)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
+		}
+		host = net.JoinHostPort(listenAddress, fmt.Sprint(listenPort))
+	}
+
+	clientConfig := &restclient.Config{
+		Host:        host,
+		BearerToken: token,
+		TLSClientConfig: restclient.TLSClientConfig{
+			Insecure:   false,
+			ServerName: certificate.GetTheiaServerNames(certificate.TheiaServiceName)[0],
+			CAData:     []byte(caCrt),
+		},
+	}
+	clientset, err := kubernetes.NewForConfig(clientConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when creating Theia manager client: %v", err)
+	}
+	return clientset, portForward, nil
+}
+
+func GetCaCrt(clientset kubernetes.Interface) (string, error) {
+	caConfigMap, err := clientset.CoreV1().ConfigMaps(config.FlowVisibilityNS).Get(context.TODO(), config.CAConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("error when getting ConfigMap theia-ca: %v", err)
+	}
+	caCrt, ok := caConfigMap.Data[config.CAConfigMapKey]
+	if !ok {
+		return "", fmt.Errorf("error when checking ca.crt in data: %v", err)
+	}
+	return caCrt, nil
+}
+
+func GetToken(clientset kubernetes.Interface) (string, error) {
+	secret, err := clientset.CoreV1().Secrets(config.FlowVisibilityNS).Get(context.TODO(), config.TheiaCliAccountName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("error when getting secret %s: %v", config.TheiaCliAccountName, err)
+	}
+	token := string(secret.Data[config.ServiceAccountTokenKey])
+	if len(token) == 0 {
+		return "", fmt.Errorf("secret '%s' does not include token", config.TheiaCliAccountName)
+	}
+	return token, nil
 }
 
 func PolicyRecoPreCheck(clientset kubernetes.Interface) error {
@@ -109,10 +207,6 @@ func CheckClickHousePod(clientset kubernetes.Interface) error {
 	return nil
 }
 
-func ConstStrToPointer(constStr string) *string {
-	return &constStr
-}
-
 func GetServiceAddr(clientset kubernetes.Interface, serviceName string) (string, int, error) {
 	var serviceIP string
 	var servicePort int
@@ -122,7 +216,7 @@ func GetServiceAddr(clientset kubernetes.Interface, serviceName string) (string,
 	}
 	serviceIP = service.Spec.ClusterIP
 	for _, port := range service.Spec.Ports {
-		if port.Name == "tcp" {
+		if port.Name == "tcp" || port.Protocol == "TCP" {
 			servicePort = int(port.Port)
 		}
 	}
@@ -137,7 +231,7 @@ func StartPortForward(kubeconfig string, service string, servicePort int, listen
 	if err != nil {
 		return nil, err
 	}
-	// Forward the policy recommendation service port
+	// Forward the service port
 	pf, err := portforwarder.NewServicePortForwarder(configuration, config.FlowVisibilityNS, service, servicePort, listenAddress, listenPort)
 	if err != nil {
 		return nil, err
@@ -279,18 +373,28 @@ func FormatTimestamp(timestamp time.Time) string {
 	return timestamp.UTC().Format("2006-01-02 15:04:05")
 }
 
-func ParseEndpoint(endpoint string) error {
-	_, err := url.ParseRequestURI(endpoint)
+func ParseRecommendationName(npName string) error {
+	if !strings.HasPrefix(npName, "pr-") {
+		return fmt.Errorf("input name %s is not a valid policy recommendation job name", npName)
+
+	}
+	id := npName[3:]
+	_, err := uuid.Parse(id)
 	if err != nil {
-		return fmt.Errorf("input endpoint %s does not seem a valid URL, parsing error: %v", endpoint, err)
+		return fmt.Errorf("input name %s does not contain a valid UUID, parsing error: %v", npName, err)
 	}
 	return nil
 }
 
-func ParseRecommendationID(recommendationID string) error {
-	_, err := uuid.Parse(recommendationID)
+func getPolicyRecommendationByName(theiaClient restclient.Interface, name string) (npr intelligence.NetworkPolicyRecommendation, err error) {
+	err = theiaClient.Get().
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
+		Resource("networkpolicyrecommendations").
+		Name(name).
+		Do(context.TODO()).
+		Into(&npr)
 	if err != nil {
-		return fmt.Errorf("input id %s does not seem a valid UUID, parsing error:: %v", recommendationID, err)
+		return npr, fmt.Errorf("failed to get policy recommendation job %s: %v", name, err)
 	}
-	return nil
+	return npr, nil
 }

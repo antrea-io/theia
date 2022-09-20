@@ -63,17 +63,17 @@ To see all options and usage examples of these commands, you may run
 The `theia policy-recommendation run` command triggers a new policy
 recommendation job.
 If a new policy recommendation job is created successfully, the
-`recommendation ID` of this job will be returned:
+`name` of this job will be returned:
 
 ```bash
 $ theia policy-recommendation run
-Successfully created policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
+Successfully created policy recommendation job with name pr-e998433e-accb-4888-9fc8-06563f073e86
 ```
 
-`recommendation ID` is a universally unique identifier ([UUID](
+The name of the policy recommendation job contains a universally unique identifier ([UUID](
 https://en.wikipedia.org/wiki/Universally_unique_identifier)) that is
 automatically generated when creating a new policy recommendation job. We use
-`recommendation ID` to identify different policy recommendation jobs.
+this UUID to identify different policy recommendation jobs.
 
 A policy recommendation job may take a few minutes to more than an hour to
 complete depending on the number of network flows. By default, this command
@@ -92,7 +92,7 @@ a previous policy recommendation job.
 Given the job created above, we could check its status via:
 
 ```bash
-$ theia policy-recommendation status e998433e-accb-4888-9fc8-06563f073e86
+$ theia policy-recommendation status pr-e998433e-accb-4888-9fc8-06563f073e86
 Status of this policy recommendation job is COMPLETED
 ```
 
@@ -110,7 +110,7 @@ written into the Clickhouse database. To retrieve results of the policy
 recommendation job created above, run:
 
 ```bash
-$ theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86
+$ theia policy-recommendation retrieve pr-e998433e-accb-4888-9fc8-06563f073e86
 apiVersion: crd.antrea.io/v1alpha1
 kind: ClusterNetworkPolicy
 metadata:
@@ -138,21 +138,21 @@ To apply recommended policies in the cluster, we can save the recommended
 policies to a YAML file and apply it using `kubectl`:
 
 ```bash
-theia policy-recommendation retrieve e998433e-accb-4888-9fc8-06563f073e86 -f recommended_policies.yml
+theia policy-recommendation retrieve pr-e998433e-accb-4888-9fc8-06563f073e86 -f recommended_policies.yml
 kubectl apply -f recommended_policies.yml
 ```
 
 ### List all policy recommendation jobs
 
 The `theia policy-recommendation list` command lists all undeleted policy
-recommendation jobs. `CreationTime`, `CompletionTime`, `ID` and `Status` of each
+recommendation jobs. `CreationTime`, `CompletionTime`, `Name` and `Status` of each
 policy recommendation job will be displayed in table format. For example:
 
 ```bash
 $ theia policy-recommendation list
-CreationTime          CompletionTime        ID                                   Status
-2022-06-17 18:33:15   N/A                   2cf13427-cbe5-454c-b9d3-e1124af7baa2 RUNNING
-2022-06-17 18:06:56   2022-06-17 18:08:37   e998433e-accb-4888-9fc8-06563f073e86 COMPLETED
+CreationTime          CompletionTime        Name                                    Status
+2022-06-17 18:33:15   N/A                   pr-2cf13427-cbe5-454c-b9d3-e1124af7baa2 RUNNING
+2022-06-17 18:06:56   2022-06-17 18:08:37   pr-e998433e-accb-4888-9fc8-06563f073e86 COMPLETED
 ```
 
 ### Delete a policy recommendation job
@@ -162,6 +162,6 @@ recommendation job. Please proceed with caution since deletion cannot be
 undone. To delete the policy recommendation job created above, run:
 
 ```bash
-$ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
-Successfully deleted policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
+$ theia policy-recommendation delete pr-e998433e-accb-4888-9fc8-06563f073e86
+Successfully deleted policy recommendation job with name: pr-e998433e-accb-4888-9fc8-06563f073e86
 ```

@@ -18,6 +18,14 @@ metadata:
   name: grafana
   namespace: flow-visibility
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+  namespace: flow-visibility
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -36,6 +44,21 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+rules:
+- apiGroups:
+  - intelligence.theia.antrea.io
+  resources:
+  - networkpolicyrecommendations
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
@@ -49,6 +72,21 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: grafana
+  namespace: flow-visibility
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: theia-cli
+subjects:
+- kind: ServiceAccount
+  name: theia-cli
   namespace: flow-visibility
 ---
 apiVersion: v1
@@ -5858,6 +5896,15 @@ stringData:
   admin-password: admin
   admin-username: admin
 type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: theia-cli
+  name: theia-cli-account-token
+  namespace: flow-visibility
+type: kubernetes.io/service-account-token
 ---
 apiVersion: v1
 kind: Service

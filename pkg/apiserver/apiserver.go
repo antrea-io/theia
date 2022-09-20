@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/apiserver/pkg/authorization/authorizerfactory"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
@@ -74,6 +73,7 @@ func (s *theiaManagerAPIServer) Run(stopCh <-chan struct{}) error {
 func newConfig(bindPort int) (*genericapiserver.CompletedConfig, error) {
 	secureServing := genericoptions.NewSecureServingOptions().WithLoopback()
 	authentication := genericoptions.NewDelegatingAuthenticationOptions()
+	authorization := genericoptions.NewDelegatingAuthorizationOptions()
 
 	// Set the PairName but leave certificate directory blank to generate in-memory by default.
 	secureServing.ServerCert.CertDirectory = ""
@@ -93,10 +93,10 @@ func newConfig(bindPort int) (*genericapiserver.CompletedConfig, error) {
 	if err := authentication.ApplyTo(&serverConfig.Authentication, serverConfig.SecureServing, nil); err != nil {
 		return nil, err
 	}
+	if err := authorization.ApplyTo(&serverConfig.Authorization); err != nil {
+		return nil, err
+	}
 
-	// TODO (wshaoquan): use native k8s role-based auth
-	serverConfig.Authorization = genericapiserver.AuthorizationInfo{
-		Authorizer: authorizerfactory.NewAlwaysAllowAuthorizer()}
 	if err := os.MkdirAll(path.Dir(TokenPath), os.ModeDir); err != nil {
 		return nil, fmt.Errorf("error when creating dirs of token file: %v", err)
 	}

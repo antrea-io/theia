@@ -6,6 +6,18 @@ metadata:
     app: theia-manager
   name: theia-manager-role
 rules:
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  - apiGroups:
+      - authorization.k8s.io
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
   # This is the content of built-in role kube-system/extension-apiserver-authentication-reader.
   # But it doesn't have list/watch permission before K8s v1.17.0 so the extension apiserver (antrea-agent) will
   # have permission issue after bumping up apiserver library to a version that supports dynamic authentication.

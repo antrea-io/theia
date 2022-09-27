@@ -175,9 +175,10 @@ spec:
           volumeMounts:
             - name: datadir-volume
               mountPath: /var/lib/zookeeper
+      {{- with .Values.clickhouse.cluster.installZookeeper.securityContext }}
       securityContext:
-        runAsUser: 1000
-        fsGroup: 1000
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - name: datadir-volume
           emptyDir:

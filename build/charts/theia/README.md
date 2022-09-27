@@ -20,6 +20,7 @@ Kubernetes: `>= 1.16.0-0`
 |-----|------|---------|-------------|
 | clickhouse.cluster.installZookeeper.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-zookeeper","tag":"3.8.0"}` | Container image used by the ZooKeeper. |
 | clickhouse.cluster.installZookeeper.replicas | int | `1` | Number of ZooKeeper replicas. It is recommended to be odd. When deploying ClickHouse cluster with more than 1 replica, 3 is the minimum number of ZooKeeper hosts required to manage replication and fault tolerance. Please refer to <https://zookeeper.apache.org/doc/current/zookeeperStarted.html#sc_RunningReplicatedZooKeeper> for more information. |
+| clickhouse.cluster.installZookeeper.securityContext | object | `{"fsGroup":1000,"runAsUser":1000}` | Set securityContext. Use a specific uid, gid for zookeeper. |
 | clickhouse.cluster.installZookeeper.size | string | `"5Gi"` | Memory size for each ZooKeeper pod. Can be a plain integer or as a fixed-point number using one of these quantity suffixes: E, P, T, G, M, K. Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki. |
 | clickhouse.cluster.podDistribution | list | `[{"number":1,"topologyKey":"kubernetes.io/hostname","type":"MaxNumberPerNode"}]` | Affinity for the ClickHouse Pods. By default, it allows only one ClickHouse instance per Node. Please refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/chi-examples/99-clickhouseinstallation-max.yaml> for other distributions. |
 | clickhouse.cluster.replicas | int | `1` | Number of ClickHouse replicas in each shard. |
@@ -50,6 +51,7 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-grafana","tag":"8.3.3"}` | Container image used by Grafana. |
 | grafana.installPlugins | list | `["https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.1.zip;theia-grafana-sankey-plugin","https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.0.zip;theia-grafana-chord-plugin","grafana-clickhouse-datasource 1.0.1"]` | Grafana plugins to install. |
 | grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a Secret. |
+| grafana.securityContext | object | `{"fsGroup":472,"supplementalGroups":[0]}` | Set securityContext. Use a specific uid, gid for grafana. |
 | grafana.service.tcpPort | int | `3000` | TCP port number for the Grafana service. |
 | grafana.service.type | string | `"NodePort"` | The type of Service exposing Grafana. It must be one of NodePort or LoadBalancer. |
 | grafana.storage.createPersistentVolume.hostPath.path | string | `"/data/grafana"` | The host path. Required when type is "HostPath". |

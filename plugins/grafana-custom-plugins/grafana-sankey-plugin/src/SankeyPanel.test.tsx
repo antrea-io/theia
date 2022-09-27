@@ -13,12 +13,15 @@ describe('Sankey Diagram test', () => {
     let timeRange = {} as TimeRange;
     props.data = {
       series: [
-        toDataFrame({ refId: 'A', fields: [
-          { name: 'source', values: ["alpine0"] }, 
-          { name: 'destination', values: ["alpine1"] },
-          { name: 'destinationIP', values: ["10.10.1.55"] },
-          { name: 'bytes', values: [10000] },
-        ] }),
+        toDataFrame({
+          refId: 'A',
+          fields: [
+            { name: 'source', values: ['alpine0'] },
+            { name: 'destination', values: ['alpine1'] },
+            { name: 'destinationIP', values: ['10.10.1.55'] },
+            { name: 'bytes', values: [10000] },
+          ],
+        }),
       ],
       state: LoadingState.Done,
       timeRange: timeRange,

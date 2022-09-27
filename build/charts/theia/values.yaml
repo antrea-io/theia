@@ -109,6 +109,11 @@ clickhouse:
         repository: "projects.registry.vmware.com/antrea/theia-zookeeper"
         pullPolicy: "IfNotPresent"
         tag: "3.8.0"
+      # -- Set securityContext.
+      # Use a specific uid, gid for zookeeper.
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000 
     # -- Affinity for the ClickHouse Pods. By default, it allows only one ClickHouse
     # instance per Node. Please refer to
     # <https://github.com/Altinity/clickhouse-operator/blob/master/docs/chi-examples/99-clickhouseinstallation-max.yaml>
@@ -121,6 +126,12 @@ grafana:
   # -- Determine whether to install Grafana. It is used as a data visualization
   # and monitoring tool.  
   enable: true
+  # -- Set securityContext.
+  # Use a specific uid, gid for grafana.
+  securityContext:
+    fsGroup: 472
+    supplementalGroups:
+      - 0 
   # -- Container image used by Grafana.
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-grafana"

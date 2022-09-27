@@ -38,7 +38,7 @@ spec:
       {{- if eq (len .Values.clickhouse.cluster.zookeeperHosts) 0 }}
       - host: zookeeper.{{ .Release.Namespace }}
       {{- else }}
-      {{- range $host := .Values.clickhouse.cluster.zookeeper.zookeeperHosts }}
+      {{- range $host := .Values.clickhouse.cluster.zookeeperHosts }}
       - host: {{ $host }}
       {{- end }}
       {{- end }}

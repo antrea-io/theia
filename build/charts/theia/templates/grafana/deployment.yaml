@@ -16,10 +16,10 @@ spec:
         app: grafana
     spec:
       serviceAccountName: grafana
+      {{- with .Values.grafana.securityContext }}
       securityContext:
-        fsGroup: 472
-        supplementalGroups:
-          - 0
+        {{- toYaml . | trim | nindent 8 }}
+      {{- end }}
       initContainers:
         - name: init-pv
           image: projects.registry.vmware.com/antrea/busybox

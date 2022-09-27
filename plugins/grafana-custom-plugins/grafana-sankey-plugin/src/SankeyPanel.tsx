@@ -11,26 +11,26 @@ export const SankeyPanel: React.FC<Props> = ({ options, data, width, height }) =
     ['Source N/A', 'Destination N/A', 1],
   ];
   let sources = data.series
-    .map((series) => series.fields.find((field) => field.name === 'source'))
+    .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'source'))
     .map((field) => {
       let record = field?.values as any;
       return record?.buffer;
     })[0];
   if (sources !== undefined) {
     let destinations = data.series
-      .map((series) => series.fields.find((field) => field.name === 'destination'))
+      .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'destination'))
       .map((field) => {
         let record = field?.values as any;
         return record?.buffer;
       })[0];
     let destinationIPs = data.series
-      .map((series) => series.fields.find((field) => field.name === 'destinationIP'))
+      .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'destinationip'))
       .map((field) => {
         let record = field?.values as any;
         return record?.buffer;
       })[0];
     let bytes = data.series
-      .map((series) => series.fields.find((field) => field.name === 'bytes'))
+      .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'bytes'))
       .map((field) => {
         let record = field?.values as any;
         return record?.buffer;

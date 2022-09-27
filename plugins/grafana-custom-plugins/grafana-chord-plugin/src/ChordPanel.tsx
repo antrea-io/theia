@@ -12,7 +12,7 @@ export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, heig
   // GetFieldVal reads field's value from data series
   function GetFieldVal(fieldName: string) {
     return data.series
-      .map((series: DataFrame) => series.fields.find((field: any) => field.name === fieldName))
+      .map((series: DataFrame) => series.fields.find((field: any) => field.name.toLowerCase() === fieldName.toLowerCase()))
       .map((field: any) => {
         let record = field?.values as any;
         return record?.buffer;

@@ -48,7 +48,7 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.enable | bool | `true` | Determine whether to install Grafana. It is used as a data visualization and monitoring tool.   |
 | grafana.homeDashboard | string | `"homepage.json"` | Default home dashboard. |
 | grafana.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-grafana","tag":"8.3.3"}` | Container image used by Grafana. |
-| grafana.installPlugins | list | `["https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.1.zip;theia-grafana-sankey-plugin","https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.0.zip;theia-grafana-chord-plugin","grafana-clickhouse-datasource 1.0.1"]` | Grafana plugins to install. |
+| grafana.installPlugins | list | `["https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin","https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin","grafana-clickhouse-datasource 1.0.1"]` | Grafana plugins to install. |
 | grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a Secret. |
 | grafana.service.tcpPort | int | `3000` | TCP port number for the Grafana service. |
 | grafana.service.type | string | `"NodePort"` | The type of Service exposing Grafana. It must be one of NodePort or LoadBalancer. |

@@ -1,0 +1,767 @@
+{
+    "__inputs": [
+        {
+            "name": "DS_SNOWFLAKE",
+            "label": "Snowflake",
+            "description": "",
+            "type": "datasource",
+            "pluginId": "michelin-snowflake-datasource",
+            "pluginName": "Snowflake"
+        }
+    ],
+    "__elements": {},
+    "__requires": [
+        {
+            "type": "grafana",
+            "id": "grafana",
+            "name": "Grafana",
+            "version": "9.1.6"
+        },
+        {
+            "type": "datasource",
+            "id": "michelin-snowflake-datasource",
+            "name": "Snowflake",
+            "version": "1.2.0"
+        },
+        {
+            "type": "panel",
+            "id": "piechart",
+            "name": "Pie chart",
+            "version": ""
+        },
+        {
+            "type": "panel",
+            "id": "theia-grafana-chord-plugin",
+            "name": "grafana-chord-plugin",
+            "version": "1.0.0"
+        },
+        {
+            "type": "panel",
+            "id": "timeseries",
+            "name": "Time series",
+            "version": ""
+        }
+    ],
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "gridPos": {
+                "h": 20,
+                "w": 15,
+                "x": 0,
+                "y": 0
+            },
+            "id": 2,
+            "interval": "1s",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT CONCAT(sourcePodNamespace, '/', sourcePodName) as srcPod,\nCONCAT(destinationPodNamespace, '/', destinationPodName) as dstPod,\nsourceTransportPort as srcPort,\ndestinationTransportPort as dstPort,\ndestinationServicePort as dstSvcPort,\ndestinationServicePortName as dstSvc,\ndestinationIP as dstIP,\nSUM(octetDeltaCount) as bytes,\nSUM(reverseOctetDeltaCount) as revBytes,\negressNetworkPolicyName,\negressNetworkPolicyRuleAction,\ningressNetworkPolicyName,\ningressNetworkPolicyRuleAction\nfrom policies\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY srcPod, dstPod, srcPort, dstPort, dstSvcPort, dstSvc, dstIP, egressNetworkPolicyName, egressNetworkPolicyRuleAction, ingressNetworkPolicyName, ingressNetworkPolicyRuleAction\nHAVING bytes > 0\norder by bytes DESC\nLIMIT 25",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Flows with NetworkPolicy Information",
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "BYTES": "bytes",
+                            "DSTIP": "dstIP",
+                            "DSTPOD": "dstPod",
+                            "DSTPORT": "dstPort",
+                            "DSTSVC": "dstSvc",
+                            "DSTSVCPORT": "dstSvcPort",
+                            "EGRESSNETWORKPOLICYNAME": "egressNetworkPolicyName",
+                            "EGRESSNETWORKPOLICYRULEACTION": "egressNetworkPolicyRuleAction",
+                            "INGRESSNETWORKPOLICYNAME": "ingressNetworkPolicyName",
+                            "INGRESSNETWORKPOLICYRULEACTION": "ingressNetworkPolicyRuleAction",
+                            "REVBYTES": "revBytes",
+                            "SRCPOD": "srcPod",
+                            "SRCPORT": "srcPort"
+                        }
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "theia-grafana-chord-plugin"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": [],
+                    "unit": "decbytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 0
+            },
+            "id": 10,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "values": [
+                        "percent",
+                        "value"
+                    ]
+                },
+                "pieType": "donut",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "limit": 25,
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(octetDeltaCount) as bytes, \nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace, '/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND AS np\nFROM policies\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyName != ''\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY np\nHAVING SUM(octetDeltaCount) != 0\nORDER BY bytes DESC",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Ingress Network Policy",
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": [],
+                    "unit": "decbytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 8,
+                "x": 16,
+                "y": 10
+            },
+            "id": 9,
+            "options": {
+                "displayLabels": [],
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true,
+                    "values": [
+                        "percent",
+                        "value"
+                    ]
+                },
+                "pieType": "donut",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "limit": 25,
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(octetDeltaCount) as bytes,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace, '/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND AS np\nFROM policies\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyName != ''\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY np\nHAVING SUM(octetDeltaCount) > 0\nORDER BY bytes DESC",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Egress Network Policy",
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 20
+            },
+            "id": 4,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort = 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort = 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND AS dst,\nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace,'/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND AS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM policies\nWHERE CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyRuleAction = 1\nAND egressNetworkPolicyRuleAction NOT IN (2,\n3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Ingress Allow NetworkPolicy",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 20
+            },
+            "id": 5,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort = 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort = 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace,'/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM policies\nWHERE CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyRuleAction = 1\nAND ingressNetworkPolicyRuleAction not in (2,3)\nGROUP BY time, src, dst, np\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Egress Allow NetworkPolicy",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 28
+            },
+            "id": 6,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort = 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort = 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN ingressNetworkPolicyNamespace != '' THEN CONCAT(ingressNetworkPolicyNamespace,'/', ingressNetworkPolicyName)\nELSE ingressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM policies\nWHERE CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ingressNetworkPolicyRuleAction in (2,3)\nGROUP BY time, src, dst, np\nHAVING SUM(octetDeltaCount) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Ingress Deny NetworkPolicy",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 28
+            },
+            "id": 7,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCASE WHEN sourceTransportPort != 0 THEN CONCAT(sourcePodNamespace, '/', sourcePodName, ':', CAST(sourceTransportPort as VARCHAR))\nELSE CONCAT(sourcePodNamespace, '/', sourcePodName)\nEND AS src,\nCASE WHEN destinationServicePortName != '' AND destinationServicePort != 0 THEN CONCAT(destinationServicePortName, ':', CAST(destinationServicePort as VARCHAR))\nWHEN destinationServicePortName != '' AND destinationServicePort = 0 THEN destinationServicePortName\nWHEN destinationPodName != '' AND destinationTransportPort != 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName, ':', CAST(destinationTransportPort as VARCHAR))\nWHEN destinationPodName != '' AND destinationTransportPort = 0 THEN CONCAT(destinationPodNamespace,'/', destinationPodName)\nELSE destinationIP\nEND\nAS dst,\nCASE WHEN egressNetworkPolicyNamespace != '' THEN CONCAT(egressNetworkPolicyNamespace,'/', egressNetworkPolicyName)\nELSE egressNetworkPolicyName\nEND\nAS np,\nCONCAT(src, ' -> ', dst, ' : ', np) as pair,\nAVG(throughput)\nFROM policies\nWHERE CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND egressNetworkPolicyRuleAction in (2,\n3)\nGROUP BY time, src, dst, np\nHAVING SUM(octetDeltaCount) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Egress Deny NetworkPolicy",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        }
+    ],
+    "refresh": "",
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+        "list": [
+            {
+                "allValue": "",
+                "current": {
+                    "selected": true,
+                    "text": [
+                        "All"
+                    ],
+                    "value": [
+                        "$__all"
+                    ]
+                },
+                "datasource": {
+                    "type": "michelin-snowflake-datasource",
+                    "uid": "P1DBD59F661D68B90"
+                },
+                "definition": "select distinct concat('''',clusterUUID,'''') from flows",
+                "hide": 0,
+                "includeAll": true,
+                "multi": true,
+                "name": "clusterID",
+                "options": [],
+                "query": "select distinct concat('''',clusterUUID,'''') from flows",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-30m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "networkpolicy_dashboard",
+    "uid": "LvtkNZ4Vz",
+    "version": 9,
+    "weekStart": ""
+}

@@ -1,5 +1,29 @@
 # Theia with Snowflake
 
+## Table of Contents
+
+<!-- toc -->
+- [Overview](#overview)
+- [Getting started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Install the theia-sf CLI](#install-the-theia-sf-cli)
+  - [Configure AWS credentials](#configure-aws-credentials)
+  - [Configure Snowflake credentials](#configure-snowflake-credentials)
+  - [Create an S3 bucket to store infrastructure state](#create-an-s3-bucket-to-store-infrastructure-state)
+  - [Create a KMS key to encrypt infrastructure state](#create-a-kms-key-to-encrypt-infrastructure-state)
+  - [Provision all cloud resources](#provision-all-cloud-resources)
+  - [Configure the Flow Aggregator in your cluster(s)](#configure-the-flow-aggregator-in-your-clusters)
+- [Clean up](#clean-up)
+- [Running applications](#running-applications)
+- [Network flow visibility with Grafana](#network-flow-visibility-with-grafana)
+  - [Configure datasource](#configure-datasource)
+  - [Deployments](#deployments)
+  - [Pre-built dashboards](#pre-built-dashboards)
+    - [View flow data from selected cluster(s)](#view-flow-data-from-selected-clusters)
+<!-- /toc -->
+
+## Overview
+
 We are introducing the ability to use Snowflake as the storage and computing
 platform for Theia. When using Snowflake, it is no longer necessary to run
 ClickHouse DB (flow records are stored in a Snowflake database) or Spark (flow
@@ -117,3 +141,85 @@ Snowflake credentials are required.
 
 We are in the process of adding support for applications to Snowflake-powered
 Theia, starting with NetworkPolicy recommendation.
+
+## Network flow visibility with Grafana
+
+We use Grafana as the tool to query data from Snowflake, and visualize the
+networking flows in the cluster(s).
+
+### Configure datasource
+
+Export the following environment variables:
+
+ Name                     | Description
+------------------------- | ------------
+ SNOWFLAKE_ACCOUNT        | Specifies the full name of your account (provided by Snowflake).
+ SNOWFLAKE_USER           | Specifies the login name of the user for the connection.
+ SNOWFLAKE_PASSWORD       | Specifies the password for the specified user.
+ SNOWFLAKE_WAREHOUSE      | Specifies the virtual warehouse to use once connected.
+ SNOWFLAKE_DATABASE       | Specifies the default database to use once connected.
+ SNOWFLAKE_ROLE (Optional)| Specifies the default access control role to use in the Snowflake session initiated by Grafana.
+
+Database name can be found in the output of the [onboard](#getting-started)
+command.
+
+### Deployments
+
+We suggest running Grafana using the official Docker image.
+
+Before running Grafana, we need to download the Snowflake datasource plugin.
+We suggest creating your own plugin directory.
+
+```bash
+mkdir your-plugin-path && cd your-plugin-path
+wget https://github.com/michelin/snowflake-grafana-datasource/releases/download/v1.2.0/snowflake-grafana-datasource.zip
+unzip snowflake-grafana-datasource.zip
+export GF_PLUGINS=$(pwd)
+```
+
+Then run Grafana with Docker:
+
+```bash
+cd theia/snowflake
+
+docker run -d \
+-p 3000:3000 \
+-v "${GF_PLUGINS}":/var/lib/grafana/plugins \
+-v "$(pwd)"/grafana/provisioning:/etc/grafana/provisioning \
+--name=grafana \
+-e "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=michelin-snowflake-datasource" \
+-e "GF_INSTALL_PLUGINS=https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin" \
+-e "GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/homepage.json" \
+-e "SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT}" \
+-e "SNOWFLAKE_USER=${SNOWFLAKE_USER}" \
+-e "SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD}" \
+-e "SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE}" \
+-e "SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}" \
+-e "SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE}" \
+grafana/grafana:9.1.6
+```
+
+Open your web browser and go to `http://localhost:3000/`, login with:
+
+- username: admin
+- password: admin
+
+### Pre-built dashboards
+
+You will see the home dashboard after login. It provides an overview
+of the monitored Kubernetes cluster, short introduction and links
+to the other pre-built dashboards for more specific flow visualization.
+Detailed introduction of these dashboards can be found at
+[Pre-built Dashboards](https://github.com/antrea-io/theia/blob/main/docs/network-flow-visibility.md#pre-built-dashboards).
+
+Currently, with Snowflake datasource, we have built the Home Dashboard, Flow
+Records Dashboard, Pod-to-Pod Flows Dashboard, and Network-Policy Flows
+Dashboard.
+
+#### View flow data from selected cluster(s)
+
+The dashboards allow you to select and view flow data from one or more
+clusters. You will be able to find a dropdown menu on the top left corner of
+each dashboard. The filter will affect all the panels in the dashboard.
+
+<img src="https://downloads.antrea.io/static/10052022/clusterid-filter.png" width="900" alt="Filtering on clusterID">

@@ -50,4 +50,4 @@ GOBIN="${TMP_DIR}" ${GO} install "github.com/tallclair/mdtoc@${TOOL_VERSION}"
 export PATH="${TMP_DIR}:${PATH}"
 
 # Update tables of contents if necessary.
-find docs -name '*.md' | xargs mdtoc --inplace
+find docs snowflake -name '*.md' | xargs mdtoc --inplace

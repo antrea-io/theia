@@ -51,4 +51,4 @@ export PATH="${TMP_DIR}:${PATH}"
 
 echo "Checking table of contents are up to date..."
 # Verify tables of contents are up-to-date
-find docs -name '*.md' | xargs mdtoc --inplace --dryrun
+find docs snowflake -name '*.md' | xargs mdtoc --inplace --dryrun

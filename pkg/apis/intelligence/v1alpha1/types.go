@@ -16,11 +16,14 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-type JobType string
-
 const (
-	NPRecommendationJobInitial    JobType = "Initial"
-	NPRecommendationJobSubsequent JobType = "Subsequent"
+	NPRecommendationJobInitial     string = "Initial"
+	NPRecommendationJobSubsequent  string = "Subsequent"
+	NPRecommendationStateNew       string = "NEW"
+	NPRecommendationStateScheduled string = "SCHEDULED"
+	NPRecommendationStateRunning   string = "RUNNING"
+	NPRecommendationStateCompleted string = "COMPLETED"
+	NPRecommendationStateFailed    string = "FAILED"
 )
 
 // +genclient
@@ -31,19 +34,31 @@ type NetworkPolicyRecommendation struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Type                string      `json:"jobType,omitempty"`
-	Limit               int         `json:"limit,omitempty"`
-	PolicyType          string      `json:"policyType,omitempty"`
-	StartTime           metav1.Time `json:"startTime,omitempty"`
-	EndTime             metav1.Time `json:"endTime,omitempty"`
-	NSAllowList         []string    `json:"nsAllowList,omitempty"`
-	ExcludeLabels       bool        `json:"excludeLabels,omitempty"`
-	ToServices          bool        `json:"toServices,omitempty"`
-	ExecutorInstances   int         `json:"executorInstances,omitempty"`
-	DriverCoreRequest   string      `json:"driverCoreRequest,omitempty"`
-	DriverMemory        string      `json:"driverMemory,omitempty"`
-	ExecutorCoreRequest string      `json:"executorCoreRequest,omitempty"`
-	ExecutorMemory      string      `json:"executorMemory,omitempty"`
+	Type                string                            `json:"jobType,omitempty"`
+	Limit               int                               `json:"limit,omitempty"`
+	PolicyType          string                            `json:"policyType,omitempty"`
+	StartInterval       metav1.Time                       `json:"startInterval,omitempty"`
+	EndInterval         metav1.Time                       `json:"endInterval,omitempty"`
+	NSAllowList         []string                          `json:"nsAllowList,omitempty"`
+	ExcludeLabels       bool                              `json:"excludeLabels,omitempty"`
+	ToServices          bool                              `json:"toServices,omitempty"`
+	ExecutorInstances   int                               `json:"executorInstances,omitempty"`
+	DriverCoreRequest   string                            `json:"driverCoreRequest,omitempty"`
+	DriverMemory        string                            `json:"driverMemory,omitempty"`
+	ExecutorCoreRequest string                            `json:"executorCoreRequest,omitempty"`
+	ExecutorMemory      string                            `json:"executorMemory,omitempty"`
+	Status              NetworkPolicyRecommendationStatus `json:"status,omitempty"`
+}
+
+type NetworkPolicyRecommendationStatus struct {
+	State                 string      `json:"state,omitempty"`
+	SparkApplication      string      `json:"sparkApplication,omitempty"`
+	CompletedStages       int         `json:"completedStages,omitempty"`
+	TotalStages           int         `json:"totalStages,omitempty"`
+	RecommendationOutcome string      `json:"recommendationOutcome,omitempty"`
+	CompletionTimestamp   metav1.Time `json:"completionTimestamp,omitempty"`
+	ErrorCode             string      `json:"errorCode,omitempty"`
+	ErrorMsg              string      `json:"errorMsg,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

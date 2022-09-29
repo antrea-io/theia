@@ -12,7 +12,7 @@ export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, heig
   // GetFieldVal reads field's value from data series
   function GetFieldVal(fieldName: string) {
     return data.series
-      .map((series: DataFrame) => series.fields.find((field: any) => field.name === fieldName))
+      .map((series: DataFrame) => series.fields.find((field: any) => field.name.toLowerCase() === fieldName.toLowerCase()))
       .map((field: any) => {
         let record = field?.values as any;
         return record?.buffer;
@@ -59,8 +59,8 @@ export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, heig
           let sourcePort = sourcePorts[i];
           let destination = destinationSvcs[i];
           let destinationPort = destinationSvcPorts[i];
-          if (destination === '') {
-            if (destinationPods[i] === '/' || destinationPods[i] === '') {
+          if (destination === '' || destination === null) {
+            if (destinationPods[i] === '/' || destinationPods[i] === '' || destinationPods[i] === null) {
               destination = destinationIPs[i];
             } else {
               destination = destinationPods[i];

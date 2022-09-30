@@ -111,7 +111,6 @@ COMMON_IMAGES_LIST=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                     "antrea/flow-aggregator:latest" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
-                    "projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6" \
                     "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
                     "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                     "projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1")
@@ -124,7 +123,8 @@ for image in "${COMMON_IMAGES_LIST[@]}"; do
 done
 
 COMMON_IMAGES_LIST+=("projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"\
-                     "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest")
+                     "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest"\
+                     "projects.registry.vmware.com/antrea/theia-clickhouse-server:latest")
 printf -v COMMON_IMAGES "%s " "${COMMON_IMAGES_LIST[@]}"
 
 function setup_cluster {

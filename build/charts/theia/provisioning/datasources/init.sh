@@ -18,9 +18,21 @@ set -e
 
 THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-source $THIS_DIR/migrate.sh
 source $THIS_DIR/create_table.sh
 
-migrate
+# This function is kept to be compatible with version below v0.3.0
+function setDataVersion {
+    tables=$(clickhouse client -h 127.0.0.1 -q "SHOW TABLES")
+    if [[ $tables == *"migrate_version"* ]]; then
+        clickhouse client -h 127.0.0.1 -q "ALTER TABLE migrate_version DELETE WHERE version!=''"
+    else
+        clickhouse client -h 127.0.0.1 -q "CREATE TABLE migrate_version (version String) engine=MergeTree ORDER BY version"
+    fi
+    clickhouse client -h 127.0.0.1 -q "INSERT INTO migrate_version (*) VALUES ('{{ .Chart.Version }}')"
+    echo "=== Set data schema version to {{ .Chart.Version }} ==="
+}
+
+../clickhouse-schema-management
 createTable
 setDataVersion
+

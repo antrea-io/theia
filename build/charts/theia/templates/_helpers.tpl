@@ -1,6 +1,6 @@
 {{- define "clickhouse.monitor.container" }}
 {{- $clickhouse := .clickhouse }}
-{{- $version := .version }}
+{{- $Chart := .Chart }}
 - name: clickhouse-monitor
   image: {{ include "clickHouseMonitorImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.monitor.image.pullPolicy }}
@@ -36,9 +36,9 @@
 {{- define "clickhouse.server.container" }}
 {{- $clickhouse := .clickhouse }}
 {{- $enablePV := .enablePV }}
-{{- $version := .version }}
+{{- $Chart := .Chart }}
 - name: clickhouse
-  image: {{ $clickhouse.image.repository }}:{{ $clickhouse.image.tag }}
+  image: {{ include "clickHouseServerImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.image.pullPolicy }}
   volumeMounts:
     - name: clickhouse-configmap-volume
@@ -49,9 +49,21 @@
     {{- end }}
   env:
     - name: THEIA_VERSION
-      value: {{ $version }}
+      value: {{ $Chart.Version }}
     - name: CLICKHOUSE_INIT_TIMEOUT
       value: "60"
+    - name: DB_URL
+      value: "localhost:9000"
+    - name: MIGRATE_USERNAME
+      valueFrom:
+        secretKeyRef: 
+          name: clickhouse-secret
+          key: username
+    - name: MIGRATE_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: clickhouse-secret
+          key: password
 {{- end }}
 
 {{- define "clickhouse.volume" }}
@@ -66,13 +78,13 @@
       - key: {{ regexReplaceAll "(.*)/" $path "" }}
         path: {{ regexReplaceAll "(.*)/" $path "" }}
       {{- end }}
-      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/upgrade/*" }}
-      - key: {{ regexReplaceAll "(.*)/" $path "" }}
-        path: migrators/upgrade/{{ regexReplaceAll "(.*)/" $path "" }}
-      {{- end }}
       {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/downgrade/*" }}
       - key: {{ regexReplaceAll "(.*)/" $path "" }}
         path: migrators/downgrade/{{ regexReplaceAll "(.*)/" $path "" }}
+      {{- end }}
+      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/*.sql" }}
+      - key: {{ regexReplaceAll "(.*)/" $path "" }}
+        path: migrators/{{ regexReplaceAll "(.*)/" $path "" }}
       {{- end }}
 {{- if not $enablePV }}
 - name: clickhouse-storage-volume
@@ -82,18 +94,26 @@
 {{- end }}
 {{- end }}
 
-{{- define "clickHouseMonitorImageTag" -}}
-{{- if .clickhouse.monitor.image.tag }}
-{{- .clickhouse.monitor.image.tag -}}
-{{- else if eq .version "latest" }}
+
+{{- define "theiaImageTag" -}}
+{{- $tag := .tag -}}
+{{- $Chart := .Chart -}}
+{{- if $tag }}
+{{- $tag -}}
+{{- else if eq $Chart.AppVersion "latest" }}
 {{- print "latest" -}}
 {{- else }}
-{{- print "v" .version -}}
+{{- print "v" $Chart.AppVersion -}}
 {{- end }}
 {{- end -}}
 
+
 {{- define "clickHouseMonitorImage" -}}
-{{- print .clickhouse.monitor.image.repository ":" (include "clickHouseMonitorImageTag" .) -}}
+{{- print .clickhouse.monitor.image.repository ":" (include "theiaImageTag" (dict "tag" .clickhouse.monitor.image.tag "Chart" .Chart)) -}}
+{{- end -}}
+
+{{- define "clickHouseServerImage" -}}
+{{- print .clickhouse.image.repository ":" (include "theiaImageTag" (dict "tag" .clickhouse.image.tag "Chart" .Chart)) -}}
 {{- end -}}
 
 {{- define "theiaManagerImageTag" -}}

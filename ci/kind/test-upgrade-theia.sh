@@ -143,17 +143,24 @@ fi
 echo "Running upgrade test for tag $THEIA_FROM_TAG"
 ANTREA_FROM_TAG=$(grep "$THEIA_FROM_TAG"  < $ROOT_DIR/VERSION_MAP | awk '{print $2}')
 
+# From v0.3.0, ClickHouse Image is labeled with Theia version
+if [[ $THEIA_FROM_TAG == "v0.2.0" || $THEIA_FROM_TAG == "v0.1.0" ]]; then
+    CLICKHOUSE_FROM_TAG="21.11"
+else
+    CLICKHOUSE_FROM_TAG=$THEIA_FROM_TAG
+fi
+
 DOCKER_IMAGES=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/busybox"  \
                 "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
                 "projects.registry.vmware.com/antrea/perftool" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                 "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
-                "projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6" \
                 "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
                 "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$THEIA_FROM_TAG" \
+                "projects.registry.vmware.com/antrea/theia-clickhouse-server:$CLICKHOUSE_FROM_TAG" \
                 "antrea/antrea-ubuntu:latest")
 
 for img in "${DOCKER_IMAGES[@]}"; do
@@ -164,7 +171,8 @@ for img in "${DOCKER_IMAGES[@]}"; do
     done
 done
 
-DOCKER_IMAGES+=("projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest")
+DOCKER_IMAGES+=("projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest\
+                 projects.registry.vmware.com/antrea/theia-clickhouse-server:latest")
 
 echo "Creating Kind cluster"
 IMAGES="${DOCKER_IMAGES[@]}"

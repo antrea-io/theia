@@ -63,11 +63,29 @@ jobs:
         path: clickhouse-monitor.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
+  build-clickhouse-server-image:
+    name: Build ClickHouse server image to be used for Kind e2e tests
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    runs-on: [ ubuntu-latest ]
+    steps:
+    - uses: actions/checkout@v3
+    - run: make clickhouse-server
+    - name: Save ClickHouse server image to tarball
+      run: docker save -o clickhouse-server.tar antrea/theia-clickhouse-server
+    - name: Upload ClickHouse server image for subsequent jobs
+      uses: actions/upload-artifact@v3
+      with:
+        name: clickhouse-server
+        path: clickhouse-server.tar
+        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+
   test-e2e-encap:
     name: E2e tests on a Kind cluster on Linux
     needs: 
       - build-policy-recommendation-image
       - build-clickhouse-monitor-image
+      - build-clickhouse-server-image
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -87,12 +105,18 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: clickhouse-monitor
+      - name: Download ClickHouse server images from previous jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: clickhouse-server
       - name: Load Theia image
         run:  |
           docker load -i policy-recommendation.tar
           docker tag antrea/theia-policy-recommendation:latest projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
           docker load -i clickhouse-monitor.tar
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
+          docker load -i clickhouse-server.tar
+          docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
@@ -115,7 +139,9 @@ jobs:
 
   test-upgrade-from-N-1:
     name: Upgrade from Theia version N-1
-    needs: build-clickhouse-monitor-image
+    needs: 
+      - build-clickhouse-monitor-image
+      - build-clickhouse-server-image 
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -135,6 +161,14 @@ jobs:
         run:  |
           docker load -i clickhouse-monitor.tar
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
+      - name: Download ClickHouse server images from previous jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: clickhouse-server
+      - name: Load Theia image
+        run:  |
+          docker load -i clickhouse-server.tar
+          docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
@@ -164,6 +198,7 @@ jobs:
     needs:
     - build-policy-recommendation-image
     - build-clickhouse-monitor-image
+    - build-clickhouse-server-image
     - test-e2e-encap
     - test-upgrade-from-N-1
     runs-on: [ubuntu-latest]
@@ -178,3 +213,8 @@ jobs:
       uses: geekyeggo/delete-artifact@v1
       with:
         name: clickhouse-monitor
+    - name: Delete clickhouse-server
+      if: ${{ needs.build-clickhouse-server-image.result == 'success' }}
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: clickhouse-server

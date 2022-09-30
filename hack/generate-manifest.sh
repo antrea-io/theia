@@ -143,6 +143,11 @@ if [ "$MODE" == "dev" ] && [ -n "$IMG_NAME" ]; then
 fi
 if [ "$MODE" == "release" ]; then
     HELM_VALUES+=("clickhouse.monitor.image.repository=$IMG_NAME" "clickhouse.monitor.image.tag=$IMG_TAG")
+    if [ $IMG_TAG == "v0.1.0" ] || [ $IMG_TAG == "v0.2.0" ]; then
+        HELM_VALUES+=("clickhouse.image.tag=21.11")
+    else
+        HELM_VALUES+=("clickhouse.image.tag=$IMG_TAG")
+    fi
 fi
 if [ "$MODE" == "antrea-e2e" ]; then
     HELM_VALUES+=("grafana.enable=false" "clickhouse.monitor.enable=false")

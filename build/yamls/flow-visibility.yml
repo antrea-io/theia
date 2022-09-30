@@ -53,7 +53,14 @@ subjects:
 ---
 apiVersion: v1
 data:
-  0-1-0_0-2-0.sql: |
+  0-3-0_0-2-0.sql: |
+    --Alter table to drop new columns
+    ALTER TABLE flows
+    DROP clusterUUID String;
+    ALTER TABLE flows_local
+    DROP clusterUUID String;
+  000001_0-1-0.down.sql: ""
+  000001_0-1-0.up.sql: |
     --Create a table to store records
     CREATE TABLE IF NOT EXISTS flows_local (
         timeInserted DateTime DEFAULT now(),
@@ -117,184 +124,6 @@ data:
     DROP VIEW flows_node_view;
     DROP VIEW flows_policy_view;
 
-    --Create a Materialized View to aggregate data for pods
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view_local
-    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourcePodName,
-        destinationPodName,
-        destinationIP,
-        destinationServicePort,
-        destinationServicePortName,
-        flowType,
-        sourcePodNamespace,
-        destinationPodNamespace,
-        sourceTransportPort,
-        destinationTransportPort)
-    TTL timeInserted + INTERVAL 12 HOUR
-    SETTINGS merge_with_ttl_timeout = 14400
-    POPULATE
-    AS SELECT
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourcePodName,
-        destinationPodName,
-        destinationIP,
-        destinationServicePort,
-        destinationServicePortName,
-        flowType,
-        sourcePodNamespace,
-        destinationPodNamespace,
-        sourceTransportPort,
-        destinationTransportPort,
-        sum(octetDeltaCount) AS octetDeltaCount,
-        sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
-        sum(throughput) AS throughput,
-        sum(reverseThroughput) AS reverseThroughput,
-        sum(throughputFromSourceNode) AS throughputFromSourceNode,
-        sum(throughputFromDestinationNode) AS throughputFromDestinationNode
-    FROM flows_local
-    GROUP BY
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourcePodName,
-        destinationPodName,
-        destinationIP,
-        destinationServicePort,
-        destinationServicePortName,
-        flowType,
-        sourcePodNamespace,
-        destinationPodNamespace,
-        sourceTransportPort,
-        destinationTransportPort;
-
-    --Create a Materialized View to aggregate data for nodes
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
-    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourceNodeName,
-        destinationNodeName,
-        sourcePodNamespace,
-        destinationPodNamespace)
-    TTL timeInserted + INTERVAL 12 HOUR
-    SETTINGS merge_with_ttl_timeout = 14400
-    POPULATE
-    AS SELECT
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourceNodeName,
-        destinationNodeName,
-        sourcePodNamespace,
-        destinationPodNamespace,
-        sum(octetDeltaCount) AS octetDeltaCount,
-        sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
-        sum(throughput) AS throughput,
-        sum(reverseThroughput) AS reverseThroughput,
-        sum(throughputFromSourceNode) AS throughputFromSourceNode,
-        sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
-        sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-    FROM flows_local
-    GROUP BY
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        sourceNodeName,
-        destinationNodeName,
-        sourcePodNamespace,
-        destinationPodNamespace;
-
-    --Create a Materialized View to aggregate data for network policies
-    CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
-    ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        egressNetworkPolicyName,
-        egressNetworkPolicyNamespace,
-        egressNetworkPolicyRuleAction,
-        ingressNetworkPolicyName,
-        ingressNetworkPolicyNamespace,
-        ingressNetworkPolicyRuleAction,
-        sourcePodName,
-        sourceTransportPort,
-        sourcePodNamespace,
-        destinationPodName,
-        destinationTransportPort,
-        destinationPodNamespace,
-        destinationServicePort,
-        destinationServicePortName,
-        destinationIP)
-    TTL timeInserted + INTERVAL 12 HOUR
-    SETTINGS merge_with_ttl_timeout = 14400
-    POPULATE
-    AS SELECT
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        egressNetworkPolicyName,
-        egressNetworkPolicyNamespace,
-        egressNetworkPolicyRuleAction,
-        ingressNetworkPolicyName,
-        ingressNetworkPolicyNamespace,
-        ingressNetworkPolicyRuleAction,
-        sourcePodName,
-        sourceTransportPort,
-        sourcePodNamespace,
-        destinationPodName,
-        destinationTransportPort,
-        destinationPodNamespace,
-        destinationServicePort,
-        destinationServicePortName,
-        destinationIP,
-        sum(octetDeltaCount) AS octetDeltaCount,
-        sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
-        sum(throughput) AS throughput,
-        sum(reverseThroughput) AS reverseThroughput,
-        sum(throughputFromSourceNode) AS throughputFromSourceNode,
-        sum(reverseThroughputFromSourceNode) AS reverseThroughputFromSourceNode,
-        sum(throughputFromDestinationNode) AS throughputFromDestinationNode,
-        sum(reverseThroughputFromDestinationNode) AS reverseThroughputFromDestinationNode
-    FROM flows_local
-    GROUP BY
-        timeInserted,
-        flowEndSeconds,
-        flowEndSecondsFromSourceNode,
-        flowEndSecondsFromDestinationNode,
-        egressNetworkPolicyName,
-        egressNetworkPolicyNamespace,
-        egressNetworkPolicyRuleAction,
-        ingressNetworkPolicyName,
-        ingressNetworkPolicyNamespace,
-        ingressNetworkPolicyRuleAction,
-        sourcePodName,
-        sourceTransportPort,
-        sourcePodNamespace,
-        destinationPodName,
-        destinationTransportPort,
-        destinationPodNamespace,
-        destinationServicePort,
-        destinationServicePortName,
-        destinationIP;
-
     --Create a table to store the network policy recommendation results
     CREATE TABLE IF NOT EXISTS recommendations_local (
         id String,
@@ -307,20 +136,18 @@ data:
     --Move data from old table and drop the old table
     INSERT INTO recommendations_local SELECT * FROM recommendations;
     DROP TABLE recommendations;
-  0-2-0_0-1-0.sql: |
-    -- place holder
-  0-2-0_0-3-0.sql: |
-    --Alter table to add new columns
-    ALTER TABLE flows
-    ADD COLUMN clusterUUID String;
-    ALTER TABLE flows_local
-    ADD COLUMN clusterUUID String;
-  0-3-0_0-2-0.sql: |
+  000002_0-2-0.down.sql: |
     --Alter table to drop new columns
     ALTER TABLE flows
     DROP clusterUUID String;
     ALTER TABLE flows_local
     DROP clusterUUID String;
+  000002_0-2-0.up.sql: |
+    --Alter table to add new columns
+    ALTER TABLE flows
+    ADD COLUMN clusterUUID String;
+    ALTER TABLE flows_local
+    ADD COLUMN clusterUUID String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -612,7 +439,7 @@ data:
         engine=Distributed('{cluster}', default, recommendations_local, rand());
     EOSQL
     }
-  init.sh: |
+  init.sh: |+
     #!/usr/bin/env bash
 
     # Copyright 2022 Antrea Authors.
@@ -633,38 +460,9 @@ data:
 
     THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-    source $THIS_DIR/migrate.sh
     source $THIS_DIR/create_table.sh
 
-    migrate
-    createTable
-    setDataVersion
-  migrate.sh: |
-    #!/usr/bin/env bash
-
-    # Copyright 2022 Antrea Authors.
-    #
-    # Licensed under the Apache License, Version 2.0 (the "License");
-    # you may not use this file except in compliance with the License.
-    # You may obtain a copy of the License at
-    #
-    #      http://www.apache.org/licenses/LICENSE-2.0
-    #
-    # Unless required by applicable law or agreed to in writing, software
-    # distributed under the License is distributed on an "AS IS" BASIS,
-    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    # See the License for the specific language governing permissions and
-    # limitations under the License.
-
-    function checkDataVersion {
-        tables=$(clickhouse client -h 127.0.0.1 -q "SHOW TABLES")
-        if [[ $tables == *"migrate_version"* ]]; then
-            dataVersion=$(clickhouse client -h 127.0.0.1 -q "SELECT version FROM migrate_version")
-        elif [[ $tables == *"flows"* ]]; then
-            dataVersion="0.1.0"
-        fi
-    }
-
+    # This function is kept to be compatible with version below v0.3.0
     function setDataVersion {
         tables=$(clickhouse client -h 127.0.0.1 -q "SHOW TABLES")
         if [[ $tables == *"migrate_version"* ]]; then
@@ -676,98 +474,10 @@ data:
         echo "=== Set data schema version to 0.3.0 ==="
     }
 
-    function addVersionsToList {
-        if [[ "$versionListStr" != *"$1"* ]]; then
-            versionListStr+="$1,"
-        fi
-    }
+    ../clickhouse-schema-management
+    createTable
+    setDataVersion
 
-    function getMigrationPath {
-        # Get versions based on the SQL file names
-        versionListStr=""
-        for fileName in $(ls "$migratorDir/upgrade")
-        do
-            # fileName upgrading from v0.1.0 to v0.2.0: 0-1-0_0-2-0.sql
-            fileName=$(basename $fileName .sql)
-            versionPair=(${fileName//_/ })
-            addVersionsToList ${versionPair[0]//-/.}
-            addVersionsToList ${versionPair[1]//-/.}
-        done
-        addVersionsToList $dataVersion
-        addVersionsToList $theiaVersion
-        # Sort the versions to generate the migration path
-        versionList=(${versionListStr//,/ })
-        old_IFS=$IFS
-        IFS=$'\n' sortedversionList=($(sort -V <<<"${versionList[*]}"))
-        IFS=$old_IFS
-        # Define the upgrading/downgrading path
-        index=0
-        prev=""
-        for version in "${sortedversionList[@]}"
-        do
-            migratePathStr+="$index:$version, "
-            index=$((index+1))
-            if [[ -z "$prev" ]]; then
-                prev=${version//./-}
-            else
-                curr=${version//./-}
-                UPGRADING_MIGRATORS+=("${prev}_${curr}.sql")
-                DOWNGRADING_MIGRATORS+=("${curr}_${prev}.sql")
-                prev=$curr
-            fi
-        done
-    }
-
-    function version_lt() { test "$(printf '%s\n' "$@" | sort -rV | head -n 1)" != "$1"; }
-
-    function migrate {
-        THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-        migratorDir="/var/lib/clickhouse/migrators"
-        mkdir -p $migratorDir
-
-        checkDataVersion
-        if [[ -z "$dataVersion" ]]; then
-            cp -r $THIS_DIR/migrators/* $migratorDir
-            echo "=== No existing data schema. Migration skipped. ==="
-            return 0
-        fi
-        if [[ -z "$THEIA_VERSION" ]]; then
-            echo "=== Unable to load the environment variable THEIA_VERSION. Migration failed. ==="
-            exit 1
-        fi
-        theiaVersion=$THEIA_VERSION
-
-        migratePathStr=""
-        getMigrationPath
-
-        cp -r $THIS_DIR/migrators/* $migratorDir
-
-        dataVersionIndex=$(echo $migratePathStr | tr ', ' '\n' | grep "$dataVersion" | sed 's/:/ /g' | awk '{print $1}')
-        theiaVersionIndex=$(echo $migratePathStr | tr ', ' '\n' | grep "$theiaVersion" | sed 's/:/ /g' | awk '{print $1}')
-
-        # Update along the path
-        if [[ "$dataVersionIndex" -lt "$theiaVersionIndex" ]]; then
-            for i in $(seq $dataVersionIndex $((theiaVersionIndex-1)) );
-            do
-                if test -f "$migratorDir/upgrade/${UPGRADING_MIGRATORS[$i]}"; then
-                    echo "=== Apply file ${UPGRADING_MIGRATORS[$i]} ==="
-                    clickhouse client -h 127.0.0.1 --queries-file $migratorDir/upgrade/${UPGRADING_MIGRATORS[$i]}
-                fi
-            done
-        # Downgrade along the path
-        elif [[ "$dataVersionIndex" -gt "$theiaVersionIndex" ]]; then
-            for i in $(seq $((dataVersionIndex-1)) -1 $theiaVersionIndex);
-            do
-                if test -f "$migratorDir/downgrade/${DOWNGRADING_MIGRATORS[$i]}"; then
-                    echo "=== Apply file ${DOWNGRADING_MIGRATORS[$i]} ==="
-                    clickhouse client -h 127.0.0.1 --queries-file $migratorDir/downgrade/${DOWNGRADING_MIGRATORS[$i]}
-                fi
-            done
-        else
-            echo "=== Data schema version is the same as Theia version. Migration finished. ==="
-        fi
-        setDataVersion
-    }
 kind: ConfigMap
 metadata:
   name: clickhouse-mounted-configmap
@@ -6558,7 +6268,19 @@ spec:
             value: 0.3.0
           - name: CLICKHOUSE_INIT_TIMEOUT
             value: "60"
-          image: projects.registry.vmware.com/antrea/theia-clickhouse-server:22.6
+          - name: DB_URL
+            value: localhost:9000
+          - name: MIGRATE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                key: username
+                name: clickhouse-secret
+          - name: MIGRATE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: password
+                name: clickhouse-secret
+          image: projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
           imagePullPolicy: IfNotPresent
           name: clickhouse
           volumeMounts:
@@ -6603,16 +6325,16 @@ spec:
               path: create_table.sh
             - key: init.sh
               path: init.sh
-            - key: migrate.sh
-              path: migrate.sh
-            - key: 0-1-0_0-2-0.sql
-              path: migrators/upgrade/0-1-0_0-2-0.sql
-            - key: 0-2-0_0-3-0.sql
-              path: migrators/upgrade/0-2-0_0-3-0.sql
-            - key: 0-2-0_0-1-0.sql
-              path: migrators/downgrade/0-2-0_0-1-0.sql
             - key: 0-3-0_0-2-0.sql
               path: migrators/downgrade/0-3-0_0-2-0.sql
+            - key: 000001_0-1-0.down.sql
+              path: migrators/000001_0-1-0.down.sql
+            - key: 000001_0-1-0.up.sql
+              path: migrators/000001_0-1-0.up.sql
+            - key: 000002_0-2-0.down.sql
+              path: migrators/000002_0-2-0.down.sql
+            - key: 000002_0-2-0.up.sql
+              path: migrators/000002_0-2-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

@@ -20,5 +20,5 @@ as SELECT
  destinationServicePort,
  throughput,
  flowtype,
- clusterUUID,
+ clusterUUID
 FROM flows

@@ -15,8 +15,8 @@ CREATE VIEW IF NOT EXISTS pods(
   destination,
   throughput,
   reverseThroughput,
-  clusterUUID,
   flowType,
+  clusterUUID
 ) as SELECT
   flowStartSeconds,
   flowEndSeconds,
@@ -35,5 +35,5 @@ CREATE VIEW IF NOT EXISTS pods(
   throughput,
   reverseThroughput,
   flowtype,
-  clusterUUID,
+  clusterUUID
  FROM flows

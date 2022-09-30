@@ -116,6 +116,7 @@ const (
 	grafanaSvcPort                  = "3000"
 	grafanaAddr                     = "http://127.0.0.1:5000"
 	grafanaQueryTimeout             = 10 * time.Second
+	grafanaDefaultIntervalMS        = "60000"
 )
 
 var (
@@ -577,6 +578,7 @@ func getQueriesByDashboard(apiEndpoint, dashboardUid, httpMethod string, queryLi
 	for _, q := range *queryList {
 		query := gjson.GetBytes(dashboard, fmt.Sprintf("dashboard.panels*.%d.targets", q.queryId))
 		queryWithTimeRange := fmt.Sprintf(`{"queries":%s,"from":"now-15m","to":"now"}`, query.Raw)
+		queryWithTimeRange = strings.ReplaceAll(queryWithTimeRange, "$__interval_ms", grafanaDefaultIntervalMS)
 		queries = append(queries, queryWithTimeRange)
 	}
 	return queries, nil

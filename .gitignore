@@ -5,6 +5,12 @@ bin
 .vscode/
 .idea/
 
+# VIM
+.*.swp
+
+# Emacs
+*~
+
 # Common backup files
 *.bak
 
@@ -16,3 +22,5 @@ plugins/grafana-custom-plugins/grafana-sankey-plugin/coverage/
 plugins/grafana-custom-plugins/grafana-chord-plugin/node_modules/
 plugins/grafana-custom-plugins/grafana-chord-plugin/dist/
 plugins/grafana-custom-plugins/grafana-chord-plugin/coverage/
+
+.golangci-bin

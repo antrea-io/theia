@@ -92,7 +92,7 @@ helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter
 helm install flow-aggregator antrea/flow-aggregator \
      --set s3Uploader.enable=true \
      --set s3Uploader.bucketName=<BUCKET NAME> \
-     --set s3Uploader.bucketName=flows \
+     --set s3Uploader.bucketPrefix=flows \
      --set s3Uploader.awsCredentials.aws_access_key_id=<AWS ACCESS KEY ID> \
      --set s3Uploader.awsCredentials.aws_secret_access_key=<AWS SECRET ACCESS KEY> \
      -n flow-aggregator --create-namespace

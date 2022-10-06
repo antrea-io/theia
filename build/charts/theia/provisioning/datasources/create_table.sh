@@ -80,9 +80,10 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         clusterUUID String,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (timeInserted, flowEndSeconds)
-    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
-    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }};
+    ORDER BY (timeInserted, flowEndSeconds);
+
+    ALTER TABLE flows_local MODIFY TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }};
+    ALTER TABLE flows_local MODIFY SETTING merge_with_ttl_timeout={{ $ttlTimeout }};
 
     --Create a Materialized View to aggregate data for pods
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view_local
@@ -103,8 +104,6 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourceTransportPort,
         destinationTransportPort,
         clusterUUID)
-    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
-    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,
@@ -146,6 +145,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationTransportPort,
         clusterUUID;
 
+    ALTER TABLE ".inner.flows_pod_view_local" MODIFY TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }};
+    ALTER TABLE ".inner.flows_pod_view_local" MODIFY SETTING merge_with_ttl_timeout={{ $ttlTimeout }};
+
     --Create a Materialized View to aggregate data for nodes
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
     ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
@@ -159,8 +161,6 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodNamespace,
         destinationPodNamespace,
         clusterUUID)
-    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
-    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,
@@ -191,6 +191,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         sourcePodNamespace,
         destinationPodNamespace,
         clusterUUID;
+
+    ALTER TABLE ".inner.flows_node_view_local" MODIFY TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }};
+    ALTER TABLE ".inner.flows_node_view_local" MODIFY SETTING merge_with_ttl_timeout={{ $ttlTimeout }};
 
     --Create a Materialized View to aggregate data for network policies
     CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
@@ -216,8 +219,6 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePortName,
         destinationIP,
         clusterUUID)
-    TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
-    SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }}
     POPULATE
     AS SELECT
         timeInserted,
@@ -270,6 +271,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePortName,
         destinationIP,
         clusterUUID;
+
+    ALTER TABLE ".inner.flows_policy_view_local" MODIFY TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }};
+    ALTER TABLE ".inner.flows_policy_view_local" MODIFY SETTING merge_with_ttl_timeout={{ $ttlTimeout }};
 
     --Create a table to store the network policy recommendation results
     CREATE TABLE IF NOT EXISTS recommendations_local (

@@ -1,12 +1,3 @@
-{{- $ttl := split " " .Values.clickhouse.ttl }}
-{{- $ttlTimeout := 14400 }}
-{{- if eq $ttl._1 "SECOND" }}
-{{- $ttlTimeout = min $ttl._0 $ttlTimeout }}
-{{- else if eq $ttl._1 "MINUTE" }}
-{{- $ttlTimeout = min (mul $ttl._0 60) $ttlTimeout }}
-{{- else if eq $ttl._1 "HOUR" }}
-{{- $ttlTimeout = min (mul $ttl._0 60 60) $ttlTimeout }}
-{{- end }}
 --Create a table to store records
 CREATE TABLE IF NOT EXISTS flows_local (
     timeInserted DateTime DEFAULT now(),
@@ -59,9 +50,7 @@ CREATE TABLE IF NOT EXISTS flows_local (
     reverseThroughputFromDestinationNode UInt64,
     trusted UInt8 DEFAULT 0
 ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-ORDER BY (timeInserted, flowEndSeconds)
-TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }}
-SETTINGS merge_with_ttl_timeout = {{ $ttlTimeout }};
+ORDER BY (timeInserted, flowEndSeconds);
 
 --Move data from old table and drop old tables
 INSERT INTO flows_local SELECT * FROM flows;
@@ -82,3 +71,9 @@ ORDER BY (timeCreated);
 --Move data from old table and drop the old table
 INSERT INTO recommendations_local SELECT * FROM recommendations;
 DROP TABLE recommendations;
+
+CREATE TABLE IF NOT EXISTS flows AS flows_local
+engine=Distributed('{cluster}', default, flows_local, rand());
+
+CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
+engine=Distributed('{cluster}', default, recommendations_local, rand());

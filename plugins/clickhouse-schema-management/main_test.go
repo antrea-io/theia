@@ -167,7 +167,7 @@ func checkMigrations(t *testing.T) {
 			name:                "Upgrading from v0.2.0 to v0.4.0",
 			ms:                  migrationSequence{mr("CREATE 2")},
 			setDataVersion:      func() {},
-			showTablesRows:      sqlmock.NewRows([]string{"table"}).AddRow("flows").AddRow("migrate_version").AddRow("schema_migrations"),
+			showTablesRows:      sqlmock.NewRows([]string{"table"}).AddRow("flows").AddRow("migrate_version").AddRow("flows_local"),
 			oldVersionTablesRow: sqlmock.NewRows([]string{"version"}).AddRow("0.2.0"),
 		},
 		{
@@ -181,7 +181,7 @@ func checkMigrations(t *testing.T) {
 		{
 			name:           "No migration",
 			ms:             migrationSequence{},
-			showTablesRows: sqlmock.NewRows([]string{"table"}).AddRow("flows").AddRow("schema_migrations"),
+			showTablesRows: sqlmock.NewRows([]string{"table"}).AddRow("flows").AddRow("schema_migrations").AddRow("flows_local"),
 			setDataVersion: func() {
 				databaseInstance.SetVersion(2, false)
 			},

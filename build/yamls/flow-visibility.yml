@@ -113,9 +113,7 @@ data:
         reverseThroughputFromDestinationNode UInt64,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (timeInserted, flowEndSeconds)
-    TTL timeInserted + INTERVAL 12 HOUR
-    SETTINGS merge_with_ttl_timeout = 14400;
+    ORDER BY (timeInserted, flowEndSeconds);
 
     --Move data from old table and drop old tables
     INSERT INTO flows_local SELECT * FROM flows;
@@ -136,6 +134,12 @@ data:
     --Move data from old table and drop the old table
     INSERT INTO recommendations_local SELECT * FROM recommendations;
     DROP TABLE recommendations;
+
+    CREATE TABLE IF NOT EXISTS flows AS flows_local
+    engine=Distributed('{cluster}', default, flows_local, rand());
+
+    CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
+    engine=Distributed('{cluster}', default, recommendations_local, rand());
   000002_0-2-0.down.sql: |
     --Alter table to drop new columns
     ALTER TABLE flows
@@ -222,9 +226,10 @@ data:
             clusterUUID String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-        ORDER BY (timeInserted, flowEndSeconds)
-        TTL timeInserted + INTERVAL 12 HOUR
-        SETTINGS merge_with_ttl_timeout = 14400;
+        ORDER BY (timeInserted, flowEndSeconds);
+
+        ALTER TABLE flows_local MODIFY TTL timeInserted + INTERVAL 12 HOUR;
+        ALTER TABLE flows_local MODIFY SETTING merge_with_ttl_timeout=14400;
 
         --Create a Materialized View to aggregate data for pods
         CREATE MATERIALIZED VIEW IF NOT EXISTS flows_pod_view_local
@@ -245,8 +250,6 @@ data:
             sourceTransportPort,
             destinationTransportPort,
             clusterUUID)
-        TTL timeInserted + INTERVAL 12 HOUR
-        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -288,6 +291,9 @@ data:
             destinationTransportPort,
             clusterUUID;
 
+        ALTER TABLE ".inner.flows_pod_view_local" MODIFY TTL timeInserted + INTERVAL 12 HOUR;
+        ALTER TABLE ".inner.flows_pod_view_local" MODIFY SETTING merge_with_ttl_timeout=14400;
+
         --Create a Materialized View to aggregate data for nodes
         CREATE MATERIALIZED VIEW IF NOT EXISTS flows_node_view_local
         ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
@@ -301,8 +307,6 @@ data:
             sourcePodNamespace,
             destinationPodNamespace,
             clusterUUID)
-        TTL timeInserted + INTERVAL 12 HOUR
-        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -333,6 +337,9 @@ data:
             sourcePodNamespace,
             destinationPodNamespace,
             clusterUUID;
+
+        ALTER TABLE ".inner.flows_node_view_local" MODIFY TTL timeInserted + INTERVAL 12 HOUR;
+        ALTER TABLE ".inner.flows_node_view_local" MODIFY SETTING merge_with_ttl_timeout=14400;
 
         --Create a Materialized View to aggregate data for network policies
         CREATE MATERIALIZED VIEW IF NOT EXISTS flows_policy_view_local
@@ -358,8 +365,6 @@ data:
             destinationServicePortName,
             destinationIP,
             clusterUUID)
-        TTL timeInserted + INTERVAL 12 HOUR
-        SETTINGS merge_with_ttl_timeout = 14400
         POPULATE
         AS SELECT
             timeInserted,
@@ -412,6 +417,9 @@ data:
             destinationServicePortName,
             destinationIP,
             clusterUUID;
+
+        ALTER TABLE ".inner.flows_policy_view_local" MODIFY TTL timeInserted + INTERVAL 12 HOUR;
+        ALTER TABLE ".inner.flows_policy_view_local" MODIFY SETTING merge_with_ttl_timeout=14400;
 
         --Create a table to store the network policy recommendation results
         CREATE TABLE IF NOT EXISTS recommendations_local (

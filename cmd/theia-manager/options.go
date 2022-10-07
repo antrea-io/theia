@@ -81,4 +81,11 @@ func (o *Options) setDefaults() {
 	if o.config.APIServer.APIPort == 0 {
 		o.config.APIServer.APIPort = apis.TheiaManagerAPIPort
 	}
+	if o.config.APIServer.SelfSignedCert == nil {
+		o.config.APIServer.SelfSignedCert = ptrBool(true)
+	}
+}
+
+func ptrBool(value bool) *bool {
+	return &value
 }

@@ -66,6 +66,7 @@ Kubernetes: `>= 1.16.0-0`
 | sparkOperator.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-spark-operator","tag":"v1beta2-1.3.3-3.1.1"}` | Container image used by Spark Operator. |
 | sparkOperator.name | string | `"policy-recommendation"` | Name of Spark Operator. |
 | theiaManager.apiServer.apiPort | int | `11347` | The port for the Theia Manager APIServer to serve on. |
+| theiaManager.apiServer.selfSignedCert | bool | `true` | Indicates whether to use auto-generated self-signed TLS certificates. If false, a Secret named "theia-manager-tls" must be provided with the following keys: ca.crt, tls.crt, tls.key. |
 | theiaManager.apiServer.tlsCipherSuites | string | `""` | Comma-separated list of cipher suites that will be used by the Theia Manager APIservers. If empty, the default Go Cipher Suites will be used. |
 | theiaManager.apiServer.tlsMinVersion | string | `""` | TLS min version from: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13. |
 | theiaManager.enable | bool | `false` | Determine whether to install Theia Manager. |

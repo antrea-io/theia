@@ -116,6 +116,11 @@ clean:
 	@rm -rf $(DOCKER_CACHE)
 	@rm -rf .golangci-bin
 
+.PHONY: codegen
+codegen:
+	@echo "===> Updating generated code <==="
+	$(CURDIR)/hack/update-codegen.sh
+	
 .PHONY: manifest
 manifest:
 	@echo "===> Generating dev manifest for Theia <==="

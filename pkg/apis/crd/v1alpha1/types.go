@@ -23,6 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	NPRecommendationStateNew       string = "NEW"
+	NPRecommendationStateScheduled string = "SCHEDULED"
+	NPRecommendationStateRunning   string = "RUNNING"
+	NPRecommendationStateCompleted string = "COMPLETED"
+	NPRecommendationStateFailed    string = "FAILED"
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
@@ -35,11 +43,11 @@ type NetworkPolicyRecommendation struct {
 }
 
 type NetworkPolicyRecommendationSpec struct {
-	Type                string      `json:"type,omitempty"`
+	JobType             string      `json:"jobType,omitempty"`
 	Limit               int         `json:"limit,omitempty"`
 	PolicyType          string      `json:"policyType,omitempty"`
-	StartTime           metav1.Time `json:"startTime,omitempty"`
-	EndTime             metav1.Time `json:"endTime,omitempty"`
+	StartInterval       metav1.Time `json:"startInterval,omitempty"`
+	EndInterval         metav1.Time `json:"endInterval,omitempty"`
 	NSAllowList         []string    `json:"nsAllowList,omitempty"`
 	ExcludeLabels       bool        `json:"excludeLabels,omitempty"`
 	ToServices          bool        `json:"toServices,omitempty"`
@@ -51,7 +59,14 @@ type NetworkPolicyRecommendationSpec struct {
 }
 
 type NetworkPolicyRecommendationStatus struct {
-	State string `json:"state,omitempty"`
+	State            string                    `json:"state,omitempty"`
+	SparkApplication string                    `json:"sparkApplication,omitempty"`
+	CompletedStages  int                       `json:"completedStages,omitempty"`
+	TotalStages      int                       `json:"totalStages,omitempty"`
+	RecommendedNP    *RecommendedNetworkPolicy `json:"recommendedNetworkPolicy,omitempty"`
+	ErrorMsg         string                    `json:"errorMsg,omitempty"`
+	StartTime        metav1.Time               `json:"startTime,omitempty"`
+	EndTime          metav1.Time               `json:"endTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -60,4 +75,29 @@ type NetworkPolicyRecommendationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NetworkPolicyRecommendation `json:"items"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type RecommendedNetworkPolicy struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec RecommendedNetworkPolicySpec `json:"spec,omitempty"`
+}
+
+type RecommendedNetworkPolicySpec struct {
+	Id          string      `json:"id,omitempty"`
+	Type        string      `json:"resultType,omitempty"`
+	TimeCreated metav1.Time `json:"timeCreated,omitempty"`
+	Yamls       string      `json:"yamls,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type RecommendedNetworkPolicyList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []RecommendedNetworkPolicy `json:"items"`
 }

@@ -20,4 +20,7 @@ import (
 
 type NPRecommendationQuerier interface {
 	GetNetworkPolicyRecommendation(namespace, name string) (*v1alpha1.NetworkPolicyRecommendation, error)
+	ListNetworkPolicyRecommendation(namespace string) ([]*v1alpha1.NetworkPolicyRecommendation, error)
+	DeleteNetworkPolicyRecommendation(namespace, name string) error
+	CreateNetworkPolicyRecommendation(namespace string, networkPolicyRecommendation *v1alpha1.NetworkPolicyRecommendation) (*v1alpha1.NetworkPolicyRecommendation, error)
 }

@@ -27,6 +27,7 @@ import (
 	"antrea.io/antrea/pkg/util/cipher"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
+	"k8s.io/client-go/kubernetes"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
@@ -111,9 +112,9 @@ func run(o *Options) error {
 	if err != nil {
 		return fmt.Errorf("error when generating KubeConfig: %v", err)
 	}
-	client, err := clientset.NewForConfig(kubeConfig)
+	kubeClient, err := kubernetes.NewForConfig(kubeConfig)
 	if err != nil {
-		return fmt.Errorf("error when generating k8s client: %v", err)
+		return fmt.Errorf("error when generating kubernetes client: %v", err)
 	}
 	crdClient, err := crdclientset.NewForConfig(kubeConfig)
 	if err != nil {
@@ -121,7 +122,8 @@ func run(o *Options) error {
 	}
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, informerDefaultResync)
 	npRecommendationInformer := crdInformerFactory.Crd().V1alpha1().NetworkPolicyRecommendations()
-	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, npRecommendationInformer)
+	recommendedNPInformer := crdInformerFactory.Crd().V1alpha1().RecommendedNetworkPolicies()
+	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer, recommendedNPInformer)
 
 	cipherSuites, err := cipher.GenerateCipherSuitesList(o.config.APIServer.TLSCipherSuites)
 	if err != nil {
@@ -129,7 +131,7 @@ func run(o *Options) error {
 	}
 
 	apiServerConfig, err := createAPIServerConfig(
-		client,
+		kubeClient,
 		*o.config.APIServer.SelfSignedCert,
 		o.config.APIServer.APIPort,
 		cipherSuites,

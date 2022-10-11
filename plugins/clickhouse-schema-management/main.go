@@ -269,7 +269,7 @@ func getDataVersionBasedOnTables() (string, error) {
 	var tableName string
 	var version string
 	command := "SHOW TABLES"
-	var containsNewVersionTable, containsFlows bool
+	var containsFlowsLocal, containsFlows bool
 	if err := wait.PollImmediate(queryRetryInterval, queryTimeout, func() (bool, error) {
 		rows, err := connect.Query(command)
 		if err != nil {
@@ -279,7 +279,6 @@ func getDataVersionBasedOnTables() (string, error) {
 				if err := rows.Scan(&tableName); err != nil {
 					return false, nil
 				}
-				klog.Info(tableName)
 				if tableName == "migrate_version" {
 					var versionFromOldTable string
 					err = connect.QueryRow("SELECT * FROM migrate_version").Scan(&versionFromOldTable)
@@ -293,8 +292,8 @@ func getDataVersionBasedOnTables() (string, error) {
 				if tableName == "flows" {
 					containsFlows = true
 				}
-				if tableName == "schema_migrations" {
-					containsNewVersionTable = true
+				if tableName == "flows_local" {
+					containsFlowsLocal = true
 				}
 			}
 			return true, nil
@@ -302,7 +301,7 @@ func getDataVersionBasedOnTables() (string, error) {
 	}); err != nil {
 		return version, err
 	}
-	if containsFlows && !containsNewVersionTable {
+	if containsFlows && !containsFlowsLocal {
 		version = "0.1.0"
 	}
 	return version, nil

@@ -1,0 +1,846 @@
+{
+    "__inputs": [
+        {
+            "name": "DS_SNOWFLAKE",
+            "label": "Snowflake",
+            "description": "",
+            "type": "datasource",
+            "pluginId": "michelin-snowflake-datasource",
+            "pluginName": "Snowflake"
+        }
+    ],
+    "__elements": {},
+    "__requires": [
+        {
+            "type": "grafana",
+            "id": "grafana",
+            "name": "Grafana",
+            "version": "9.1.6"
+        },
+        {
+            "type": "datasource",
+            "id": "michelin-snowflake-datasource",
+            "name": "Snowflake",
+            "version": "1.2.0"
+        },
+        {
+            "type": "panel",
+            "id": "piechart",
+            "name": "Pie chart",
+            "version": ""
+        },
+        {
+            "type": "panel",
+            "id": "theia-grafana-sankey-plugin",
+            "name": "grafana-sankey-plugin",
+            "version": "1.0.1"
+        },
+        {
+            "type": "panel",
+            "id": "timeseries",
+            "name": "Time series",
+            "version": ""
+        }
+    ],
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "datasource",
+                    "uid": "grafana"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "target": {
+                    "limit": 100,
+                    "matchAny": false,
+                    "tags": [],
+                    "type": "dashboard"
+                },
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,
+    "links": [],
+    "liveNow": false,
+    "panels": [
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "gridPos": {
+                "h": 18,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 13,
+            "options": {
+                "seriesCountSize": "sm",
+                "showSeriesCount": false,
+                "text": "Default value of text input option"
+            },
+            "pluginVersion": "7.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(octetDeltaCount) as bytes, \nsource,\ndestination\nFROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY source, destination\nORDER BY bytes DESC\nLIMIT 50",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Pod-to-Pod",
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "BYTES": "bytes",
+                            "DESTINATION": "destination",
+                            "SOURCE": "source"
+                        }
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "theia-grafana-sankey-plugin"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "gridPos": {
+                "h": 18,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 12,
+            "options": {
+                "seriesCountSize": "sm",
+                "showSeriesCount": false,
+                "text": "Default value of text input option"
+            },
+            "pluginVersion": "7.5.2",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(reverseOctetDeltaCount) as bytes, \nsource,\ndestination\nFROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY source, destination\nORDER BY bytes DESC\nLIMIT 50",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Reverse Bytes of Pod-to-Pod",
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "BYTES": "bytes",
+                            "DESTINATION": "destination",
+                            "SOURCE": "source"
+                        }
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "theia-grafana-sankey-plugin"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineStyle": {
+                            "fill": "solid"
+                        },
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 0,
+                "y": 18
+            },
+            "id": 21,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.1.6",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCONCAT(source, ' -> ', destination) as pair,\nAVG(throughput)\nFROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY time, pair\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Pod-to-Pod",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "mode": "columns",
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 12,
+                "y": 18
+            },
+            "id": 22,
+            "interval": "1s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.1.6",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 1, 'SECOND', 'START') as time,\nCONCAT(source, ' -> ', destination) as pair,\nAVG(reverseThroughput)\nFROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY time, pair\nHAVING AVG(throughput) > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Reverse Throughput of Pod-to-Pod",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "PAIR"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 0,
+                "y": 28
+            },
+            "id": 15,
+            "interval": "60s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.1.6",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 60, 'SECOND', 'START') as time,\nsource as src,\nSUM(octetDeltaCount)/60 as tp FROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY time, src\nHAVING tp > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Pod as Source",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "SRC"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": [],
+                    "unit": "decbytes"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 12,
+                "y": 28
+            },
+            "id": 18,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "percent",
+                        "value"
+                    ]
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "limit": 25,
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(octetDeltaCount) as bytes, \nsourcePodNamespace\nFrom pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY sourcePodNamespace\nHAVING bytes > 0\nORDER BY bytes DESC",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Source Pod Namespace",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {}
+                }
+            ],
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "spanNulls": 90000,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "unit": "bps"
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 0,
+                "y": 38
+            },
+            "id": 16,
+            "interval": "60s",
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "pluginVersion": "9.1.6",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT TIME_SLICE(TO_TIMESTAMP(CONVERT_TIMEZONE('UTC', flowEndSeconds)), 60, 'SECOND', 'START') as time,\ndestination as dst,\nSUM(octetDeltaCount)/60 as tp FROM pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY time, dst\nHAVING tp > 0\nORDER BY time\nLIMIT 1000 //",
+                    "queryType": "time series",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Throughput of Pod as Destination",
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "valueLabel": "DST"
+                    }
+                },
+                {
+                    "id": "convertFieldType",
+                    "options": {
+                        "conversions": [
+                            {
+                                "destinationType": "string",
+                                "targetField": "Value"
+                            }
+                        ],
+                        "fields": {}
+                    }
+                }
+            ],
+            "transparent": true,
+            "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "michelin-snowflake-datasource",
+                "uid": "P1DBD59F661D68B90"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": [],
+                    "unit": "decbytes"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "destinationPodNamespace"
+                        },
+                        "properties": [
+                            {
+                                "id": "noValue",
+                                "value": "N/A"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 12,
+                "y": 38
+            },
+            "id": 19,
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "showLegend": true,
+                    "values": [
+                        "percent",
+                        "value"
+                    ]
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "limit": 25,
+                    "values": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "michelin-snowflake-datasource",
+                        "uid": "P1DBD59F661D68B90"
+                    },
+                    "queryText": "SELECT SUM(octetDeltaCount) as bytes, \ndestinationPodNamespace\nFrom pods\nWHERE flowType IN (1, 2)\nAND sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND CONVERT_TIMEZONE('UTC', flowEndSeconds) < $__timeTo() AND CONVERT_TIMEZONE('UTC', flowEndSeconds) > $__timeFrom()\nAND clusterUUID in (${clusterID:raw})\nGROUP BY destinationPodNamespace\nHAVING bytes > 0\nORDER BY bytes DESC",
+                    "queryType": "table",
+                    "refId": "A",
+                    "timeColumns": [
+                        "time"
+                    ]
+                }
+            ],
+            "title": "Cumulative Bytes of Destination Pod Namespace",
+            "transparent": true,
+            "type": "piechart"
+        }
+    ],
+    "refresh": "",
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": [],
+    "templating": {
+        "list": [
+            {
+                "allValue": "",
+                "current": {
+                    "selected": true,
+                    "text": [
+                        "All"
+                    ],
+                    "value": [
+                        "$__all"
+                    ]
+                },
+                "datasource": {
+                    "type": "michelin-snowflake-datasource",
+                    "uid": "P1DBD59F661D68B90"
+                },
+                "definition": "select distinct concat('''',clusterUUID,'''') from flows",
+                "hide": 0,
+                "includeAll": true,
+                "multi": true,
+                "name": "clusterID",
+                "options": [],
+                "query": "select distinct concat('''',clusterUUID,'''') from flows",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "sort": 0,
+                "type": "query"
+            }
+        ]
+    },
+    "time": {
+        "from": "now-30m",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "",
+    "title": "pod_to_pod_dashboard",
+    "uid": "B1t6SZVVz",
+    "version": 14,
+    "weekStart": ""
+}

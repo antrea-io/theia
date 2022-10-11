@@ -42,7 +42,7 @@ function check_one_file {
     fi
 }
 
-for f in $(find docs -name '*.md'); do
+for f in $(find docs snowflake -name '*.md'); do
     check_one_file $f
 done
 for f in $(find . -maxdepth 1 -name '*.md'); do

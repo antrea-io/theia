@@ -28,7 +28,6 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/client-go/kubernetes"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
@@ -46,7 +45,7 @@ import (
 const informerDefaultResync = 12 * time.Hour
 
 func createAPIServerConfig(
-	client clientset.Interface,
+	client kubernetes.Interface,
 	selfSignedCert bool,
 	bindPort int,
 	cipherSuites []uint16,

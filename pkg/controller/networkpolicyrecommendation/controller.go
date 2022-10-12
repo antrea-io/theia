@@ -497,7 +497,7 @@ func (c *NPRecommendationController) startJob(npReco *crdv1alpha1.NetworkPolicyR
 		return err
 	}
 	err := c.startSparkApplication(npReco)
-	// Mark the NetworkPolicyRecommendation as failed and not retry if it failed due to illeagel arguments in request
+	// Mark the NetworkPolicyRecommendation as failed and not retry if it failed due to illegal arguments in request
 	if err != nil && reflect.TypeOf(err) == reflect.TypeOf(IlleagelArguementError{}) {
 		return c.updateNPRecommendationStatus(
 			npReco,

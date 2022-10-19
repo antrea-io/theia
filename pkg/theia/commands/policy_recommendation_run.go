@@ -18,8 +18,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,329 +28,235 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
-
+	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
+	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/theia/commands/config"
 )
-
-type SparkResourceArgs struct {
-	executorInstances   int32
-	driverCoreRequest   string
-	driverMemory        string
-	executorCoreRequest string
-	executorMemory      string
-}
 
 // policyRecommendationRunCmd represents the policy recommendation run command
 var policyRecommendationRunCmd = &cobra.Command{
 	Use:   "run",
-	Short: "Run a new policy recommendation Spark job",
-	Long: `Run a new policy recommendation Spark job. 
+	Short: "Run a new policy recommendation job",
+	Long: `Run a new policy recommendation job. 
 Must finish the deployment of Theia first`,
-	Example: `Run a policy recommendation Spark job with default configuration
+	Example: `Run a policy recommendation job with default configuration
 $ theia policy-recommendation run
-Run an initial policy recommendation Spark job with policy type anp-deny-applied and limit on last 10k flow records
+Run an initial policy recommendation job with policy type anp-deny-applied and limit on last 10k flow records
 $ theia policy-recommendation run --type initial --policy-type anp-deny-applied --limit 10000
-Run an initial policy recommendation Spark job with policy type anp-deny-applied and limit on flow records from 2022-01-01 00:00:00 to 2022-01-31 23:59:59.
+Run an initial policy recommendation job with policy type anp-deny-applied and limit on flow records from 2022-01-01 00:00:00 to 2022-01-31 23:59:59.
 $ theia policy-recommendation run --type initial --policy-type anp-deny-applied --start-time '2022-01-01 00:00:00' --end-time '2022-01-31 23:59:59'
-Run a policy recommendation Spark job with default configuration but doesn't recommend toServices ANPs
+Run a policy recommendation job with default configuration but doesn't recommend toServices ANPs
 $ theia policy-recommendation run --to-services=false
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		var recoJobArgs []string
-		sparkResourceArgs := SparkResourceArgs{}
+	RunE: policyRecommendationRun,
+}
 
-		recoType, err := cmd.Flags().GetString("type")
-		if err != nil {
-			return err
-		}
-		if recoType != "initial" && recoType != "subsequent" {
-			return fmt.Errorf("recommendation type should be 'initial' or 'subsequent'")
-		}
-		recoJobArgs = append(recoJobArgs, "--type", recoType)
+func policyRecommendationRun(cmd *cobra.Command, args []string) error {
+	networkPolicyRecommendation := intelligence.NetworkPolicyRecommendation{}
+	recoType, err := cmd.Flags().GetString("type")
+	if err != nil {
+		return err
+	}
+	if recoType != "initial" && recoType != "subsequent" {
+		return fmt.Errorf("recommendation type should be 'initial' or 'subsequent'")
+	}
+	networkPolicyRecommendation.Type = recoType
 
-		limit, err := cmd.Flags().GetInt("limit")
-		if err != nil {
-			return err
-		}
-		if limit < 0 {
-			return fmt.Errorf("limit should be an integer >= 0")
-		}
-		recoJobArgs = append(recoJobArgs, "--limit", strconv.Itoa(limit))
+	limit, err := cmd.Flags().GetInt("limit")
+	if err != nil {
+		return err
+	}
+	if limit < 0 {
+		return fmt.Errorf("limit should be an integer >= 0")
+	}
+	networkPolicyRecommendation.Limit = limit
 
-		policyType, err := cmd.Flags().GetString("policy-type")
-		if err != nil {
-			return err
-		}
-		var policyTypeArg int
-		if policyType == "anp-deny-applied" {
-			policyTypeArg = 1
-		} else if policyType == "anp-deny-all" {
-			policyTypeArg = 2
-		} else if policyType == "k8s-np" {
-			policyTypeArg = 3
-		} else {
-			return fmt.Errorf(`type of generated NetworkPolicy should be
+	policyType, err := cmd.Flags().GetString("policy-type")
+	if err != nil {
+		return err
+	}
+	if policyType != "anp-deny-applied" && policyType != "anp-deny-all" && policyType != "k8s-np" {
+		return fmt.Errorf(`type of generated NetworkPolicy should be
 anp-deny-applied or anp-deny-all or k8s-np`)
-		}
-		recoJobArgs = append(recoJobArgs, "--option", strconv.Itoa(policyTypeArg))
+	}
+	networkPolicyRecommendation.PolicyType = policyType
 
-		startTime, err := cmd.Flags().GetString("start-time")
+	startTime, err := cmd.Flags().GetString("start-time")
+	if err != nil {
+		return err
+	}
+	var startTimeObj time.Time
+	if startTime != "" {
+		startTimeObj, err = time.Parse("2006-01-02 15:04:05", startTime)
 		if err != nil {
-			return err
-		}
-		var startTimeObj time.Time
-		if startTime != "" {
-			startTimeObj, err = time.Parse("2006-01-02 15:04:05", startTime)
-			if err != nil {
-				return fmt.Errorf(`parsing start-time: %v, start-time should be in 
+			return fmt.Errorf(`parsing start-time: %v, start-time should be in 
 'YYYY-MM-DD hh:mm:ss' format, for example: 2006-01-02 15:04:05`, err)
-			}
-			recoJobArgs = append(recoJobArgs, "--start_time", startTime)
 		}
+		networkPolicyRecommendation.StartInterval = metav1.NewTime(startTimeObj)
+	}
 
-		endTime, err := cmd.Flags().GetString("end-time")
+	endTime, err := cmd.Flags().GetString("end-time")
+	if err != nil {
+		return err
+	}
+	if endTime != "" {
+		endTimeObj, err := time.Parse("2006-01-02 15:04:05", endTime)
 		if err != nil {
-			return err
-		}
-		if endTime != "" {
-			endTimeObj, err := time.Parse("2006-01-02 15:04:05", endTime)
-			if err != nil {
-				return fmt.Errorf(`parsing end-time: %v, end-time should be in 
+			return fmt.Errorf(`parsing end-time: %v, end-time should be in 
 'YYYY-MM-DD hh:mm:ss' format, for example: 2006-01-02 15:04:05`, err)
-			}
-			endAfterStart := endTimeObj.After(startTimeObj)
-			if !endAfterStart {
-				return fmt.Errorf("end-time should be after start-time")
-			}
-			recoJobArgs = append(recoJobArgs, "--end_time", endTime)
 		}
+		endAfterStart := endTimeObj.After(startTimeObj)
+		if !endAfterStart {
+			return fmt.Errorf("end-time should be after start-time")
+		}
+		networkPolicyRecommendation.EndInterval = metav1.NewTime(endTimeObj)
+	}
 
-		nsAllowList, err := cmd.Flags().GetString("ns-allow-list")
+	nsAllowList, err := cmd.Flags().GetString("ns-allow-list")
+	if err != nil {
+		return err
+	}
+	if nsAllowList != "" {
+		var parsedNsAllowList []string
+		err := json.Unmarshal([]byte(nsAllowList), &parsedNsAllowList)
 		if err != nil {
-			return err
-		}
-		if nsAllowList != "" {
-			var parsedNsAllowList []string
-			err := json.Unmarshal([]byte(nsAllowList), &parsedNsAllowList)
-			if err != nil {
-				return fmt.Errorf(`parsing ns-allow-list: %v, ns-allow-list should 
+			return fmt.Errorf(`parsing ns-allow-list: %v, ns-allow-list should 
 be a list of namespace string, for example: '["kube-system","flow-aggregator","flow-visibility"]'`, err)
-			}
-			recoJobArgs = append(recoJobArgs, "--ns_allow_list", nsAllowList)
 		}
+		networkPolicyRecommendation.NSAllowList = parsedNsAllowList
+	}
 
-		excludeLabels, err := cmd.Flags().GetBool("exclude-labels")
-		if err != nil {
-			return err
-		}
-		recoJobArgs = append(recoJobArgs, "--rm_labels", strconv.FormatBool(excludeLabels))
+	excludeLabels, err := cmd.Flags().GetBool("exclude-labels")
+	if err != nil {
+		return err
+	}
+	networkPolicyRecommendation.ExcludeLabels = excludeLabels
 
-		toServices, err := cmd.Flags().GetBool("to-services")
-		if err != nil {
-			return err
-		}
-		recoJobArgs = append(recoJobArgs, "--to_services", strconv.FormatBool(toServices))
+	toServices, err := cmd.Flags().GetBool("to-services")
+	if err != nil {
+		return err
+	}
+	networkPolicyRecommendation.ToServices = toServices
 
-		executorInstances, err := cmd.Flags().GetInt32("executor-instances")
-		if err != nil {
-			return err
-		}
-		if executorInstances < 0 {
-			return fmt.Errorf("executor-instances should be an integer >= 0")
-		}
-		sparkResourceArgs.executorInstances = executorInstances
+	executorInstances, err := cmd.Flags().GetInt32("executor-instances")
+	if err != nil {
+		return err
+	}
+	if executorInstances < 0 {
+		return fmt.Errorf("executor-instances should be an integer >= 0")
+	}
+	networkPolicyRecommendation.ExecutorInstances = int(executorInstances)
 
-		driverCoreRequest, err := cmd.Flags().GetString("driver-core-request")
-		if err != nil {
-			return err
-		}
-		matchResult, err := regexp.MatchString(config.K8sQuantitiesReg, driverCoreRequest)
-		if err != nil || !matchResult {
-			return fmt.Errorf("driver-core-request should conform to the Kubernetes resource quantity convention")
-		}
-		sparkResourceArgs.driverCoreRequest = driverCoreRequest
+	driverCoreRequest, err := cmd.Flags().GetString("driver-core-request")
+	if err != nil {
+		return err
+	}
+	matchResult, err := regexp.MatchString(config.K8sQuantitiesReg, driverCoreRequest)
+	if err != nil || !matchResult {
+		return fmt.Errorf("driver-core-request should conform to the Kubernetes resource quantity convention")
+	}
+	networkPolicyRecommendation.DriverCoreRequest = driverCoreRequest
 
-		driverMemory, err := cmd.Flags().GetString("driver-memory")
-		if err != nil {
-			return err
-		}
-		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, driverMemory)
-		if err != nil || !matchResult {
-			return fmt.Errorf("driver-memory should conform to the Kubernetes resource quantity convention")
-		}
-		sparkResourceArgs.driverMemory = driverMemory
+	driverMemory, err := cmd.Flags().GetString("driver-memory")
+	if err != nil {
+		return err
+	}
+	matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, driverMemory)
+	if err != nil || !matchResult {
+		return fmt.Errorf("driver-memory should conform to the Kubernetes resource quantity convention")
+	}
+	networkPolicyRecommendation.DriverMemory = driverMemory
 
-		executorCoreRequest, err := cmd.Flags().GetString("executor-core-request")
-		if err != nil {
-			return err
-		}
-		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorCoreRequest)
-		if err != nil || !matchResult {
-			return fmt.Errorf("executor-core-request should conform to the Kubernetes resource quantity convention")
-		}
-		sparkResourceArgs.executorCoreRequest = executorCoreRequest
+	executorCoreRequest, err := cmd.Flags().GetString("executor-core-request")
+	if err != nil {
+		return err
+	}
+	matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorCoreRequest)
+	if err != nil || !matchResult {
+		return fmt.Errorf("executor-core-request should conform to the Kubernetes resource quantity convention")
+	}
+	networkPolicyRecommendation.ExecutorCoreRequest = executorCoreRequest
 
-		executorMemory, err := cmd.Flags().GetString("executor-memory")
-		if err != nil {
-			return err
-		}
-		matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorMemory)
-		if err != nil || !matchResult {
-			return fmt.Errorf("executor-memory should conform to the Kubernetes resource quantity convention")
-		}
-		sparkResourceArgs.executorMemory = executorMemory
+	executorMemory, err := cmd.Flags().GetString("executor-memory")
+	if err != nil {
+		return err
+	}
+	matchResult, err = regexp.MatchString(config.K8sQuantitiesReg, executorMemory)
+	if err != nil || !matchResult {
+		return fmt.Errorf("executor-memory should conform to the Kubernetes resource quantity convention")
+	}
+	networkPolicyRecommendation.ExecutorMemory = executorMemory
 
-		kubeconfig, err := ResolveKubeConfig(cmd)
-		if err != nil {
-			return err
-		}
-		clientset, err := CreateK8sClient(kubeconfig)
-		if err != nil {
-			return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
-		}
+	filePath, err := cmd.Flags().GetString("file")
+	if err != nil {
+		return err
+	}
+	useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
+	if err != nil {
+		return err
+	}
+	theiaClient, pf, err := SetupTheiaClientAndConnection(cmd, useClusterIP)
+	if err != nil {
+		return fmt.Errorf("couldn't setup Theia manager client, %v", err)
+	}
+	if pf != nil {
+		defer pf.Stop()
+	}
 
-		waitFlag, err := cmd.Flags().GetBool("wait")
-		if err != nil {
-			return err
-		}
+	waitFlag, err := cmd.Flags().GetBool("wait")
+	if err != nil {
+		return err
+	}
 
-		err = PolicyRecoPreCheck(clientset)
-		if err != nil {
-			return err
-		}
+	recoID := uuid.New().String()
+	networkPolicyRecommendation.Name = "pr-" + recoID
+	networkPolicyRecommendation.Namespace = config.FlowVisibilityNS
 
-		recommendationID := uuid.New().String()
-		recoJobArgs = append(recoJobArgs, "--id", recommendationID)
-		recommendationApplication := &sparkv1.SparkApplication{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "sparkoperator.k8s.io/v1beta2",
-				Kind:       "SparkApplication",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "pr-" + recommendationID,
-				Namespace: config.FlowVisibilityNS,
-			},
-			Spec: sparkv1.SparkApplicationSpec{
-				Type:                "Python",
-				SparkVersion:        config.SparkVersion,
-				Mode:                "cluster",
-				Image:               ConstStrToPointer(config.SparkImage),
-				ImagePullPolicy:     ConstStrToPointer(config.SparkImagePullPolicy),
-				MainApplicationFile: ConstStrToPointer(config.SparkAppFile),
-				Arguments:           recoJobArgs,
-				Driver: sparkv1.DriverSpec{
-					CoreRequest: &driverCoreRequest,
-					SparkPodSpec: sparkv1.SparkPodSpec{
-						Memory: &driverMemory,
-						Labels: map[string]string{
-							"version": config.SparkVersion,
-						},
-						EnvSecretKeyRefs: map[string]sparkv1.NameKey{
-							"CH_USERNAME": {
-								Name: "clickhouse-secret",
-								Key:  "username",
-							},
-							"CH_PASSWORD": {
-								Name: "clickhouse-secret",
-								Key:  "password",
-							},
-						},
-						ServiceAccount: ConstStrToPointer(config.SparkServiceAccount),
-					},
-				},
-				Executor: sparkv1.ExecutorSpec{
-					CoreRequest: &executorCoreRequest,
-					SparkPodSpec: sparkv1.SparkPodSpec{
-						Memory: &executorMemory,
-						Labels: map[string]string{
-							"version": config.SparkVersion,
-						},
-						EnvSecretKeyRefs: map[string]sparkv1.NameKey{
-							"CH_USERNAME": {
-								Name: "clickhouse-secret",
-								Key:  "username",
-							},
-							"CH_PASSWORD": {
-								Name: "clickhouse-secret",
-								Key:  "password",
-							},
-						},
-					},
-					Instances: &sparkResourceArgs.executorInstances,
-				},
-			},
-		}
-		response := &sparkv1.SparkApplication{}
-		err = clientset.CoreV1().RESTClient().
-			Post().
-			AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-			Namespace(config.FlowVisibilityNS).
-			Resource("sparkapplications").
-			Body(recommendationApplication).
-			Do(context.TODO()).
-			Into(response)
-		if err != nil {
-			return err
-		}
-		if waitFlag {
-			err = wait.Poll(config.StatusCheckPollInterval, config.StatusCheckPollTimeout, func() (bool, error) {
-				state, err := getPolicyRecommendationStatus(clientset, recommendationID)
-				if err != nil {
-					return false, err
-				}
-				if state == "COMPLETED" {
-					return true, nil
-				}
-				if state == "FAILED" || state == "SUBMISSION_FAILED" || state == "FAILING" || state == "INVALIDATING" {
-					return false, fmt.Errorf("policy recommendation job failed, state: %s", state)
-				} else {
-					return false, nil
-				}
-			})
+	err = theiaClient.Post().
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
+		Resource("networkpolicyrecommendations").
+		Body(&networkPolicyRecommendation).
+		Do(context.TODO()).Error()
+	if err != nil {
+		return fmt.Errorf("failed to post policy recommendation job: %v", err)
+	}
+	if waitFlag {
+		var npr intelligence.NetworkPolicyRecommendation
+		err = wait.Poll(config.StatusCheckPollInterval, config.StatusCheckPollTimeout, func() (bool, error) {
+			npr, err = getPolicyRecommendationByName(theiaClient, networkPolicyRecommendation.Name)
 			if err != nil {
-				if strings.Contains(err.Error(), "timed out") {
-					return fmt.Errorf(`Spark job with ID %s wait timeout of 60 minutes expired.
-Job is still running. Please check completion status for job via CLI later.`, recommendationID)
-				}
-				return err
+				return false, fmt.Errorf("error when getting policy recommendation job by job name: %v", err)
 			}
-
-			endpoint, err := cmd.Flags().GetString("clickhouse-endpoint")
-			if err != nil {
-				return err
+			state := npr.Status.State
+			if state == crdv1alpha1.NPRecommendationStateCompleted {
+				return true, nil
 			}
-			if endpoint != "" {
-				err = ParseEndpoint(endpoint)
-				if err != nil {
-					return err
-				}
-			}
-			useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
-			if err != nil {
-				return err
-			}
-			filePath, err := cmd.Flags().GetString("file")
-			if err != nil {
-				return err
-			}
-			if err := CheckClickHousePod(clientset); err != nil {
-				return err
-			}
-			recoResult, err := getPolicyRecommendationResult(clientset, kubeconfig, endpoint, useClusterIP, filePath, recommendationID)
-			if err != nil {
-				return err
+			if state == crdv1alpha1.NPRecommendationStateFailed {
+				return false, fmt.Errorf("policy recommendation job failed, Error Message: %s", npr.Status.ErrorMsg)
 			} else {
-				if recoResult != "" {
-					fmt.Print(recoResult)
-				}
+				return false, nil
 			}
-			return nil
-		} else {
-			fmt.Printf("Successfully created policy recommendation job with ID %s\n", recommendationID)
+		})
+		if err != nil {
+			if strings.Contains(err.Error(), "timed out") {
+				return fmt.Errorf(`Policy recommendation job with name %s wait timeout of 60 minutes expired.
+Job is still running. Please check completion status for job via CLI later.`, networkPolicyRecommendation.Name)
+			}
+			return err
+		}
+		if npr.Status.RecommendedNetworkPolicy != "" {
+			fmt.Print(npr.Status.RecommendedNetworkPolicy)
+		}
+		if filePath != "" {
+			if err := os.WriteFile(filePath, []byte(npr.Status.RecommendedNetworkPolicy), 0600); err != nil {
+				return fmt.Errorf("error when writing recommendation result to file: %v", err)
+			}
 		}
 		return nil
-	},
+	} else {
+		fmt.Printf("Successfully created policy recommendation job with name %s\n", networkPolicyRecommendation.Name)
+	}
+	return nil
 }
 
 func init() {

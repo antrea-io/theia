@@ -15,13 +15,9 @@
 package commands
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -30,70 +26,40 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
-	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/theia/portforwarder"
 )
 
-func TestPolicyRecommendationRetrieve(t *testing.T) {
+func TestPolicyRecommendationDelete(t *testing.T) {
 	nprName := "pr-e292395c-3de1-11ed-b878-0242ac120002"
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
-		expectedMsg      []string
 		expectedErrorMsg string
-		nprName          string
-		filePath         string
 	}{
 		{
 			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
-					npr := &intelligence.NetworkPolicyRecommendation{
-						Status: intelligence.NetworkPolicyRecommendationStatus{
-							RecommendedNetworkPolicy: "testOutcome",
-						},
+					if r.Method == "DELETE" {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusOK)
+					} else {
+						http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(npr)
 				}
 			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120002",
-			expectedMsg:      []string{"testOutcome"},
 			expectedErrorMsg: "",
 		},
 		{
-			name: "Valid case with filePath",
-			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
-					npr := &intelligence.NetworkPolicyRecommendation{
-						Status: intelligence.NetworkPolicyRecommendationStatus{
-							RecommendedNetworkPolicy: "testOutcome",
-						},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(npr)
-				}
-			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120002",
-			expectedMsg:      []string{"testOutcome"},
-			expectedErrorMsg: "",
-			filePath:         "/tmp/testResult",
-		},
-		{
-			name: "NetworkPolicyRecommendation not found",
+			name: "SparkApplication not found",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120001",
-			expectedMsg:      []string{},
-			expectedErrorMsg: "error when getting policy recommendation job",
+			expectedErrorMsg: "error when deleting policy recommendation job",
 		},
 	}
 	for _, tt := range testCases {
@@ -109,48 +75,15 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
+			cmd.Flags().String("name", nprName, "")
 			cmd.Flags().Bool("use-cluster-ip", true, "")
-			cmd.Flags().String("file", tt.filePath, "")
-			cmd.Flags().String("name", tt.nprName, "")
-
-			orig := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
-			err := policyRecommendationRetrieve(cmd, []string{})
+			err := policyRecommendationDelete(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
-				outcome := readStdout(t, r, w)
-				os.Stdout = orig
-				for _, msg := range tt.expectedMsg {
-					assert.Contains(t, outcome, msg)
-				}
-				if tt.filePath != "" {
-					result, err := os.ReadFile(tt.filePath)
-					assert.NoError(t, err)
-					for _, msg := range tt.expectedMsg {
-						assert.Contains(t, string(result), msg)
-					}
-					defer os.RemoveAll(tt.filePath)
-				}
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
 			}
 		})
 	}
-}
-
-func readStdout(t *testing.T, r *os.File, w *os.File) string {
-	var buf bytes.Buffer
-	exit := make(chan bool)
-	go func() {
-		_, _ = io.Copy(&buf, r)
-		exit <- true
-	}()
-	err := w.Close()
-	assert.NoError(t, err)
-	<-exit
-	err = r.Close()
-	assert.NoError(t, err)
-	return buf.String()
 }

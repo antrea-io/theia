@@ -90,12 +90,6 @@ func NewServicePortForwarder(config *rest.Config, namespace string, service stri
 		return pf, fmt.Errorf("failed to read Service %s: %v", service, err)
 	}
 
-	// find container port that corresponds to requested service port
-	pf.targetPort, err = getContainerPortByServicePort(serviceObj, servicePort)
-	if err != nil {
-		return pf, err
-	}
-
 	klog.V(2).Infof("Port forwarder requested for service %s/%s: %s:%d -> %d", namespace, service, listenAddress, listenPort, pf.targetPort)
 
 	selector := labels.SelectorFromSet(serviceObj.Spec.Selector)
@@ -116,12 +110,17 @@ func NewServicePortForwarder(config *rest.Config, namespace string, service stri
 	pod := pods.Items[0]
 	pf.name = pod.Name
 
+	// find container port that corresponds to requested service port
+	pf.targetPort, err = getContainerPortByServicePort(serviceObj, servicePort, &pod)
+	if err != nil {
+		return pf, err
+	}
 	return pf, nil
 }
 
 // get Container Port by Service Port, based on Service configuration
 // This code is based upon kubectl port-forward implementation
-func getContainerPortByServicePort(svc *v1.Service, port int) (int, error) {
+func getContainerPortByServicePort(svc *v1.Service, port int, pod *v1.Pod) (int, error) {
 	for _, portspec := range svc.Spec.Ports {
 		if int(portspec.Port) != port {
 			continue
@@ -134,6 +133,14 @@ func getContainerPortByServicePort(svc *v1.Service, port int) (int, error) {
 				return int(portspec.Port), nil
 			}
 			return portspec.TargetPort.IntValue(), nil
+		} else if portspec.TargetPort.Type == intstr.String && portspec.TargetPort.String() != "" {
+			for _, container := range pod.Spec.Containers {
+				for _, containerPortSpec := range container.Ports {
+					if containerPortSpec.Name == portspec.TargetPort.String() {
+						return int(containerPortSpec.ContainerPort), nil
+					}
+				}
+			}
 		}
 	}
 	return port, fmt.Errorf("service %s does not have Port %d", svc.Name, port)

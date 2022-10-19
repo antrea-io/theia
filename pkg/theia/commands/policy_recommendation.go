@@ -34,15 +34,10 @@ Must specify a subcommand like run, status or retrieve.`,
 
 func init() {
 	rootCmd.AddCommand(policyRecommendationCmd)
-	policyRecommendationCmd.PersistentFlags().String(
-		"clickhouse-endpoint",
-		"",
-		"The ClickHouse Service endpoint.",
-	)
 	policyRecommendationCmd.PersistentFlags().Bool(
 		"use-cluster-ip",
 		false,
-		`Enable this option will use ClusterIP instead of port forwarding when connecting to the ClickHouse Service
-and Spark Monitoring Service. It can only be used when running in cluster.`,
+		`Enable this option will use ClusterIP instead of port forwarding when connecting to the Theia
+Manager Service. It can only be used when running in cluster.`,
 	)
 }

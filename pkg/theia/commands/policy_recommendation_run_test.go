@@ -15,10 +15,8 @@
 package commands
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -34,23 +32,26 @@ import (
 	"antrea.io/theia/pkg/theia/portforwarder"
 )
 
-func TestPolicyRecommendationRetrieve(t *testing.T) {
-	nprName := "pr-e292395c-3de1-11ed-b878-0242ac120002"
+func TestPolicyRecommendationRun(t *testing.T) {
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
 		expectedMsg      []string
 		expectedErrorMsg string
-		nprName          string
-		filePath         string
+		waitFlag         bool
 	}{
 		{
 			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+				}
+				if r.Method == "GET" && strings.Contains(r.URL.Path, "networkpolicyrecommendations/pr-") {
 					npr := &intelligence.NetworkPolicyRecommendation{
 						Status: intelligence.NetworkPolicyRecommendationStatus{
+							State:                    "COMPLETED",
 							RecommendedNetworkPolicy: "testOutcome",
 						},
 					}
@@ -59,41 +60,40 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 					json.NewEncoder(w).Encode(npr)
 				}
 			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120002",
-			expectedMsg:      []string{"testOutcome"},
+			expectedMsg: []string{
+				"testOutcome",
+			},
 			expectedErrorMsg: "",
+			waitFlag:         true,
 		},
 		{
-			name: "Valid case with filePath",
+			name: "waitFlag is false",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
-					npr := &intelligence.NetworkPolicyRecommendation{
-						Status: intelligence.NetworkPolicyRecommendationStatus{
-							RecommendedNetworkPolicy: "testOutcome",
-						},
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+					if r.Method != "POST" {
+						http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+						return
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(npr)
 				}
 			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120002",
-			expectedMsg:      []string{"testOutcome"},
+			expectedMsg: []string{
+				fmt.Sprintf("Successfully created policy recommendation job with name"),
+			},
 			expectedErrorMsg: "",
-			filePath:         "/tmp/testResult",
 		},
 		{
-			name: "NetworkPolicyRecommendation not found",
+			name: "Fail to post policy recommendation job",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
-					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				}
 			})),
-			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120001",
 			expectedMsg:      []string{},
-			expectedErrorMsg: "error when getting policy recommendation job",
+			expectedErrorMsg: "failed to post policy recommendation job",
 		},
 	}
 	for _, tt := range testCases {
@@ -110,13 +110,26 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 			}()
 			cmd := new(cobra.Command)
 			cmd.Flags().Bool("use-cluster-ip", true, "")
-			cmd.Flags().String("file", tt.filePath, "")
-			cmd.Flags().String("name", tt.nprName, "")
+			cmd.Flags().String("type", "initial", "")
+			cmd.Flags().Int("limit", 0, "")
+			cmd.Flags().String("policy-type", "anp-deny-applied", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 15:04:05", "")
+			cmd.Flags().String("ns-allow-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Bool("exclude-labels", true, "")
+			cmd.Flags().Bool("to-services", true, "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().Bool("wait", tt.waitFlag, "")
+			cmd.Flags().String("file", "", "")
 
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
-			err := policyRecommendationRetrieve(cmd, []string{})
+			err := policyRecommendationRun(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)
@@ -124,33 +137,10 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 				for _, msg := range tt.expectedMsg {
 					assert.Contains(t, outcome, msg)
 				}
-				if tt.filePath != "" {
-					result, err := os.ReadFile(tt.filePath)
-					assert.NoError(t, err)
-					for _, msg := range tt.expectedMsg {
-						assert.Contains(t, string(result), msg)
-					}
-					defer os.RemoveAll(tt.filePath)
-				}
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
 			}
 		})
 	}
-}
-
-func readStdout(t *testing.T, r *os.File, w *os.File) string {
-	var buf bytes.Buffer
-	exit := make(chan bool)
-	go func() {
-		_, _ = io.Copy(&buf, r)
-		exit <- true
-	}()
-	err := w.Close()
-	assert.NoError(t, err)
-	<-exit
-	err = r.Close()
-	assert.NoError(t, err)
-	return buf.String()
 }

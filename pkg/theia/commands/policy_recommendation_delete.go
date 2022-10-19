@@ -19,132 +19,64 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
-
-	"antrea.io/theia/pkg/theia/commands/config"
-	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
 // policyRecommendationDeleteCmd represents the policy-recommendation delete command
 var policyRecommendationDeleteCmd = &cobra.Command{
 	Use:     "delete",
-	Short:   "Delete a policy recommendation Spark job",
-	Long:    `Delete a policy recommendation Spark job by ID.`,
+	Short:   "Delete a policy recommendation job",
+	Long:    `Delete a policy recommendation job by Name.`,
 	Aliases: []string{"del"},
 	Args:    cobra.RangeArgs(0, 1),
 	Example: `
-Delete the policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
-$ theia policy-recommendation delete e998433e-accb-4888-9fc8-06563f073e86
+Delete the network policy recommendation job with Name pr-e998433e-accb-4888-9fc8-06563f073e86
+$ theia policy-recommendation delete pr-e998433e-accb-4888-9fc8-06563f073e86
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		recoID, err := cmd.Flags().GetString("id")
-		if err != nil {
-			return err
-		}
-		if recoID == "" && len(args) == 1 {
-			recoID = args[0]
-		}
-		err = ParseRecommendationID(recoID)
-		if err != nil {
-			return err
-		}
-		kubeconfig, err := ResolveKubeConfig(cmd)
-		if err != nil {
-			return err
-		}
-		endpoint, err := cmd.Flags().GetString("clickhouse-endpoint")
-		if err != nil {
-			return err
-		}
-		if endpoint != "" {
-			err = ParseEndpoint(endpoint)
-			if err != nil {
-				return err
-			}
-		}
-		useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
-		if err != nil {
-			return err
-		}
-
-		clientset, err := CreateK8sClient(kubeconfig)
-		if err != nil {
-			return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
-		}
-
-		idMap, err := getPolicyRecommendationIdMap(clientset, kubeconfig, endpoint, useClusterIP)
-		if err != nil {
-			return fmt.Errorf("err when getting policy recommendation ID map, %v", err)
-		}
-
-		if _, ok := idMap[recoID]; !ok {
-			return fmt.Errorf("could not find the policy recommendation job with given ID")
-		}
-
-		clientset.CoreV1().RESTClient().Delete().
-			AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-			Namespace(config.FlowVisibilityNS).
-			Resource("sparkapplications").
-			Name("pr-" + recoID).
-			Do(context.TODO())
-
-		err = deletePolicyRecommendationResult(clientset, kubeconfig, endpoint, useClusterIP, recoID)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("Successfully deleted policy recommendation job with ID %s\n", recoID)
-		return nil
-	},
+	RunE: policyRecommendationDelete,
 }
 
-func getPolicyRecommendationIdMap(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (idMap map[string]bool, err error) {
-	idMap = make(map[string]bool)
-	sparkApplicationList := &sparkv1.SparkApplicationList{}
-	err = clientset.CoreV1().RESTClient().Get().
-		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(config.FlowVisibilityNS).
-		Resource("sparkapplications").
-		Do(context.TODO()).Into(sparkApplicationList)
-	if err != nil {
-		return idMap, err
-	}
-	for _, sparkApplication := range sparkApplicationList.Items {
-		id := sparkApplication.ObjectMeta.Name[3:]
-		idMap[id] = true
-	}
-	completedPolicyRecommendationList, err := getCompletedPolicyRecommendationList(clientset, kubeconfig, endpoint, useClusterIP)
-	if err != nil {
-		return idMap, err
-	}
-	for _, completedPolicyRecommendation := range completedPolicyRecommendationList {
-		idMap[completedPolicyRecommendation.id] = true
-	}
-	return idMap, nil
-}
-
-func deletePolicyRecommendationResult(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool, recoID string) (err error) {
-	connect, portForward, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
-	if portForward != nil {
-		defer portForward.Stop()
-	}
+func policyRecommendationDelete(cmd *cobra.Command, args []string) error {
+	prName, err := cmd.Flags().GetString("name")
 	if err != nil {
 		return err
 	}
-	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);"
-	_, err = connect.Exec(query, recoID)
-	if err != nil {
-		return fmt.Errorf("failed to delete recommendation result with id %s: %v", recoID, err)
+	if prName == "" && len(args) == 1 {
+		prName = args[0]
 	}
+	err = ParseRecommendationName(prName)
+	if err != nil {
+		return err
+	}
+	useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
+	if err != nil {
+		return err
+	}
+	theiaClient, pf, err := SetupTheiaClientAndConnection(cmd, useClusterIP)
+	if err != nil {
+		return fmt.Errorf("couldn't setup Theia manager client, %v", err)
+	}
+	if pf != nil {
+		defer pf.Stop()
+	}
+	err = theiaClient.Delete().
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
+		Resource("networkpolicyrecommendations").
+		Name(prName).
+		Do(context.TODO()).
+		Error()
+	if err != nil {
+		return fmt.Errorf("error when deleting policy recommendation job: %v", err)
+	}
+	fmt.Printf("Successfully deleted policy recommendation job with name: %s\n", prName)
 	return nil
 }
 
 func init() {
 	policyRecommendationCmd.AddCommand(policyRecommendationDeleteCmd)
 	policyRecommendationDeleteCmd.Flags().StringP(
-		"id",
-		"i",
+		"name",
 		"",
-		"ID of the policy recommendation Spark job.",
+		"",
+		"Name of the policy recommendation job.",
 	)
 }

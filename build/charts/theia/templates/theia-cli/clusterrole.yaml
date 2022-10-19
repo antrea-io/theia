@@ -13,4 +13,6 @@ rules:
     verbs:
       - get
       - list
+      - create
+      - delete
 {{- end }}

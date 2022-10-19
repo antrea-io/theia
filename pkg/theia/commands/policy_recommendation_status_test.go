@@ -19,96 +19,118 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes"
+	restclient "k8s.io/client-go/rest"
+
+	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
+	"antrea.io/theia/pkg/theia/portforwarder"
 )
 
-func TestGetPolicyRecommendationProgress(t *testing.T) {
-	sparkAppID := "spark-0fa6cc19ae23439794747a306d5ad705"
+func TestPolicyRecommendationStatus(t *testing.T) {
+	nprName := "pr-e292395c-3de1-11ed-b878-0242ac120002"
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
-		expectedProgress string
+		expectedMsg      []string
 		expectedErrorMsg string
+		nprName          string
 	}{
 		{
-			name: "valid case",
+			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
+					npr := &intelligence.NetworkPolicyRecommendation{
+						Status: intelligence.NetworkPolicyRecommendationStatus{
+							State:           "RUNNING",
+							CompletedStages: 1,
+							TotalStages:     5,
+							ErrorMsg:        "testErrorMsg",
+						},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
-				case fmt.Sprintf("/api/v1/applications/%s/stages", sparkAppID):
-					responses := []map[string]interface{}{
-						{"status": "COMPLETE"},
-						{"status": "COMPLETE"},
-						{"status": "SKIPPED"},
-						{"status": "PENDING"},
-						{"status": "ACTIVE"},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
+					json.NewEncoder(w).Encode(npr)
 				}
 			})),
-			expectedProgress: ": 3/5 (60%) stages completed",
+			nprName: "pr-e292395c-3de1-11ed-b878-0242ac120002",
+			expectedMsg: []string{
+				"Status of this policy recommendation job is RUNNING: 1/5 (20%) stages completed",
+				"Error message: testErrorMsg",
+			},
 			expectedErrorMsg: "",
 		},
 		{
-			name: "found more than one spark application",
+			name: "total stage is zero ",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
-						{"id": sparkAppID},
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
+					npr := &intelligence.NetworkPolicyRecommendation{
+						Status: intelligence.NetworkPolicyRecommendationStatus{
+							State:       "RUNNING",
+							TotalStages: 0,
+						},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
+					json.NewEncoder(w).Encode(npr)
 				}
 			})),
-			expectedProgress: "",
-			expectedErrorMsg: "wrong Spark Application number, expected 1, got 2",
+			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120002",
+			expectedMsg:      []string{"Status of this policy recommendation job is RUNNING: 0/0 (0%) stages completed"},
+			expectedErrorMsg: "",
 		},
 		{
-			name: "no spark application stage found",
+			name: "NetworkPolicyRecommendation not found",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
-				case fmt.Sprintf("/api/v1/applications/%s/stages", sparkAppID):
-					responses := []map[string]interface{}{}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
+					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),
-			expectedProgress: "",
-			expectedErrorMsg: "wrong Spark Application stages number, expected at least 1, got 0",
+			nprName:          "pr-e292395c-3de1-11ed-b878-0242ac120001",
+			expectedMsg:      []string{},
+			expectedErrorMsg: "error when getting policy recommendation job",
 		},
 	}
+
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.testServer.Close()
-			progress, err := getPolicyRecommendationProgress(tt.testServer.URL)
-			if tt.expectedErrorMsg != "" {
-				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
-			} else {
-				assert.NoError(t, err)
+			oldFunc := SetupTheiaClientAndConnection
+			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+				clientset, _ := kubernetes.NewForConfig(clientConfig)
+				return clientset.CoreV1().RESTClient(), nil, nil
 			}
-			assert.Equal(t, tt.expectedProgress, progress)
+			defer func() {
+				SetupTheiaClientAndConnection = oldFunc
+			}()
+			cmd := new(cobra.Command)
+			cmd.Flags().Bool("use-cluster-ip", true, "")
+			cmd.Flags().String("name", tt.nprName, "")
+
+			orig := os.Stdout
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+			err := policyRecommendationStatus(cmd, []string{})
+			if tt.expectedErrorMsg == "" {
+				assert.NoError(t, err)
+				outcome := readStdout(t, r, w)
+				os.Stdout = orig
+				for _, msg := range tt.expectedMsg {
+					assert.Contains(t, outcome, msg)
+				}
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorMsg)
+			}
 		})
 	}
 }

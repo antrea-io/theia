@@ -153,7 +153,9 @@ func (r *REST) copyNetworkPolicyRecommendation(intelli *intelligence.NetworkPoli
 	intelli.Status.SparkApplication = crd.Status.SparkApplication
 	intelli.Status.CompletedStages = crd.Status.CompletedStages
 	intelli.Status.TotalStages = crd.Status.TotalStages
-	intelli.Status.RecommendedNetworkPolicy = crd.Status.RecommendedNP.Spec.Yamls
+	if crd.Status.RecommendedNP != nil {
+		intelli.Status.RecommendedNetworkPolicy = crd.Status.RecommendedNP.Spec.Yamls
+	}
 	intelli.Status.ErrorMsg = crd.Status.ErrorMsg
 	intelli.Status.StartTime = crd.Status.StartTime
 	intelli.Status.EndTime = crd.Status.EndTime

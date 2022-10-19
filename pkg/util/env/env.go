@@ -30,7 +30,7 @@ const (
 func GetPodNamespace() string {
 	podNamespace := os.Getenv(podNamespaceEnvKey)
 	if podNamespace == "" {
-		klog.Warningf("Environment variable %s not found", podNamespaceEnvKey)
+		klog.V(2).InfoS("Environment variable not found", "Environment Key", podNamespaceEnvKey)
 	}
 	return podNamespace
 }
@@ -41,8 +41,7 @@ func GetPodNamespace() string {
 func GetTheiaNamespace() string {
 	namespace := GetPodNamespace()
 	if namespace == "" {
-		klog.Warningf("Failed to get Pod Namespace from environment. Using \"%s\" as the "+
-			"Theia Service Namespace", defaultTheiaNamespace)
+		klog.V(2).InfoS("Failed to get Pod Namespace from environment. Using default Theia namespace", "namespace", defaultTheiaNamespace)
 		namespace = defaultTheiaNamespace
 	}
 	return namespace

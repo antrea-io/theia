@@ -92,6 +92,7 @@ func policyRecommendationRetrieve(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile(filePath, []byte(npr.Status.RecommendedNetworkPolicy), 0600); err != nil {
 			return fmt.Errorf("error when writing recommendation result to file: %v", err)
 		}
+		return nil
 	}
 	if npr.Status.RecommendedNetworkPolicy != "" {
 		fmt.Print(npr.Status.RecommendedNetworkPolicy)

@@ -74,6 +74,8 @@ spec:
                 endTime:
                   type: string
                   format: datetime
+                errorMsg:
+                  type: string
                 recommendedNetworkPolicy:
                   type: object
                   properties:

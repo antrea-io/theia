@@ -42,7 +42,6 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	t.Skip("Failed due to cli changes. Need further implementation")
 	config := FlowVisibiltiySetUpConfig{
 		withSparkOperator:     true,
 		withGrafana:           false,
@@ -170,65 +169,65 @@ func TestPolicyRecommendation(t *testing.T) {
 	}
 }
 
-// Example output: Successfully created policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
+// Example output: Successfully created policy recommendation job with name pr-e998433e-accb-4888-9fc8-06563f073e86
 func testPolicyRecommendationRun(t *testing.T, data *TestData) {
-	stdout, jobId, err := runJob(t, data)
+	stdout, jobName, err := runJob(t, data)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with ID %s", jobId), "stdout: %s", stdout)
+	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with name %s", jobName), "stdout: %s", stdout)
 }
 
 // Example output: Status of this policy recommendation job is COMPLETED
 func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
-	_, jobId, err := runJob(t, data)
+	_, jobName, err := runJob(t, data)
 	require.NoError(t, err)
-	stdout, err := getJobStatus(t, data, jobId)
+	stdout, err := getJobStatus(t, data, jobName)
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, "Status of this policy recommendation job is", "stdout: %s", stdout)
 }
 
 // Example output:
-// CreationTime          CompletionTime        ID                                   Status
-// 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
-// 2022-06-17 15:03:22 2022-06-17 18:08:37 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
-// 2022-06-17 15:03:39 N/A                 c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
+// CreationTime          CompletionTime        Name                                    Status
+// 2022-06-17 15:03:24   N/A                   pr-615026a0-1856-4107-87d9-08f7d69819ae RUNNING
+// 2022-06-17 15:03:22   2022-06-17 18:08:37   pr-7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
+// 2022-06-17 15:03:39   N/A                   pr-c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
 func testPolicyRecommendationList(t *testing.T, data *TestData) {
-	_, jobId, err := runJob(t, data)
+	_, jobName, err := runJob(t, data)
 	require.NoError(t, err)
 	stdout, err := listJobs(t, data)
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, "CreationTime", "stdout: %s", stdout)
 	assert.Containsf(stdout, "CompletionTime", "stdout: %s", stdout)
-	assert.Containsf(stdout, "ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, "Name", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Status", "stdout: %s", stdout)
-	assert.Containsf(stdout, jobId, "stdout: %s", stdout)
+	assert.Containsf(stdout, jobName, "stdout: %s", stdout)
 }
 
-// Example output: Successfully deleted policy recommendation job with ID e998433e-accb-4888-9fc8-06563f073e86
+// Example output: Successfully deleted policy recommendation job with name pr-e998433e-accb-4888-9fc8-06563f073e86
 func testPolicyRecommendationDelete(t *testing.T, data *TestData) {
-	_, jobId, err := runJob(t, data)
+	_, jobName, err := runJob(t, data)
 	require.NoError(t, err)
-	stdout, err := deleteJob(t, data, jobId)
+	stdout, err := deleteJob(t, data, jobName)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, "Successfully deleted policy recommendation job with ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, "Successfully deleted policy recommendation job with name", "stdout: %s", stdout)
 	stdout, err = listJobs(t, data)
 	require.NoError(t, err)
-	assert.NotContainsf(stdout, jobId, "Still found deleted job in list command stdout: %s", stdout)
+	assert.NotContainsf(stdout, jobName, "Still found deleted job in list command stdout: %s", stdout)
 }
 
 // Example output:
 // Status of this policy recommendation job is Failed
-// Error message: driver pod not found
+// error message: driver pod not found
 // Or
-// Error message: driver container failed
+// error message: driver container failed
 func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
-	stdout, jobId, err := runJob(t, data)
+	stdout, jobName, err := runJob(t, data)
 	require.NoError(t, err)
 	err = wait.PollImmediate(defaultInterval, jobSubmitTimeout, func() (bool, error) {
-		stdout, err = getJobStatus(t, data, jobId)
+		stdout, err = getJobStatus(t, data, jobName)
 		require.NoError(t, err)
 		if strings.Contains(stdout, "Status of this policy recommendation job is RUNNING") {
 			return true, nil
@@ -237,12 +236,12 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 		return false, nil
 	})
 	require.NoError(t, err)
-	driverPodName := fmt.Sprintf("pr-%s-driver", jobId)
+	driverPodName := fmt.Sprintf("%s-driver", jobName)
 	if err := data.DeletePod(flowVisibilityNamespace, driverPodName); err != nil {
 		t.Logf("Error when deleting Driver Pod: %v", err)
 	}
 	err = wait.PollImmediate(defaultInterval, jobFailedTimeout, func() (bool, error) {
-		stdout, err = getJobStatus(t, data, jobId)
+		stdout, err = getJobStatus(t, data, jobName)
 		require.NoError(t, err)
 		if strings.Contains(stdout, "Status of this policy recommendation job is FAILED") {
 			return true, nil
@@ -252,7 +251,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 	})
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Truef(strings.Contains(stdout, "Error message: driver pod not found") || strings.Contains(stdout, "Error message: driver container failed") || strings.Contains(stdout, "Error message: driver container status missing"), "stdout: %s", stdout)
+	assert.Truef(strings.Contains(stdout, "error message: driver pod not found") || strings.Contains(stdout, "error message: driver container failed") || strings.Contains(stdout, "error message: driver container status missing"), "stdout: %s", stdout)
 }
 
 // Example output:
@@ -301,13 +300,13 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 		expectedRejectACNPCnt -= 1
 	}
 
-	_, jobId, err := runJob(t, data)
+	_, jobName, err := runJob(t, data)
 	require.NoError(t, err)
-	err = waitJobComplete(t, data, jobId, jobCompleteTimeout)
+	err = waitJobComplete(t, data, jobName, jobCompleteTimeout)
 	require.NoErrorf(t, err, "Policy recommendation Spark job failed to complete")
 
 	// Apply the recommended policies, and check the results
-	err = retrieveJobResult(t, data, jobId)
+	err = retrieveJobResult(t, data, jobName)
 	require.NoError(t, err)
 	cmd := fmt.Sprintf("kubectl apply -f %s", policyOutputYML)
 	_, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
@@ -353,7 +352,7 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 	assert.Equalf(expectedRejectACNPCnt, rejectACNPCnt, fmt.Sprintf("Expected reject ACNP count is: %d. Actual count is: %d. Recommended policies:\n%s\nCheck command output:\n%s", expectedRejectACNPCnt, rejectACNPCnt, allPolicies, stdout))
 }
 
-func runJob(t *testing.T, data *TestData) (stdout string, jobId string, err error) {
+func runJob(t *testing.T, data *TestData) (stdout string, jobName string, err error) {
 	cmd := "chmod +x ./theia"
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
@@ -365,12 +364,12 @@ func runJob(t *testing.T, data *TestData) (stdout string, jobId string, err erro
 	}
 	stdout = strings.TrimSuffix(stdout, "\n")
 	stdoutSlice := strings.Split(stdout, " ")
-	jobId = stdoutSlice[len(stdoutSlice)-1]
-	return stdout, jobId, nil
+	jobName = stdoutSlice[len(stdoutSlice)-1]
+	return stdout, jobName, nil
 }
 
-func getJobStatus(t *testing.T, data *TestData, jobId string) (stdout string, err error) {
-	cmd := fmt.Sprintf("%s %s", statusCmd, jobId)
+func getJobStatus(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
+	cmd := fmt.Sprintf("%s %s", statusCmd, jobName)
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
@@ -386,8 +385,8 @@ func listJobs(t *testing.T, data *TestData) (stdout string, err error) {
 	return strings.TrimSuffix(stdout, "\n"), nil
 }
 
-func deleteJob(t *testing.T, data *TestData, jobId string) (stdout string, err error) {
-	cmd := fmt.Sprintf("%s %s", deleteCmd, jobId)
+func deleteJob(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
+	cmd := fmt.Sprintf("%s %s", deleteCmd, jobName)
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
 		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
@@ -395,8 +394,8 @@ func deleteJob(t *testing.T, data *TestData, jobId string) (stdout string, err e
 	return strings.TrimSuffix(stdout, "\n"), nil
 }
 
-func retrieveJobResult(t *testing.T, data *TestData, jobId string) error {
-	cmd := fmt.Sprintf("%s %s -f %s", retrieveCmd, jobId, policyOutputYML)
+func retrieveJobResult(t *testing.T, data *TestData, jobName string) error {
+	cmd := fmt.Sprintf("%s %s -f %s", retrieveCmd, jobName, policyOutputYML)
 	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
@@ -405,10 +404,10 @@ func retrieveJobResult(t *testing.T, data *TestData, jobId string) error {
 }
 
 // waitJobComplete waits for the policy recommendation Spark job completes
-func waitJobComplete(t *testing.T, data *TestData, jobId string, timeout time.Duration) error {
+func waitJobComplete(t *testing.T, data *TestData, jobName string, timeout time.Duration) error {
 	stdout := ""
 	err := wait.PollImmediate(defaultInterval, timeout, func() (bool, error) {
-		stdout, err := getJobStatus(t, data, jobId)
+		stdout, err := getJobStatus(t, data, jobName)
 		require.NoError(t, err)
 		if strings.Contains(stdout, "Status of this policy recommendation job is COMPLETED") {
 			return true, nil

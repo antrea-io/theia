@@ -106,3 +106,34 @@ jobs:
       run: |
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker push antrea/theia-policy-recommendation:latest
+
+  check-theia-manager-changes:
+    name: Check whether theia-manager image needs to be built based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: antrea-io/has-changes@v2
+        id: check_diff
+        with:
+          paths: pkg/* build/images/Dockerfile.theia-manager.ubuntu
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+
+  build-theia-manager:
+    needs: check-theia-manager-changes
+    if: ${{ needs.check-theia-manager-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build theia-manager Docker image
+      run: make theia-manager
+    - name: Push theia-manager Docker image to registry
+      if: ${{ github.repository == 'antrea-io/theia' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        docker push antrea/theia-manager:latest

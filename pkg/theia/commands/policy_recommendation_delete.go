@@ -19,6 +19,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"antrea.io/theia/pkg/util/policyrecommendation"
 )
 
 // policyRecommendationDeleteCmd represents the policy-recommendation delete command
@@ -43,7 +45,7 @@ func policyRecommendationDelete(cmd *cobra.Command, args []string) error {
 	if prName == "" && len(args) == 1 {
 		prName = args[0]
 	}
-	err = ParseRecommendationName(prName)
+	err = policyrecommendation.ParseRecommendationName(prName)
 	if err != nil {
 		return err
 	}

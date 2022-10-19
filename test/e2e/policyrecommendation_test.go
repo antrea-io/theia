@@ -42,7 +42,6 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	t.Skip("Failed due to cli changes. Need further implementation")
 	config := FlowVisibiltiySetUpConfig{
 		withSparkOperator:     true,
 		withGrafana:           false,
@@ -175,7 +174,7 @@ func testPolicyRecommendationRun(t *testing.T, data *TestData) {
 	stdout, jobId, err := runJob(t, data)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with ID %s", jobId), "stdout: %s", stdout)
+	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with name %s", jobId), "stdout: %s", stdout)
 }
 
 // Example output: Status of this policy recommendation job is COMPLETED
@@ -189,8 +188,8 @@ func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
 }
 
 // Example output:
-// CreationTime          CompletionTime        ID                                   Status
-// 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNING
+// CreationTime          CompletionTime        Name                                   Status
+// 2022-06-17 15:03:24 N/A                 615026a0-1856-4107-87d9-08f7d69819ae RUNNIN
 // 2022-06-17 15:03:22 2022-06-17 18:08:37 7bebe4f9-408b-4dd8-9d63-9dc538073089 COMPLETED
 // 2022-06-17 15:03:39 N/A                 c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
 func testPolicyRecommendationList(t *testing.T, data *TestData) {
@@ -201,7 +200,7 @@ func testPolicyRecommendationList(t *testing.T, data *TestData) {
 	assert := assert.New(t)
 	assert.Containsf(stdout, "CreationTime", "stdout: %s", stdout)
 	assert.Containsf(stdout, "CompletionTime", "stdout: %s", stdout)
-	assert.Containsf(stdout, "ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, "Name", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Status", "stdout: %s", stdout)
 	assert.Containsf(stdout, jobId, "stdout: %s", stdout)
 }
@@ -213,7 +212,7 @@ func testPolicyRecommendationDelete(t *testing.T, data *TestData) {
 	stdout, err := deleteJob(t, data, jobId)
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Containsf(stdout, "Successfully deleted policy recommendation job with ID", "stdout: %s", stdout)
+	assert.Containsf(stdout, "Successfully deleted policy recommendation job with name", "stdout: %s", stdout)
 	stdout, err = listJobs(t, data)
 	require.NoError(t, err)
 	assert.NotContainsf(stdout, jobId, "Still found deleted job in list command stdout: %s", stdout)
@@ -237,7 +236,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 		return false, nil
 	})
 	require.NoError(t, err)
-	driverPodName := fmt.Sprintf("pr-%s-driver", jobId)
+	driverPodName := fmt.Sprintf("%s-driver", jobId)
 	if err := data.DeletePod(flowVisibilityNamespace, driverPodName); err != nil {
 		t.Logf("Error when deleting Driver Pod: %v", err)
 	}
@@ -252,7 +251,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 	})
 	require.NoError(t, err)
 	assert := assert.New(t)
-	assert.Truef(strings.Contains(stdout, "Error message: driver pod not found") || strings.Contains(stdout, "Error message: driver container failed") || strings.Contains(stdout, "Error message: driver container status missing"), "stdout: %s", stdout)
+	assert.Truef(strings.Contains(stdout, "error message: driver pod not found") || strings.Contains(stdout, "error message: driver container failed") || strings.Contains(stdout, "error message: driver container status missing"), "stdout: %s", stdout)
 }
 
 // Example output:

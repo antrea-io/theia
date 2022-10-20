@@ -84,6 +84,7 @@ const (
 	policyOutputYML            string = "output.yaml"
 	sparkOperatorPodLabel      string = "app.kubernetes.io/name=spark-operator"
 	grafanaPodLabel            string = "app=grafana"
+	theiaManagerPodLabel       string = "app=theia-manager"
 	antreaPodLabel             string = "app=antrea,component=antrea-agent"
 	clickHouseLocalPvLabel     string = "antrea.io/clickhouse-data-node"
 	clickHouseLocalPvPath      string = "/data/clickhouse"
@@ -1149,6 +1150,15 @@ func (data *TestData) deployFlowVisibility(config FlowVisibiltiySetUpConfig) (ch
 
 		// check for Spark Operator Pod ready.
 		if err = data.podWaitForReady(defaultTimeout, sparkOperatorPodName, flowVisibilityNamespace); err != nil {
+			return "", err
+		}
+		theiaManagerPodName, err := data.getPodByLabel(theiaManagerPodLabel, flowVisibilityNamespace)
+		if err != nil {
+			return "", fmt.Errorf("error when getting the Theia Manager Pod name: %v", err)
+		}
+
+		// check for Theia Manager Pod ready.
+		if err = data.podWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace); err != nil {
 			return "", err
 		}
 	}

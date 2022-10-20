@@ -25,7 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	apimachineryerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -40,6 +39,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	crdv1a1informers "antrea.io/theia/pkg/client/informers/externalversions/crd/v1alpha1"
 	"antrea.io/theia/pkg/client/listers/crd/v1alpha1"
+	"antrea.io/theia/pkg/util/policyrecommendation"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -598,7 +598,11 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	}
 	sparkResourceArgs.executorMemory = npReco.Spec.ExecutorMemory
 
-	recommendationID := uuid.New().String()
+	err = policyrecommendation.ParseRecommendationName(npReco.Name)
+	if err != nil {
+		return IlleagelArguementError{fmt.Errorf("invalid request: Policy recommendation job name is invalid: %s", err)}
+	}
+	recommendationID := npReco.Name[3:]
 	recoJobArgs = append(recoJobArgs, "--id", recommendationID)
 	recommendationApplication := &sparkv1.SparkApplication{
 		TypeMeta: metav1.TypeMeta{
@@ -606,7 +610,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 			Kind:       "SparkApplication",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pr-" + recommendationID,
+			Name:      npReco.Name,
 			Namespace: npReco.Namespace,
 		},
 		Spec: sparkv1.SparkApplicationSpec{

@@ -272,7 +272,7 @@ func TestNPRecommendation(t *testing.T) {
 
 	t.Run("NormalNetworkPolicyRecommendation", func(t *testing.T) {
 		npr := &crdv1alpha1.NetworkPolicyRecommendation{
-			ObjectMeta: metav1.ObjectMeta{Name: "npr", Namespace: testNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: "pr-364a180e-2d83-4502-8063-0c3db36cbcd3", Namespace: testNamespace},
 			Spec: crdv1alpha1.NetworkPolicyRecommendationSpec{
 				JobType:             "initial",
 				PolicyType:          "anp-deny-applied",
@@ -299,7 +299,7 @@ func TestNPRecommendation(t *testing.T) {
 		timeout := 30 * time.Second
 
 		wait.PollImmediate(stepInterval, timeout, func() (done bool, err error) {
-			npr, err = nprController.GetNetworkPolicyRecommendation(testNamespace, "npr")
+			npr, err = nprController.GetNetworkPolicyRecommendation(testNamespace, "pr-364a180e-2d83-4502-8063-0c3db36cbcd3")
 			if err != nil {
 				return false, nil
 			}
@@ -353,7 +353,7 @@ func TestNPRecommendation(t *testing.T) {
 			mock.ExpectExec("ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(npr.Status.SparkApplication).WillReturnResult(sqlmock.NewResult(0, 1))
 			return db, err
 		}
-		err = nprController.DeleteNetworkPolicyRecommendation(testNamespace, "npr")
+		err = nprController.DeleteNetworkPolicyRecommendation(testNamespace, "pr-364a180e-2d83-4502-8063-0c3db36cbcd3")
 		assert.NoError(t, err)
 	})
 

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -371,19 +370,6 @@ func FormatTimestamp(timestamp time.Time) string {
 		return "N/A"
 	}
 	return timestamp.UTC().Format("2006-01-02 15:04:05")
-}
-
-func ParseRecommendationName(npName string) error {
-	if !strings.HasPrefix(npName, "pr-") {
-		return fmt.Errorf("input name %s is not a valid policy recommendation job name", npName)
-
-	}
-	id := npName[3:]
-	_, err := uuid.Parse(id)
-	if err != nil {
-		return fmt.Errorf("input name %s does not contain a valid UUID, parsing error: %v", npName, err)
-	}
-	return nil
 }
 
 func getPolicyRecommendationByName(theiaClient restclient.Interface, name string) (npr intelligence.NetworkPolicyRecommendation, err error) {

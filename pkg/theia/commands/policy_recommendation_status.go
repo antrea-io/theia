@@ -18,6 +18,8 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
+	"antrea.io/theia/pkg/util/policyrecommendation"
 )
 
 // policyRecommendationStatusCmd represents the policy-recommendation status command
@@ -56,7 +58,7 @@ func policyRecommendationStatus(cmd *cobra.Command, args []string) error {
 	if prName == "" && len(args) == 1 {
 		prName = args[0]
 	}
-	err = ParseRecommendationName(prName)
+	err = policyrecommendation.ParseRecommendationName(prName)
 	if err != nil {
 		return err
 	}

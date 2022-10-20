@@ -19,6 +19,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"antrea.io/theia/pkg/util/policyrecommendation"
 )
 
 // policyRecommendationRetrieveCmd represents the policy-recommendation retrieve command
@@ -65,7 +67,7 @@ func policyRecommendationRetrieve(cmd *cobra.Command, args []string) error {
 	if prName == "" && len(args) == 1 {
 		prName = args[0]
 	}
-	err = ParseRecommendationName(prName)
+	err = policyrecommendation.ParseRecommendationName(prName)
 	if err != nil {
 		return err
 	}

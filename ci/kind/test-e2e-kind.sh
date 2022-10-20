@@ -39,7 +39,7 @@ function print_usage {
 TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
 YML_DIR=$(dirname $0)"/../../build/yamls"
 FLOW_VISIBILITY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --ch-size 100Mi --ch-monitor-threshold 0.1"
-FLOW_VISIBILITY_WITH_SPARK_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --spark-operator"
+FLOW_VISIBILITY_WITH_SPARK_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --spark-operator --theia-manager"
 FLOW_VISIBILITY_CH_ONLY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana"
 CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
 
@@ -124,7 +124,9 @@ done
 
 COMMON_IMAGES_LIST+=("projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"\
                      "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest"\
-                     "projects.registry.vmware.com/antrea/theia-clickhouse-server:latest")
+                     "projects.registry.vmware.com/antrea/theia-clickhouse-server:latest"\
+                     "projects.registry.vmware.com/antrea/theia-manager:latest")
+
 printf -v COMMON_IMAGES "%s " "${COMMON_IMAGES_LIST[@]}"
 
 function setup_cluster {

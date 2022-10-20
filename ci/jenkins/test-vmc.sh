@@ -38,7 +38,7 @@ TEST_FAILURE=false
 CLUSTER_READY=false
 DOCKER_REGISTRY=""
 # TODO: change to "control-plane" when testbeds are updated to K8s v1.20
-CONTROL_PLANE_NODE_ROLE="master"
+CONTROL_PLANE_NODE_ROLE="master|control-plane"
 
 _usage="Usage: $0 [--cluster-name <VMCClusterNameToUse>] [--kubeconfig <KubeconfigSavePath>] [--workdir <HomePath>]
                   [--log-mode <SonobuoyResultLogLevel>] [--testcase <e2e|conformance|all-features-conformance|whole-conformance|networkpolicy>]
@@ -179,10 +179,10 @@ function release_static_ip() {
 function setup_cluster() {
     export KUBECONFIG=$KUBECONFIG_PATH
     if [ -z $K8S_VERSION ]; then
-      export K8S_VERSION=v1.19.1
+      export K8S_VERSION=v1.23.5
     fi
     if [ -z $TEST_OS ]; then
-      export TEST_OS=ubuntu-1804
+      export TEST_OS=ubuntu-2004
     fi
     export OVA_TEMPLATE_NAME=${TEST_OS}-kube-${K8S_VERSION}
     rm -rf ${GIT_CHECKOUT_DIR}/jenkins || true
@@ -338,7 +338,7 @@ function deliver_antrea {
     control_plane_ip="$(kubectl get nodes -o wide --no-headers=true | awk -v role="$CONTROL_PLANE_NODE_ROLE" '$3 ~ role {print $6}')"
 
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --ch-size 100Mi --ch-monitor-threshold 0.1 > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility.yml
-    ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --spark-operator > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
+    ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --spark-operator --theia-manager > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
 
     # policy/v1beta1 is deprecated in v1.21+, unavailable in v1.25+, while policy/v1 is available in v1.21+
@@ -366,10 +366,11 @@ function deliver_antrea {
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker save -o theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
 
-    (cd $GIT_CHECKOUT_DIR && make policy-recommendation && make clickhouse-monitor && make clickhouse-server)
+    (cd $GIT_CHECKOUT_DIR && make policy-recommendation && make clickhouse-monitor && make clickhouse-server && make theia-manager)
     docker save -o theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
     docker save -o theia-clickhouse-monitor.tar projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
     docker save -o theia-clickhouse-server.tar projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
+    docker save -o theia-manager.tar projects.registry.vmware.com/antrea/theia-manager:latest
 
     # not sure the exact image tag, so read from yaml
     # and we assume the image tag is the same for all images in this yaml
@@ -395,6 +396,7 @@ function deliver_antrea {
         copy_image theia-policy-recommendation.tar projects.registry.vmware.com/antrea/theia-policy-recommendation ${IPs[$i]} latest true
         copy_image theia-clickhouse-monitor.tar projects.registry.vmware.com/antrea/theia-clickhouse-monitor ${IPs[$i]} latest true
         copy_image theia-clickhouse-server.tar projects.registry.vmware.com/antrea/theia-clickhouse-server ${IPs[$i]} latest true
+        copy_image theia-manager.tar projects.registry.vmware.com/antrea/theia-manager ${IPs[$i]} latest true
     done
 }
 

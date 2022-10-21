@@ -30,9 +30,9 @@ import (
 const (
 	// Use a long timeout as it takes ~500s to complete a single Spark job on
 	// Kind testbed
-	jobCompleteTimeout = 10 * time.Minute
-	jobSubmitTimeout   = 2 * time.Minute
-	jobFailedTimeout   = 2 * time.Minute
+	jobCompleteTimeout = 15 * time.Minute
+	jobSubmitTimeout   = 4 * time.Minute
+	jobFailedTimeout   = 4 * time.Minute
 	startCmd           = "./theia policy-recommendation run"
 	statusCmd          = "./theia policy-recommendation status"
 	listCmd            = "./theia policy-recommendation list"

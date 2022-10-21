@@ -90,6 +90,7 @@ func sanitizeIdentifier(identifier string) (string, error) {
 }
 
 func main() {
+    klog.InfoS("MEH SALV")
 	if err := loadEnvVariables(); err != nil {
 		klog.ErrorS(err, "Error when loading environment variables")
 	}

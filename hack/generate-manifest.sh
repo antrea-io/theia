@@ -156,7 +156,7 @@ if $SPARK_OP; then
     HELM_VALUES+=("sparkOperator.enable=true")
 fi
 if $THEIA_MANAGER; then
-  HELM_VALUES+=("theiaManager.enable=true")
+  HELM_VALUES+=("theiaManager.enable=true" "theiaManager.logVerbosity=4")
 fi
 if [ "$GRAFANA" == false ]; then
     HELM_VALUES+=("grafana.enable=false")

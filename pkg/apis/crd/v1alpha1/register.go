@@ -52,8 +52,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		SchemeGroupVersion,
 		&NetworkPolicyRecommendation{},
 		&NetworkPolicyRecommendationList{},
-		&RecommendedNetworkPolicy{},
-		&RecommendedNetworkPolicyList{},
 	)
 
 	metav1.AddToGroupVersion(

@@ -317,3 +317,91 @@ var grafanaTestCases = []struct {
 		},
 	},
 }
+
+func getNetowrkPolicyYaml(kind string) string {
+	switch kind {
+	case "acnp":
+		return `
+apiVersion: crd.antrea.io/v1alpha1
+kind: ClusterNetworkPolicy
+metadata:
+  name: recommend-allow-acnp-flow-aggregator-5p4xy
+spec:
+  appliedTo:
+  - namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: flow-aggregator
+  egress:
+  - action: Allow
+    to:
+    - podSelector: {}
+  ingress:
+  - action: Allow
+    from:
+    - podSelector: {}
+  priority: 5
+  tier: Platform
+`
+	case "acg":
+		return `
+apiVersion: crd.antrea.io/v1alpha2
+kind: ClusterGroup
+metadata:
+  name: antrea-test-perftest-b
+spec:
+  serviceReference:
+    name: perftest-b
+    namespace: antrea-test
+`
+	case "knp":
+		return `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: recommend-k8s-np-3da3f
+  namespace: antrea-test
+spec:
+  podSelector:
+    matchLabels:
+      app: nginx
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: nginx
+    ports:
+    - protocol: TCP
+      port: 80
+  egress: []
+`
+	case "anp":
+		return `
+apiVersion: crd.antrea.io/v1alpha1
+kind: NetworkPolicy
+metadata:
+  name: recommend-allow-anp-qw2nk
+  namespace: antrea-test
+spec:
+  appliedTo:
+  - podSelector:
+      matchLabels:
+        antrea-e2e: test-client-l1z7m9bx
+        app: busybox
+  egress:
+  - action: Allow
+    ports:
+    - port: 80
+      protocol: TCP
+    to:
+    - ipBlock:
+        cidr: 172.18.0.3/32
+  ingress: []
+  priority: 5
+  tier: Application
+`
+	default:
+		return ""
+	}
+}

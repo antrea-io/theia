@@ -125,8 +125,7 @@ func run(o *Options) error {
 	}
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, informerDefaultResync)
 	npRecommendationInformer := crdInformerFactory.Crd().V1alpha1().NetworkPolicyRecommendations()
-	recommendedNPInformer := crdInformerFactory.Crd().V1alpha1().RecommendedNetworkPolicies()
-	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer, recommendedNPInformer)
+	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer)
 	clickHouseStatQuerierImpl := stats.NewClickHouseStatQuerierImpl(kubeClient)
 
 	cipherSuites, err := cipher.GenerateCipherSuitesList(o.config.APIServer.TLSCipherSuites)

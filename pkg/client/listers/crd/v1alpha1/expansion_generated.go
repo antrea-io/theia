@@ -23,11 +23,3 @@ type NetworkPolicyRecommendationListerExpansion interface{}
 // NetworkPolicyRecommendationNamespaceListerExpansion allows custom methods to be added to
 // NetworkPolicyRecommendationNamespaceLister.
 type NetworkPolicyRecommendationNamespaceListerExpansion interface{}
-
-// RecommendedNetworkPolicyListerExpansion allows custom methods to be added to
-// RecommendedNetworkPolicyLister.
-type RecommendedNetworkPolicyListerExpansion interface{}
-
-// RecommendedNetworkPolicyNamespaceListerExpansion allows custom methods to be added to
-// RecommendedNetworkPolicyNamespaceLister.
-type RecommendedNetworkPolicyNamespaceListerExpansion interface{}

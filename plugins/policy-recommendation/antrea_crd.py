@@ -784,3 +784,10 @@ class NamespacedName(object):
                 result[attr] = value
 
         return result
+
+
+class PolicyKind():
+    ANP = "anp"
+    KNP = "knp"
+    ACNP = "acnp"
+    ACG = "acg"

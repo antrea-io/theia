@@ -41,14 +41,14 @@ type NetworkPolicyRecommendation struct {
 }
 
 type NetworkPolicyRecommendationStatus struct {
-	State                    string      `json:"state,omitempty"`
-	SparkApplication         string      `json:"sparkApplication,omitempty"`
-	CompletedStages          int         `json:"completedStages,omitempty"`
-	TotalStages              int         `json:"totalStages,omitempty"`
-	RecommendedNetworkPolicy string      `json:"recommendedNetworkPolicy,omitempty"`
-	ErrorMsg                 string      `json:"errorMsg,omitempty"`
-	StartTime                metav1.Time `json:"startTime,omitempty"`
-	EndTime                  metav1.Time `json:"endTime,omitempty"`
+	State                 string      `json:"state,omitempty"`
+	SparkApplication      string      `json:"sparkApplication,omitempty"`
+	CompletedStages       int         `json:"completedStages,omitempty"`
+	TotalStages           int         `json:"totalStages,omitempty"`
+	RecommendationOutcome string      `json:"recommendationOutcome,omitempty"`
+	ErrorMsg              string      `json:"errorMsg,omitempty"`
+	StartTime             metav1.Time `json:"startTime,omitempty"`
+	EndTime               metav1.Time `json:"endTime,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

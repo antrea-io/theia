@@ -36,7 +36,7 @@ import (
 	"antrea.io/theia/pkg/apiserver/certificate"
 	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/theia/portforwarder"
-	"antrea.io/theia/pkg/util"
+	"antrea.io/theia/pkg/util/k8s"
 )
 
 var (
@@ -85,19 +85,15 @@ func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string,
 	}
 	var host string
 	var portForward *portforwarder.PortForwarder
+	serviceIP, servicePort, err := k8s.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when getting the Theia Manager Service address: %v", err)
+	}
 	if useClusterIP {
-		serviceIP, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service address: %v", err)
-		}
 		host = net.JoinHostPort(serviceIP, fmt.Sprint(servicePort))
 	} else {
 		listenAddress := "localhost"
 		listenPort := apis.TheiaManagerAPIPort
-		_, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service port: %v", err)
-		}
 		// Forward the Theia Manager service port
 		portForward, err = StartPortForward(kubeconfig, config.TheiaManagerServiceName, servicePort, listenAddress, listenPort)
 		if err != nil {
@@ -191,10 +187,10 @@ func TableOutputVertical(table [][]string) {
 	header := table[0]
 	writer := tabwriter.NewWriter(os.Stdout, 15, 0, 1, ' ', 0)
 	for i := 1; i < len(table); i++ {
-		fmt.Fprintln(writer, fmt.Sprintf("Row %d:\t", i))
-		fmt.Fprintln(writer, fmt.Sprint("-------"))
+		fmt.Fprintf(writer, "Row %d:\t\n", i)
+		fmt.Fprintf(writer, "-------\n")
 		for j, val := range table[i] {
-			fmt.Fprintln(writer, fmt.Sprintf("%s:\t%s", header[j], val))
+			fmt.Fprintf(writer, "%s:\t%s\n", header[j], val)
 		}
 		fmt.Fprintln(writer)
 		writer.Flush()

@@ -30,10 +30,6 @@ func (c *FakeCrdV1alpha1) NetworkPolicyRecommendations(namespace string) v1alpha
 	return &FakeNetworkPolicyRecommendations{c, namespace}
 }
 
-func (c *FakeCrdV1alpha1) RecommendedNetworkPolicies(namespace string) v1alpha1.RecommendedNetworkPolicyInterface {
-	return &FakeRecommendedNetworkPolicies{c, namespace}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeCrdV1alpha1) RESTClient() rest.Interface {

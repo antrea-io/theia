@@ -34,7 +34,8 @@ import (
 	"antrea.io/theia/pkg/theia/commands"
 	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/theia/portforwarder"
-	"antrea.io/theia/pkg/util"
+	"antrea.io/theia/pkg/util/clickhouse"
+	"antrea.io/theia/pkg/util/k8s"
 )
 
 const (
@@ -111,7 +112,7 @@ var tableColumnNumberMap = map[string]string{
 	".inner.flows_pod_view_local":    "21",
 	".inner.flows_policy_view_local": "28",
 	"flows_local":                    "50",
-	"recommendations_local":          "4",
+	"recommendations_local":          "5",
 }
 
 func TestTheiaClickHouseStatusCommand(t *testing.T) {
@@ -402,7 +403,7 @@ func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string
 	service := "clickhouse-clickhouse"
 	listenAddress := "localhost"
 	listenPort := 9000
-	_, servicePort, err := util.GetServiceAddr(clientset, service, config.FlowVisibilityNS, v1.ProtocolTCP)
+	_, servicePort, err := k8s.GetServiceAddr(clientset, service, config.FlowVisibilityNS, v1.ProtocolTCP)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
 	}
@@ -414,12 +415,12 @@ func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string
 	endpoint := fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
 
 	// Connect to ClickHouse and execute query
-	username, password, err := util.GetClickHouseSecret(clientset, "flow-visibility")
+	username, password, err := clickhouse.GetSecret(clientset, "flow-visibility")
 	if err != nil {
 		return nil, portForward, err
 	}
 	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err = util.ConnectClickHouse(url)
+	connect, err = clickhouse.Connect(url)
 	if err != nil {
 		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
 	}

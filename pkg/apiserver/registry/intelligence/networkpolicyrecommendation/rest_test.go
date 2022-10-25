@@ -16,9 +16,11 @@ package networkpolicyrecommendation
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
@@ -32,6 +34,11 @@ import (
 type fakeQuerier struct{}
 
 func TestREST_Get(t *testing.T) {
+	policy1 := `apiVersion: crd.antrea.io/v1alpha1
+	kind: ClusterNetworkPolicy`
+	policy2 := `apiVersion: crd.antrea.io/v1alpha1
+	kind: NetworkPolicy`
+
 	tests := []struct {
 		name         string
 		nprName      string
@@ -45,14 +52,32 @@ func TestREST_Get(t *testing.T) {
 			expectResult: nil,
 		},
 		{
-			name:         "Successful Get case",
-			nprName:      "npr-2",
-			expectErr:    nil,
-			expectResult: &intelligence.NetworkPolicyRecommendation{Type: "NPR", PolicyType: "Allow"},
+			name:      "Successful Get case",
+			nprName:   "npr-2",
+			expectErr: nil,
+			expectResult: &intelligence.NetworkPolicyRecommendation{
+				Type:       "NPR",
+				PolicyType: "Allow",
+				Status: intelligence.NetworkPolicyRecommendationStatus{
+					State:                 crdv1alpha1.NPRecommendationStateCompleted,
+					RecommendationOutcome: fmt.Sprintf("%s---\n%s", policy1, policy2),
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			defer db.Close()
+			resultRows := sqlmock.NewRows([]string{"policy"}).AddRow(policy1).AddRow(policy2)
+			mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnRows(resultRows)
+
+			setupClickHouseConnection = func() (connect *sql.DB, err error) {
+				return db, nil
+			}
 			r := NewREST(&fakeQuerier{})
 			npr, err := r.Get(context.TODO(), tt.nprName, &v1.GetOptions{})
 			assert.Equal(t, err, tt.expectErr)
@@ -164,9 +189,10 @@ func (c *fakeQuerier) GetNetworkPolicyRecommendation(namespace, name string) (*c
 	}
 	return &crdv1alpha1.NetworkPolicyRecommendation{
 		Spec: crdv1alpha1.NetworkPolicyRecommendationSpec{
-			JobType: "NPR", PolicyType: "Allow"},
+			JobType: "NPR", PolicyType: "Allow",
+		},
 		Status: crdv1alpha1.NetworkPolicyRecommendationStatus{
-			RecommendedNP: &crdv1alpha1.RecommendedNetworkPolicy{},
+			State: crdv1alpha1.NPRecommendationStateCompleted,
 		},
 	}, nil
 }
@@ -181,7 +207,7 @@ func (c *fakeQuerier) DeleteNetworkPolicyRecommendation(namespace, name string) 
 
 func (c *fakeQuerier) ListNetworkPolicyRecommendation(namespace string) ([]*crdv1alpha1.NetworkPolicyRecommendation, error) {
 	return []*crdv1alpha1.NetworkPolicyRecommendation{
-		{ObjectMeta: v1.ObjectMeta{Name: "npr-1"}, Status: crdv1alpha1.NetworkPolicyRecommendationStatus{RecommendedNP: &crdv1alpha1.RecommendedNetworkPolicy{}}},
-		{ObjectMeta: v1.ObjectMeta{Name: "npr-2"}, Status: crdv1alpha1.NetworkPolicyRecommendationStatus{RecommendedNP: &crdv1alpha1.RecommendedNetworkPolicy{}}},
+		{ObjectMeta: v1.ObjectMeta{Name: "npr-1"}},
+		{ObjectMeta: v1.ObjectMeta{Name: "npr-2"}},
 	}, nil
 }

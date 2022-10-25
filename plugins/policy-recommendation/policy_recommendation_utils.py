@@ -54,6 +54,22 @@ def camel_dict(d):
     return result
 
 
+def merge_policy_dict(a, b):
+    for key, value in b.items():
+        if key in a:
+            a[key] += value
+        else:
+            a[key] = value
+    return a
+
+
+def flatten_policy_dict(d):
+    policies = []
+    for v in d.values():
+        policies += v
+    return policies
+
+
 def dict_to_yaml(d):
     return yaml.dump(
         yaml.load(json.dumps(camel_dict(d)), Loader=yaml.FullLoader)

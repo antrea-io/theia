@@ -16,7 +16,6 @@ package commands
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,7 +43,7 @@ func TestPolicyRecommendationList(t *testing.T) {
 			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations":
 					nprList := &intelligence.NetworkPolicyRecommendationList{
 						Items: []intelligence.NetworkPolicyRecommendation{
 							{
@@ -68,7 +67,7 @@ func TestPolicyRecommendationList(t *testing.T) {
 			name: "NetworkPolicyRecommendationList not found",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations":
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),

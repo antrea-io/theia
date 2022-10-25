@@ -9,6 +9,7 @@ metadata:
 spec:
   ports:
     - port: {{ .Values.theiaManager.apiServer.apiPort }}
+      name: tcp
       protocol: TCP
       targetPort: theia-api-http
   selector:

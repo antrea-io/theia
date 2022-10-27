@@ -15,6 +15,7 @@
   - [Configure the Flow Aggregator in your cluster(s)](#configure-the-flow-aggregator-in-your-clusters)
 - [Clean up](#clean-up)
 - [Running applications](#running-applications)
+  - [NetworkPolicy Recommendation](#networkpolicy-recommendation)
 - [Network flow visibility with Grafana](#network-flow-visibility-with-grafana)
   - [Configure datasource](#configure-datasource)
   - [Deployments](#deployments)
@@ -139,8 +140,30 @@ Snowflake credentials are required.
 
 ## Running applications
 
-We are in the process of adding support for applications to Snowflake-powered
-Theia, starting with NetworkPolicy recommendation.
+### NetworkPolicy Recommendation
+
+NetworkPolicy Recommendation recommends the NetworkPolicy configuration
+to secure Kubernetes network and applications. It analyzes the network flows
+stored in the Snowflake database to generate
+[Kubernetes NetworkPolicies](
+https://kubernetes.io/docs/concepts/services-networking/network-policies/)
+or [Antrea NetworkPolicies](
+https://github.com/antrea-io/antrea/blob/main/docs/antrea-network-policy.md).
+
+```bash
+# make sure you have called onboard before running policy-recommendation
+./bin/theia-sf policy-recommendation --database-name <SNOWFLAKE DATABASE NAME> > recommended_policies.yml
+```
+
+Database name can be found in the output of the [onboard](#getting-started)
+command.
+
+NetworkPolicy Recommendation requires a Snowflake warehouse to execute and may
+take seconds to minutes depending on the number of flows. We recommend using a
+[Medium size warehouse](https://docs.snowflake.com/en/user-guide/warehouses-overview.html)
+if you are working on a big dataset. If no warehouse is provided by the
+`--warehouse-name` option, we will create a temporary X-Small size warehouse by
+default.
 
 ## Network flow visibility with Grafana
 

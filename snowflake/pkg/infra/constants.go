@@ -54,4 +54,9 @@ const (
 	flowsTableName = "FLOWS"
 
 	migrationsDir = "migrations"
+
+	udfVersionPlaceholder        = "%VERSION%"
+	udfCreateFunctionSQLFilename = "create_function.sql"
+	k8sPythonClientUrl           = "https://downloads.antrea.io/artifacts/snowflake-udf/k8s-client-python-v24.2.0.zip"
+	k8sPythonClientFileName      = "kubernetes.zip"
 )

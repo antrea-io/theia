@@ -12,21 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package udfs
 
 import (
-	"embed"
-
-	"antrea.io/theia/snowflake/cmd"
-	"antrea.io/theia/snowflake/pkg/infra"
+	"fmt"
+	"strings"
 )
 
-// Embed the udfs directory here because go:embed doesn't support embeding in subpackages
-
-//go:embed udf/*
-var udfFs embed.FS
-
-func main() {
-	infra.UdfFs = udfFs
-	cmd.Execute()
+func GetFunctionName(baseName string, version string) string {
+	version = strings.ReplaceAll(version, ".", "_")
+	version = strings.ReplaceAll(version, "-", "_")
+	return fmt.Sprintf("%s_%s", baseName, version)
 }

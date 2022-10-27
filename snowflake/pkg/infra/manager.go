@@ -19,6 +19,8 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"embed"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -26,6 +28,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
@@ -37,7 +40,10 @@ import (
 
 	"antrea.io/theia/snowflake/database"
 	sf "antrea.io/theia/snowflake/pkg/snowflake"
+	utils "antrea.io/theia/snowflake/pkg/utils"
 )
+
+var UdfFs embed.FS
 
 type pulumiPlugin struct {
 	name    string
@@ -212,6 +218,14 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 	}
 	logger.Info("Installed Migrate Snowflake")
 	return nil
+}
+
+func readVersionFromFile(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 type Manager struct {
@@ -468,6 +482,11 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 		return nil, err
 	}
 
+	err = createUdfs(ctx, logger, outs["databaseName"], warehouseName)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Result{
 		Region:            m.region,
 		BucketName:        outs["bucketID"],
@@ -487,4 +506,161 @@ func (m *Manager) Onboard(ctx context.Context) (*Result, error) {
 func (m *Manager) Offboard(ctx context.Context) error {
 	_, err := m.run(ctx, true)
 	return err
+}
+
+func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, warehouseName string) error {
+	logger.Info("creating UDFs")
+	dsn, _, err := sf.GetDSN()
+	if err != nil {
+		return fmt.Errorf("failed to create DSN: %w", err)
+	}
+
+	db, err := sql.Open("snowflake", dsn)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Snowflake: %w", err)
+	}
+	defer db.Close()
+
+	sfClient := sf.NewClient(db, logger)
+
+	if err := sfClient.UseDatabase(ctx, databaseName); err != nil {
+		return err
+	}
+
+	if err := sfClient.UseSchema(ctx, schemaName); err != nil {
+		return err
+	}
+
+	if err := sfClient.UseWarehouse(ctx, warehouseName); err != nil {
+		return err
+	}
+
+	// Download and stage Kubernetes python client for policy recommendation udf
+	err = utils.DownloadFile(k8sPythonClientUrl, k8sPythonClientFileName)
+	if err != nil {
+		return err
+	}
+	k8sPythonClientFilePath, _ := filepath.Abs(k8sPythonClientFileName)
+	err = sfClient.StageFile(ctx, k8sPythonClientFilePath, udfStageName)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = os.Remove(k8sPythonClientFilePath)
+		if err != nil {
+			logger.Error(err, "Failed to delete Kubernetes python client zip file, please do it manually", "filepath", k8sPythonClientFilePath)
+		}
+	}()
+
+	if err := fs.WalkDir(UdfFs, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if filepath.Ext(path) != ".zip" {
+			return nil
+		}
+		logger.Info("staging", "path", path)
+		directoryPath := path[:len(path)-4]
+		functionVersionPath := filepath.Join(directoryPath, "version.txt")
+		var version string
+		if _, err := os.Stat(functionVersionPath); errors.Is(err, os.ErrNotExist) {
+			logger.Info("did not find version.txt file for function")
+			version = ""
+		} else {
+			version, err = readVersionFromFile(functionVersionPath)
+			if err != nil {
+				return err
+			}
+		}
+		version = strings.ReplaceAll(version, ".", "_")
+		version = strings.ReplaceAll(version, "-", "_")
+		absPath, _ := filepath.Abs(path)
+		var pathWithVersion string
+		if version != "" {
+			pathWithVersion = fmt.Sprintf("%s_%s.zip", absPath[:len(absPath)-4], version)
+		} else {
+			// Don't add a version suffix if there is no version information
+			pathWithVersion = absPath
+		}
+		err = os.Rename(absPath, pathWithVersion)
+		if err != nil {
+			return err
+		}
+		err = sfClient.StageFile(ctx, pathWithVersion, udfStageName)
+		if err != nil {
+			return err
+		}
+		createFunctionSQLPath := filepath.Join(directoryPath, udfCreateFunctionSQLFilename)
+		if _, err := fs.Stat(UdfFs, createFunctionSQLPath); errors.Is(err, os.ErrNotExist) {
+			logger.Info("did not find SQL file to create function, skipping")
+			return nil
+		}
+		logger.Info("creating UDF", "from", createFunctionSQLPath, "version", version)
+		b, err := fs.ReadFile(UdfFs, createFunctionSQLPath)
+		if err != nil {
+			return err
+		}
+		query := string(b)
+		if !strings.Contains(query, udfVersionPlaceholder) {
+			return fmt.Errorf("version placeholder '%s' not found in SQL file", udfVersionPlaceholder)
+		}
+		query = strings.ReplaceAll(query, udfVersionPlaceholder, version)
+		_, err = sfClient.ExecMultiStatementQuery(ctx, query, false)
+		if err != nil {
+			return fmt.Errorf("error when creating UDF: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("creating failed: %w", err)
+	}
+	return nil
+}
+
+func (m *Manager) RunUdf(ctx context.Context, query string, databaseName string) (*sql.Rows, error) {
+	logger := m.logger
+	logger.Info("Running UDF")
+	dsn, _, err := sf.GetDSN()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create DSN: %w", err)
+	}
+
+	db, err := sql.Open("snowflake", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to Snowflake: %w", err)
+	}
+	defer db.Close()
+
+	sfClient := sf.NewClient(db, logger)
+
+	if err := sfClient.UseDatabase(ctx, databaseName); err != nil {
+		return nil, err
+	}
+
+	if err := sfClient.UseSchema(ctx, schemaName); err != nil {
+		return nil, err
+	}
+
+	warehouseName := m.warehouseName
+	if warehouseName == "" {
+		temporaryWarehouse := newTemporaryWarehouse(sfClient, logger)
+		warehouseName = temporaryWarehouse.Name()
+		if err := temporaryWarehouse.Create(ctx); err != nil {
+			return nil, err
+		}
+		defer func() {
+			if err := temporaryWarehouse.Delete(ctx); err != nil {
+				logger.Error(err, "Failed to delete temporary warehouse, please do it manually", "name", warehouseName)
+			}
+		}()
+	}
+
+	if err := sfClient.UseWarehouse(ctx, warehouseName); err != nil {
+		return nil, err
+	}
+
+	rows, err := sfClient.ExecMultiStatementQuery(ctx, query, true)
+	if err != nil {
+		return nil, fmt.Errorf("error when running UDF: %w", err)
+	}
+	return rows, nil
 }

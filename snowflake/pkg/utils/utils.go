@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package utils
 
 import (
-	"embed"
-
-	"antrea.io/theia/snowflake/cmd"
-	"antrea.io/theia/snowflake/pkg/infra"
+	"io"
+	"net/http"
+	"os"
 )
 
-// Embed the udfs directory here because go:embed doesn't support embeding in subpackages
-
-//go:embed udf/*
-var udfFs embed.FS
-
-func main() {
-	infra.UdfFs = udfFs
-	cmd.Execute()
+// Download a file from the given url to the current directory
+func DownloadFile(url string, filename string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil
+	}
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(file, resp.Body)
+	return err
 }

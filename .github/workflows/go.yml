@@ -68,6 +68,61 @@ jobs:
         flags: unit-tests
         name: codecov-unit-test
 
+  check-snowflake-changes:
+    name: Check whether snowflake tests need to be run based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: antrea-io/has-changes@v2
+      id: check_diff
+      with:
+        paths: snowflake/*
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+  
+  test-unit-snowflake:
+    needs: check-snowflake-changes
+    if: ${{ needs.check-snowflake-changes.outputs.has_changes == 'yes' }}
+    name: Unit test snowflake
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Check-out code
+      uses: actions/checkout@v3
+    - name: Set up Go using version from go.mod
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: 'snowflake/go.mod'
+    - uses: actions/cache@v3
+      with:
+        # In order:
+        # * Module download cache
+        # * Build cache (Linux)
+        # * Build cache (Mac)
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+          ~/Library/Caches/go-build
+          %LocalAppData%\go-build
+        key: ${{ runner.os }}-${{ env.go-cache-name }}-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ env.go-cache-name }}-
+    - name: Run unit tests
+      run: |
+        cd snowflake
+        make test-unit
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: snowflake/.coverage/coverage-unit.txt
+        flags: unit-tests
+        name: codecov-unit-test-snowflake
+
   golangci-lint:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}

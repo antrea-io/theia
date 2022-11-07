@@ -15,12 +15,20 @@
 package snowflake
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"strconv"
 
 	sf "github.com/snowflakedb/gosnowflake"
 )
+
+type MissingEnvVariableError struct {
+	envVarName string
+}
+
+func (e MissingEnvVariableError) Error() string {
+	return fmt.Sprintf("env variable '%s' is not set", e.envVarName)
+}
 
 func SetWarehouse(name string) func(*sf.Config) {
 	return func(cfg *sf.Config) {
@@ -42,25 +50,33 @@ func SetSchema(name string) func(*sf.Config) {
 
 // GetDSN constructs a DSN based on the test connection parameters
 func GetDSN(options ...func(*sf.Config)) (string, *sf.Config, error) {
-	env := func(k string, failOnMissing bool) string {
+	env := func(k string, failOnMissing bool) (string, error) {
 		if value := os.Getenv(k); value != "" {
-			return value
+			return value, nil
 		}
 		if failOnMissing {
-			log.Fatalf("%v environment variable is not set.", k)
+			return "", MissingEnvVariableError{k}
 		}
-		return ""
+		return "", nil
 	}
 
-	account := env("SNOWFLAKE_ACCOUNT", true)
-	user := env("SNOWFLAKE_USER", true)
-	password := env("SNOWFLAKE_PASSWORD", true)
-	host := env("SNOWFLAKE_HOST", false)
-	portStr := env("SNOWFLAKE_PORT", false)
-	protocol := env("SNOWFLAKE_PROTOCOL", false)
+	account, err := env("SNOWFLAKE_ACCOUNT", true)
+	if err != nil {
+		return "", nil, err
+	}
+	user, err := env("SNOWFLAKE_USER", true)
+	if err != nil {
+		return "", nil, err
+	}
+	password, err := env("SNOWFLAKE_PASSWORD", true)
+	if err != nil {
+		return "", nil, err
+	}
+	host, _ := env("SNOWFLAKE_HOST", false)
+	portStr, _ := env("SNOWFLAKE_PORT", false)
+	protocol, _ := env("SNOWFLAKE_PROTOCOL", false)
 
 	port := 443 // snowflake default port
-	var err error
 	if len(portStr) > 0 {
 		port, err = strconv.Atoi(portStr)
 		if err != nil {

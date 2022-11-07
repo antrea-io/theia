@@ -17,6 +17,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"time"
 
 	awsarn "github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -68,11 +70,11 @@ it will return immediately.`,
 
 		}
 		sqsClient := sqsclient.GetClient(awsCfg)
-		return receiveSQSMessage(ctx, sqsClient, arn.Resource, delete)
+		return receiveSQSMessage(ctx, sqsClient, arn.Resource, delete, os.Stdout)
 	},
 }
 
-func receiveSQSMessage(ctx context.Context, sqsClient sqsclient.Interface, queueName string, delete bool) error {
+func receiveSQSMessage(ctx context.Context, sqsClient sqsclient.Interface, queueName string, delete bool, w io.Writer) error {
 	queueURL, err := func() (string, error) {
 		output, err := sqsClient.GetQueueUrl(ctx, &sqs.GetQueueUrlInput{
 			QueueName: &queueName,
@@ -97,7 +99,7 @@ func receiveSQSMessage(ctx context.Context, sqsClient sqsclient.Interface, queue
 		return nil
 	}
 	message := output.Messages[0]
-	fmt.Println(*message.Body)
+	fmt.Fprintln(w, *message.Body)
 	if !delete {
 		return nil
 	}

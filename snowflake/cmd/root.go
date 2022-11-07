@@ -61,7 +61,6 @@ started:
 		zapLog, err := zc.Build()
 		if err != nil {
 			return fmt.Errorf("cannot initialize Zap logger: %w", err)
-			panic("Cannot initialize Zap logger")
 		}
 		logger = zapr.NewLogger(zapLog)
 		return nil

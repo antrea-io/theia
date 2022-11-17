@@ -31,7 +31,7 @@ const defaultNameSpace = "flow-visibility"
 
 // REST implements rest.Storage for clickhouse.
 type REST struct {
-	clickHouseStatusQuerier querier.ClickHouseStatusQuerier
+	clickHouseStatusQuerier querier.ClickHouseStatQuerier
 }
 
 var (
@@ -39,7 +39,7 @@ var (
 )
 
 // NewREST returns a REST object that will work against API services.
-func NewREST(chq querier.ClickHouseStatusQuerier) *REST {
+func NewREST(chq querier.ClickHouseStatQuerier) *REST {
 	return &REST{clickHouseStatusQuerier: chq}
 }
 
@@ -48,24 +48,24 @@ func (r *REST) New() runtime.Object {
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	var result [][]string
+	var stats [][]string
 	var err error
 	switch name {
 	case "diskInfo":
-		result, err = r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace)
+		stats, err = r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace)
 	case "tableInfo":
-		result, err = r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace)
+		stats, err = r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace)
 	case "insertRate":
-		result, err = r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace)
+		stats, err = r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace)
 	case "stackTraces":
-		result, err = r.clickHouseStatusQuerier.GetStackTraces(defaultNameSpace)
+		stats, err = r.clickHouseStatusQuerier.GetStackTraces(defaultNameSpace)
 	default:
 		return nil, fmt.Errorf("cannot recognize the statua name: %s", name)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error when sending query to ClickHouse: %s", err)
 	}
-	return &v1alpha1.ClickHouseStats{Result: result}, nil
+	return &v1alpha1.ClickHouseStats{Stat: stats}, nil
 }
 
 func (r *REST) NamespaceScoped() bool {

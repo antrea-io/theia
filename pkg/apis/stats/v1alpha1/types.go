@@ -24,5 +24,5 @@ type ClickHouseStats struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Result [][]string `json:"jobType,omitempty"`
+	Stat [][]string `json:"stat,omitempty"`
 }

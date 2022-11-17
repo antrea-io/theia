@@ -27,6 +27,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
@@ -401,7 +402,7 @@ func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string
 	service := "clickhouse-clickhouse"
 	listenAddress := "localhost"
 	listenPort := 9000
-	_, servicePort, err := util.GetServiceAddr(clientset, service, config.FlowVisibilityNS, "tcp")
+	_, servicePort, err := util.GetServiceAddr(clientset, service, config.FlowVisibilityNS, v1.ProtocolTCP)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
 	}

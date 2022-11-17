@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
@@ -85,7 +86,7 @@ func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string,
 	var host string
 	var portForward *portforwarder.PortForwarder
 	if useClusterIP {
-		serviceIP, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, "tcp")
+		serviceIP, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service address: %v", err)
 		}
@@ -93,7 +94,7 @@ func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string,
 	} else {
 		listenAddress := "localhost"
 		listenPort := apis.TheiaManagerAPIPort
-		_, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, "tcp")
+		_, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service port: %v", err)
 		}

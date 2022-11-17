@@ -25,7 +25,7 @@ type NPRecommendationQuerier interface {
 	CreateNetworkPolicyRecommendation(namespace string, networkPolicyRecommendation *v1alpha1.NetworkPolicyRecommendation) (*v1alpha1.NetworkPolicyRecommendation, error)
 }
 
-type ClickHouseStatusQuerier interface {
+type ClickHouseStatQuerier interface {
 	GetDiskInfo(namespace string) ([][]string, error)
 	GetTableInfo(namespace string) ([][]string, error)
 	GetInsertRate(namespace string) ([][]string, error)

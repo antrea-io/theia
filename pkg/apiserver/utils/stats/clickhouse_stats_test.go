@@ -74,7 +74,7 @@ func TestGetDataFromClickHouse(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			assert.NoError(t, err)
 			mock.ExpectQuery(regexp.QuoteMeta(queryMap[tc.query])).WillReturnRows(tc.returnedRow)
-			controller := StatsController{clickhouseConnect: db}
+			controller := ClickHouseStatQuerierImpl{clickhouseConnect: db}
 			result, err := controller.getDataFromClickHouse(tc.query, config.FlowVisibilityNS)
 
 			if tc.expectedError == nil {

@@ -72,7 +72,7 @@ type ExtraConfig struct {
 	k8sClient               kubernetes.Interface
 	caCertController        *certificate.CACertController
 	npRecommendationQuerier querier.NPRecommendationQuerier
-	clickHouseStatusQuerier querier.ClickHouseStatusQuerier
+	clickHouseStatQuerier   querier.ClickHouseStatQuerier
 }
 
 // Config defines the config for Theia manager apiserver.
@@ -85,7 +85,7 @@ type TheiaManagerAPIServer struct {
 	GenericAPIServer        *genericapiserver.GenericAPIServer
 	caCertController        *certificate.CACertController
 	NPRecommendationQuerier querier.NPRecommendationQuerier
-	ClickHouseStatusQuerier querier.ClickHouseStatusQuerier
+	ClickHouseStatusQuerier querier.ClickHouseStatQuerier
 }
 
 func (s *TheiaManagerAPIServer) Run(ctx context.Context) error {
@@ -102,7 +102,7 @@ func NewConfig(
 	k8sClient kubernetes.Interface,
 	caCertController *certificate.CACertController,
 	npRecommendationQuerier querier.NPRecommendationQuerier,
-	clickHouseStatusQuerier querier.ClickHouseStatusQuerier,
+	clickHouseStatQuerier querier.ClickHouseStatQuerier,
 ) *Config {
 	return &Config{
 		genericConfig: genericConfig,
@@ -110,7 +110,7 @@ func NewConfig(
 			k8sClient:               k8sClient,
 			caCertController:        caCertController,
 			npRecommendationQuerier: npRecommendationQuerier,
-			clickHouseStatusQuerier: clickHouseStatusQuerier,
+			clickHouseStatQuerier:   clickHouseStatQuerier,
 		},
 	}
 }
@@ -150,7 +150,7 @@ func (c Config) New() (*TheiaManagerAPIServer, error) {
 		GenericAPIServer:        s,
 		caCertController:        c.extraConfig.caCertController,
 		NPRecommendationQuerier: c.extraConfig.npRecommendationQuerier,
-		ClickHouseStatusQuerier: c.extraConfig.clickHouseStatusQuerier,
+		ClickHouseStatusQuerier: c.extraConfig.clickHouseStatQuerier,
 	}
 	if err := installAPIGroup(apiServer); err != nil {
 		return nil, err

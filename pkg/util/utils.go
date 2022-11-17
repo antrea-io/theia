@@ -22,11 +22,12 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go"
 	"github.com/google/uuid"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-var OpenSql = sql.Open
+var SqlOpenFunc = sql.Open
 
 func ParseRecommendationName(npName string) error {
 	if !strings.HasPrefix(npName, "pr-") {
@@ -41,7 +42,7 @@ func ParseRecommendationName(npName string) error {
 	return nil
 }
 
-func GetServiceAddr(client kubernetes.Interface, serviceName, serviceNamespace, servicePortName string) (string, int, error) {
+func GetServiceAddr(client kubernetes.Interface, serviceName, serviceNamespace string, protocol v1.Protocol) (string, int, error) {
 	var serviceIP string
 	var servicePort int
 	service, err := client.CoreV1().Services(serviceNamespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
@@ -50,12 +51,12 @@ func GetServiceAddr(client kubernetes.Interface, serviceName, serviceNamespace, 
 	}
 	serviceIP = service.Spec.ClusterIP
 	for _, port := range service.Spec.Ports {
-		if port.Name == servicePortName {
+		if port.Protocol == protocol {
 			servicePort = int(port.Port)
 		}
 	}
 	if servicePort == 0 {
-		return serviceIP, servicePort, fmt.Errorf("error when finding the Service %s: no %s service port", serviceName, servicePortName)
+		return serviceIP, servicePort, fmt.Errorf("error when finding the Service %s: no %s service port", serviceName, protocol)
 	}
 	return serviceIP, servicePort, nil
 }
@@ -80,7 +81,7 @@ func ConnectClickHouse(url string) (*sql.DB, error) {
 	var connect *sql.DB
 	// Open the database and ping it
 	var err error
-	connect, err = OpenSql("clickhouse", url)
+	connect, err = SqlOpenFunc("clickhouse", url)
 	if err != nil {
 		return connect, fmt.Errorf("failed to open ClickHouse: %v", err)
 	}
@@ -95,7 +96,7 @@ func ConnectClickHouse(url string) (*sql.DB, error) {
 }
 
 func SetupClickHouseConnection(client kubernetes.Interface, namespace string) (connect *sql.DB, err error) {
-	serviceIP, servicePort, err := GetServiceAddr(client, "clickhouse-clickhouse", namespace, "tcp")
+	serviceIP, servicePort, err := GetServiceAddr(client, "clickhouse-clickhouse", namespace, v1.ProtocolTCP)
 	if err != nil {
 		return connect, fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
 	}

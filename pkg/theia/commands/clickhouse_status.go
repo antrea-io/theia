@@ -87,9 +87,9 @@ func getStatus(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("error when getting clickhouse %v status: %s", name, err)
 		}
 		if name == "stackTraces" {
-			TableOutputVertical(data.Result)
+			TableOutputVertical(data.Stat)
 		} else {
-			TableOutput(data.Result)
+			TableOutput(data.Stat)
 		}
 	}
 	return nil

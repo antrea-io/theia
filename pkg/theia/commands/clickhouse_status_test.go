@@ -46,7 +46,7 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/diskInfo"):
 					status := &stats.ClickHouseStats{
-						Result: [][]string{{"test_diskInfo"}},
+						Stat: [][]string{{"test_diskInfo"}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -63,7 +63,7 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/tableInfo"):
 					status := &stats.ClickHouseStats{
-						Result: [][]string{{"test_tableInfo"}},
+						Stat: [][]string{{"test_tableInfo"}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -80,7 +80,7 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/insertRate"):
 					status := &stats.ClickHouseStats{
-						Result: [][]string{{"test_insertRate"}},
+						Stat: [][]string{{"test_insertRate"}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -97,7 +97,7 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTraces"):
 					status := &stats.ClickHouseStats{
-						Result: [][]string{{"test_stackTraces"}, {"fakeData"}},
+						Stat: [][]string{{"test_stackTraces"}, {"fakeData"}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)

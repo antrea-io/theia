@@ -128,21 +128,21 @@ ORDER BY count()
 DESC SETTINGS allow_introspection_functions=1`,
 }
 
-type StatsController struct {
+type ClickHouseStatQuerierImpl struct {
 	kubeClient        kubernetes.Interface
 	clickhouseConnect *sql.DB
 }
 
-func NewStatsController(
+func NewClickHouseStatQuerierImpl(
 	kubeClient kubernetes.Interface,
-) *StatsController {
-	c := &StatsController{
+) *ClickHouseStatQuerierImpl {
+	c := &ClickHouseStatQuerierImpl{
 		kubeClient: kubeClient,
 	}
 	return c
 }
 
-func (c *StatsController) GetDiskInfo(namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) GetDiskInfo(namespace string) ([][]string, error) {
 	data, err := c.getDataFromClickHouse(diskQuery, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error when getting diskInfo from clickhouse: %v", err)
@@ -150,7 +150,7 @@ func (c *StatsController) GetDiskInfo(namespace string) ([][]string, error) {
 	return data, nil
 }
 
-func (c *StatsController) GetTableInfo(namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) GetTableInfo(namespace string) ([][]string, error) {
 	data, err := c.getDataFromClickHouse(tableInfoQuery, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error when getting tableInfo from clickhouse: %v", err)
@@ -158,7 +158,7 @@ func (c *StatsController) GetTableInfo(namespace string) ([][]string, error) {
 	return data, nil
 }
 
-func (c *StatsController) GetInsertRate(namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) GetInsertRate(namespace string) ([][]string, error) {
 	data, err := c.getDataFromClickHouse(insertRateQuery, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error when getting insertRate from clickhouse: %v", err)
@@ -166,7 +166,7 @@ func (c *StatsController) GetInsertRate(namespace string) ([][]string, error) {
 	return data, nil
 }
 
-func (c *StatsController) GetStackTraces(namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) GetStackTraces(namespace string) ([][]string, error) {
 	data, err := c.getDataFromClickHouse(stackTracesQuery, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error when getting stackTraces from clickhouse: %v", err)
@@ -174,7 +174,7 @@ func (c *StatsController) GetStackTraces(namespace string) ([][]string, error) {
 	return data, nil
 }
 
-func (c *StatsController) getDataFromClickHouse(query int, namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) getDataFromClickHouse(query int, namespace string) ([][]string, error) {
 	var err error
 	if c.clickhouseConnect == nil {
 		c.clickhouseConnect, err = util.SetupClickHouseConnection(c.kubeClient, namespace)
@@ -184,6 +184,7 @@ func (c *StatsController) getDataFromClickHouse(query int, namespace string) ([]
 	}
 	result, err := c.clickhouseConnect.Query(queryMap[query])
 	if err != nil {
+		c.clickhouseConnect = nil
 		return nil, fmt.Errorf("failed to get data from clickhouse: %v", err)
 	}
 	defer result.Close()

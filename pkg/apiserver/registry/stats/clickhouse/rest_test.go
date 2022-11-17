@@ -73,7 +73,7 @@ func TestREST_Get(t *testing.T) {
 				assert.NoError(t, err)
 				status, ok := result.(*stats.ClickHouseStats)
 				assert.True(t, ok)
-				assert.ElementsMatch(t, tt.expectResult, status.Result)
+				assert.ElementsMatch(t, tt.expectResult, status.Stat)
 
 			} else {
 				assert.Error(t, err)

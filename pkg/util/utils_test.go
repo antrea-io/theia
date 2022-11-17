@@ -15,6 +15,7 @@
 package util
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,8 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"antrea.io/theia/pkg/apis"
 	"antrea.io/theia/pkg/theia/commands/config"
+)
+
+var (
+	serviceName      = "service"
+	serviceNamespace = "serviceNamespace"
+	port             = 9000
+	protocol         = v1.ProtocolTCP
 )
 
 func TestGetServiceAddr(t *testing.T) {
@@ -40,32 +47,44 @@ func TestGetServiceAddr(t *testing.T) {
 			fakeClientset: fake.NewSimpleClientset(
 				&v1.Service{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      config.TheiaManagerServiceName,
-						Namespace: config.FlowVisibilityNS,
+						Name:      serviceName,
+						Namespace: serviceNamespace,
 					},
 					Spec: v1.ServiceSpec{
-						Ports:     []v1.ServicePort{{Port: apis.TheiaManagerAPIPort, Name: "tcp"}},
+						Ports:     []v1.ServicePort{{Port: int32(port), Protocol: protocol}},
 						ClusterIP: "10.98.208.26",
 					},
 				},
 			),
-			serviceName:      config.TheiaManagerServiceName,
 			expectedIP:       "10.98.208.26",
-			expectedPort:     apis.TheiaManagerAPIPort,
+			expectedPort:     port,
 			expectedErrorMsg: "",
+		},
+		{
+			name: "service port not found",
+			fakeClientset: fake.NewSimpleClientset(
+				&v1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      serviceName,
+						Namespace: serviceNamespace,
+					},
+				},
+			),
+			expectedIP:       "",
+			expectedPort:     0,
+			expectedErrorMsg: fmt.Sprintf("error when finding the Service %s: no %s service port", serviceName, protocol),
 		},
 		{
 			name:             "service not found",
 			fakeClientset:    fake.NewSimpleClientset(),
-			serviceName:      config.TheiaManagerServiceName,
 			expectedIP:       "",
 			expectedPort:     0,
-			expectedErrorMsg: `error when finding the Service theia-manager: services "theia-manager" not found`,
+			expectedErrorMsg: fmt.Sprintf("error when finding the Service %s: services \"%s\" not found", serviceName, serviceName),
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ip, port, err := GetServiceAddr(tt.fakeClientset, tt.serviceName, config.FlowVisibilityNS, "tcp")
+			ip, port, err := GetServiceAddr(tt.fakeClientset, serviceName, serviceNamespace, protocol)
 			if tt.expectedErrorMsg != "" {
 				assert.EqualErrorf(t, err, tt.expectedErrorMsg, "Error should be: %v, got: %v", tt.expectedErrorMsg, err)
 			}

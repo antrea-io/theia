@@ -1223,10 +1223,10 @@ func (data *TestData) deployFlowVisibilityCommon(yamlFile string) error {
 // waitForClickHousePod waits for the completion of the ClickHouse Pod updating
 // after applying a new Flow Visibility manifest.
 func (data *TestData) waitForClickHousePod() error {
-	// It takes time for ClickHouse Operator to schedule the ClickHouse Pod updating
-	// when new Flow Visibility manifest is applied.
 	startUpdating := false
-	err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
+	// ClickHouse Operator takes around 1 minute to restart the ClickHouse Pod
+	// which requires more time to make sure that ClickHouse Pod is ready.
+	err := wait.Poll(defaultInterval, defaultTimeout*2, func() (bool, error) {
 		clickHouseStatefulSetName := fmt.Sprintf("%s-0-0", clickHousePodNamePrefix)
 		ss, err := data.clientset.AppsV1().StatefulSets(flowVisibilityNamespace).Get(context.TODO(), clickHouseStatefulSetName, metav1.GetOptions{})
 		if err != nil {

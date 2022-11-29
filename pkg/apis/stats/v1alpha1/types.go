@@ -14,7 +14,9 @@
 
 package v1alpha1
 
-import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // +genclient
 // +genclient:nonNamespaced
@@ -24,5 +26,39 @@ type ClickHouseStats struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Stat [][]string `json:"stat,omitempty"`
+	DiskInfos   []DiskInfo   `json:"diskInfos,omitempty"`
+	TableInfos  []TableInfo  `json:"tableInfos,omitempty"`
+	InsertRates []InsertRate `json:"insertRates,omitempty"`
+	StackTraces []StackTrace `json:"stackTraces,omitempty"`
+	ErrorMsg    []string     `json:"errorMsg,omitempty"`
+}
+
+type DiskInfo struct {
+	Shard          string `json:"shard,omitempty"`
+	Database       string `json:"name,omitempty"`
+	Path           string `json:"path,omitempty"`
+	FreeSpace      string `json:"freeSpace,omitempty"`
+	TotalSpace     string `json:"totalSpace,omitempty"`
+	UsedPercentage string `json:"usedPercentage,omitempty"`
+}
+
+type TableInfo struct {
+	Shard      string `json:"shard,omitempty"`
+	Database   string `json:"database,omitempty"`
+	TableName  string `json:"tableName,omitempty"`
+	TotalRows  string `json:"totalRows,omitempty"`
+	TotalBytes string `json:"totalBytes,omitempty"`
+	TotalCols  string `json:"totalCols,omitempty"`
+}
+
+type InsertRate struct {
+	Shard       string `json:"shard,omitempty"`
+	RowsPerSec  string `json:"rowsPerSec,omitempty"`
+	BytesPerSec string `json:"bytesPerSec,omitempty"`
+}
+
+type StackTrace struct {
+	Shard          string `json:"shard,omitempty"`
+	TraceFunctions string `json:"traceFunctions,omitempty"`
+	Count          string `json:"count,omitempty"`
 }

@@ -32,31 +32,47 @@ func TestREST_Get(t *testing.T) {
 		name         string
 		queryName    string
 		expectErr    error
-		expectResult [][]string
+		expectResult *stats.ClickHouseStats
 	}{
 		{
-			name:         "Get diskInfo",
-			queryName:    "diskInfo",
-			expectErr:    nil,
-			expectResult: [][]string{{"diskInfo_test"}},
+			name:      "Get diskInfo",
+			queryName: "diskInfo",
+			expectErr: nil,
+			expectResult: &stats.ClickHouseStats{
+				DiskInfos: []stats.DiskInfo{{
+					Shard: "Shard_test",
+				}},
+			},
 		},
 		{
-			name:         "Get tableInfo",
-			queryName:    "tableInfo",
-			expectErr:    nil,
-			expectResult: [][]string{{"tableInfo_test"}},
+			name:      "Get tableInfo",
+			queryName: "tableInfo",
+			expectErr: nil,
+			expectResult: &stats.ClickHouseStats{
+				TableInfos: []stats.TableInfo{{
+					Shard: "Shard_test",
+				}},
+			},
 		},
 		{
-			name:         "Get insertRate",
-			queryName:    "insertRate",
-			expectErr:    nil,
-			expectResult: [][]string{{"insertRate_test"}},
+			name:      "Get insertRate",
+			queryName: "insertRate",
+			expectErr: nil,
+			expectResult: &stats.ClickHouseStats{
+				InsertRates: []stats.InsertRate{{
+					Shard: "Shard_test",
+				}},
+			},
 		},
 		{
-			name:         "Get stackTraces",
-			queryName:    "stackTraces",
-			expectErr:    nil,
-			expectResult: [][]string{{"stackTraces_test"}},
+			name:      "Get stackTraces",
+			queryName: "stackTrace",
+			expectErr: nil,
+			expectResult: &stats.ClickHouseStats{
+				StackTraces: []stats.StackTrace{{
+					Shard: "Shard_test",
+				}},
+			},
 		},
 		{
 			name:         "not found",
@@ -73,7 +89,7 @@ func TestREST_Get(t *testing.T) {
 				assert.NoError(t, err)
 				status, ok := result.(*stats.ClickHouseStats)
 				assert.True(t, ok)
-				assert.ElementsMatch(t, tt.expectResult, status.Stat)
+				assert.EqualValues(t, tt.expectResult, status)
 
 			} else {
 				assert.Error(t, err)
@@ -83,15 +99,27 @@ func TestREST_Get(t *testing.T) {
 	}
 }
 
-func (c *fakeQuerier) GetDiskInfo(namespace string) ([][]string, error) {
-	return [][]string{{"diskInfo_test"}}, nil
+func (c *fakeQuerier) GetDiskInfo(namespace string, status *stats.ClickHouseStats) error {
+	status.DiskInfos = []stats.DiskInfo{{
+		Shard: "Shard_test",
+	}}
+	return nil
 }
-func (c *fakeQuerier) GetTableInfo(namespace string) ([][]string, error) {
-	return [][]string{{"tableInfo_test"}}, nil
+func (c *fakeQuerier) GetTableInfo(namespace string, status *stats.ClickHouseStats) error {
+	status.TableInfos = []stats.TableInfo{{
+		Shard: "Shard_test",
+	}}
+	return nil
 }
-func (c *fakeQuerier) GetInsertRate(namespace string) ([][]string, error) {
-	return [][]string{{"insertRate_test"}}, nil
+func (c *fakeQuerier) GetInsertRate(namespace string, status *stats.ClickHouseStats) error {
+	status.InsertRates = []stats.InsertRate{{
+		Shard: "Shard_test",
+	}}
+	return nil
 }
-func (c *fakeQuerier) GetStackTraces(namespace string) ([][]string, error) {
-	return [][]string{{"stackTraces_test"}}, nil
+func (c *fakeQuerier) GetStackTrace(namespace string, status *stats.ClickHouseStats) error {
+	status.StackTraces = []stats.StackTrace{{
+		Shard: "Shard_test",
+	}}
+	return nil
 }

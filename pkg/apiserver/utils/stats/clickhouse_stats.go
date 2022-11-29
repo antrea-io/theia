@@ -20,45 +20,16 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 
+	"antrea.io/theia/pkg/apis/stats/v1alpha1"
 	"antrea.io/theia/pkg/util"
 )
-
-type diskInfo struct {
-	shard          string
-	name           string
-	path           string
-	freeSpace      string
-	totalSpace     string
-	usedPercentage string
-}
-
-type tableInfo struct {
-	shard      string
-	database   string
-	tableName  string
-	totalRows  sql.NullString
-	totalBytes sql.NullString
-	totalCols  string
-}
-
-type insertRate struct {
-	shard       string
-	rowsPerSec  string
-	bytesPerSec string
-}
-
-type stackTraces struct {
-	shard          string
-	traceFunctions string
-	count          string
-}
 
 const (
 	diskQuery int = iota
 	tableInfoQuery
 	// average writing rate for all tables per second
 	insertRateQuery
-	stackTracesQuery
+	stackTraceQuery
 )
 
 var queryMap = map[int]string{
@@ -117,7 +88,7 @@ FROM (
 	ORDER BY t DESC, shardNum()
 	) sd
 WHERE sd.rowNumber=1`,
-	stackTracesQuery: `
+	stackTraceQuery: `
 SELECT
 	shardNum() as Shard,
 	arrayStringConcat(arrayMap(x -> demangle(addressToSymbol(x)), trace), '\\n') AS trace_function,
@@ -142,87 +113,96 @@ func NewClickHouseStatQuerierImpl(
 	return c
 }
 
-func (c *ClickHouseStatQuerierImpl) GetDiskInfo(namespace string) ([][]string, error) {
-	data, err := c.getDataFromClickHouse(diskQuery, namespace)
+func (c *ClickHouseStatQuerierImpl) GetDiskInfo(namespace string, stats *v1alpha1.ClickHouseStats) error {
+	err := c.getDataFromClickHouse(diskQuery, namespace, stats)
 	if err != nil {
-		return nil, fmt.Errorf("error when getting diskInfo from clickhouse: %v", err)
+		return fmt.Errorf("error when getting diskInfo from clickhouse: %v", err)
 	}
-	return data, nil
+	return nil
 }
 
-func (c *ClickHouseStatQuerierImpl) GetTableInfo(namespace string) ([][]string, error) {
-	data, err := c.getDataFromClickHouse(tableInfoQuery, namespace)
+func (c *ClickHouseStatQuerierImpl) GetTableInfo(namespace string, stats *v1alpha1.ClickHouseStats) error {
+	err := c.getDataFromClickHouse(tableInfoQuery, namespace, stats)
 	if err != nil {
-		return nil, fmt.Errorf("error when getting tableInfo from clickhouse: %v", err)
+		return fmt.Errorf("error when getting tableInfo from clickhouse: %v", err)
 	}
-	return data, nil
+	return nil
 }
 
-func (c *ClickHouseStatQuerierImpl) GetInsertRate(namespace string) ([][]string, error) {
-	data, err := c.getDataFromClickHouse(insertRateQuery, namespace)
+func (c *ClickHouseStatQuerierImpl) GetInsertRate(namespace string, stats *v1alpha1.ClickHouseStats) error {
+	err := c.getDataFromClickHouse(insertRateQuery, namespace, stats)
 	if err != nil {
-		return nil, fmt.Errorf("error when getting insertRate from clickhouse: %v", err)
+		return fmt.Errorf("error when getting insertRate from clickhouse: %v", err)
 	}
-	return data, nil
+	return nil
 }
 
-func (c *ClickHouseStatQuerierImpl) GetStackTraces(namespace string) ([][]string, error) {
-	data, err := c.getDataFromClickHouse(stackTracesQuery, namespace)
+func (c *ClickHouseStatQuerierImpl) GetStackTrace(namespace string, stats *v1alpha1.ClickHouseStats) error {
+	err := c.getDataFromClickHouse(stackTraceQuery, namespace, stats)
 	if err != nil {
-		return nil, fmt.Errorf("error when getting stackTraces from clickhouse: %v", err)
+		return fmt.Errorf("error when getting stackTrace from clickhouse: %v", err)
 	}
-	return data, nil
+	return nil
 }
 
-func (c *ClickHouseStatQuerierImpl) getDataFromClickHouse(query int, namespace string) ([][]string, error) {
+func (c *ClickHouseStatQuerierImpl) getDataFromClickHouse(query int, namespace string, stats *v1alpha1.ClickHouseStats) error {
 	var err error
 	if c.clickhouseConnect == nil {
 		c.clickhouseConnect, err = util.SetupClickHouseConnection(c.kubeClient, namespace)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 	result, err := c.clickhouseConnect.Query(queryMap[query])
 	if err != nil {
 		c.clickhouseConnect = nil
-		return nil, fmt.Errorf("failed to get data from clickhouse: %v", err)
+		return fmt.Errorf("failed to get data from clickhouse: %v", err)
 	}
 	defer result.Close()
-	columnName, err := result.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the name of columns: %v", err)
-	}
-	var data [][]string
-	data = append(data, columnName)
 	for result.Next() {
 		var err error
 		switch query {
 		case diskQuery:
-			var res diskInfo
-			err = result.Scan(&res.shard, &res.name, &res.path, &res.freeSpace, &res.totalSpace, &res.usedPercentage)
-			data = append(data, []string{res.shard, res.name, res.path, res.freeSpace, res.totalSpace, res.usedPercentage + " %"})
-		case tableInfoQuery:
-			res := tableInfo{}
-			err = result.Scan(&res.shard, &res.database, &res.tableName, &res.totalRows, &res.totalBytes, &res.totalCols)
-			if !res.totalRows.Valid || !res.totalBytes.Valid {
+			res := v1alpha1.DiskInfo{}
+			err = result.Scan(&res.Shard, &res.Database, &res.Path, &res.FreeSpace, &res.TotalSpace, &res.UsedPercentage)
+			if err != nil {
+				stats.ErrorMsg = append(stats.ErrorMsg, fmt.Sprintf("failed to parse the data returned by database: %v", err))
 				continue
 			}
-			data = append(data, []string{res.shard, res.database, res.tableName, res.totalRows.String, res.totalBytes.String, res.totalCols})
+			res.UsedPercentage = res.UsedPercentage + " %"
+			stats.DiskInfos = append(stats.DiskInfos, res)
+		case tableInfoQuery:
+			res := v1alpha1.TableInfo{}
+			var totalRows sql.NullString
+			var totalBytes sql.NullString
+			err = result.Scan(&res.Shard, &res.Database, &res.TableName, &totalRows, &totalBytes, &res.TotalCols)
+			if err != nil {
+				stats.ErrorMsg = append(stats.ErrorMsg, fmt.Sprintf("failed to parse the data returned by database: %v", err))
+				continue
+			}
+			if !totalRows.Valid || !totalBytes.Valid {
+				continue
+			}
+			res.TotalRows = totalRows.String
+			res.TotalBytes = totalBytes.String
+			stats.TableInfos = append(stats.TableInfos, res)
 		case insertRateQuery:
-			res := insertRate{}
-			err = result.Scan(&res.shard, &res.rowsPerSec, &res.bytesPerSec)
-			data = append(data, []string{res.shard, res.rowsPerSec, res.bytesPerSec})
-		case stackTracesQuery:
-			res := stackTraces{}
-			err = result.Scan(&res.shard, &res.traceFunctions, &res.count)
-			data = append(data, []string{res.shard, res.traceFunctions, res.count})
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse the data returned by database: %v", err)
+			res := v1alpha1.InsertRate{}
+			err = result.Scan(&res.Shard, &res.RowsPerSec, &res.BytesPerSec)
+			if err != nil {
+				stats.ErrorMsg = append(stats.ErrorMsg, fmt.Sprintf("failed to parse the data returned by database: %v", err))
+				continue
+			}
+			stats.InsertRates = append(stats.InsertRates, res)
+		case stackTraceQuery:
+			res := v1alpha1.StackTrace{}
+			err = result.Scan(&res.Shard, &res.TraceFunctions, &res.Count)
+			if err != nil {
+				stats.ErrorMsg = append(stats.ErrorMsg, fmt.Sprintf("failed to parse the data returned by database: %v", err))
+				continue
+			}
+			stats.StackTraces = append(stats.StackTraces, res)
 		}
 	}
-	if len(data) <= 1 {
-		return nil, fmt.Errorf("no data is returned by database")
-	}
-	return data, nil
+	return nil
 }

@@ -48,24 +48,36 @@ func (r *REST) New() runtime.Object {
 }
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
-	var stats [][]string
+	var status v1alpha1.ClickHouseStats
 	var err error
 	switch name {
 	case "diskInfo":
-		stats, err = r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace)
+		err = r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace, &status)
+		if status.DiskInfos == nil {
+			return nil, fmt.Errorf("no diskInfo data is returned by database")
+		}
 	case "tableInfo":
-		stats, err = r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace)
+		err = r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace, &status)
+		if status.TableInfos == nil {
+			return nil, fmt.Errorf("no tableInfo data is returned by database")
+		}
 	case "insertRate":
-		stats, err = r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace)
-	case "stackTraces":
-		stats, err = r.clickHouseStatusQuerier.GetStackTraces(defaultNameSpace)
+		err = r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace, &status)
+		if status.InsertRates == nil {
+			return nil, fmt.Errorf("no insertRate data is returned by database")
+		}
+	case "stackTrace":
+		err = r.clickHouseStatusQuerier.GetStackTrace(defaultNameSpace, &status)
+		if status.StackTraces == nil {
+			return nil, fmt.Errorf("no stackTrace data is returned by database")
+		}
 	default:
 		return nil, fmt.Errorf("cannot recognize the statua name: %s", name)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error when sending query to ClickHouse: %s", err)
 	}
-	return &v1alpha1.ClickHouseStats{Stat: stats}, nil
+	return &status, nil
 }
 
 func (r *REST) NamespaceScoped() bool {

@@ -16,6 +16,7 @@ package querier
 
 import (
 	"antrea.io/theia/pkg/apis/crd/v1alpha1"
+	statsV1 "antrea.io/theia/pkg/apis/stats/v1alpha1"
 )
 
 type NPRecommendationQuerier interface {
@@ -26,8 +27,8 @@ type NPRecommendationQuerier interface {
 }
 
 type ClickHouseStatQuerier interface {
-	GetDiskInfo(namespace string) ([][]string, error)
-	GetTableInfo(namespace string) ([][]string, error)
-	GetInsertRate(namespace string) ([][]string, error)
-	GetStackTraces(namespace string) ([][]string, error)
+	GetDiskInfo(namespace string, stats *statsV1.ClickHouseStats) error
+	GetTableInfo(namespace string, stats *statsV1.ClickHouseStats) error
+	GetInsertRate(namespace string, stats *statsV1.ClickHouseStats) error
+	GetStackTrace(namespace string, stats *statsV1.ClickHouseStats) error
 }

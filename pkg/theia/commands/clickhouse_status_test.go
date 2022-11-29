@@ -37,7 +37,7 @@ func TestGetStatus(t *testing.T) {
 		name             string
 		testServer       *httptest.Server
 		expectedErrorMsg string
-		expectedMsg      string
+		expectedMsg      []string
 		options          *chOptions
 	}{
 		{
@@ -46,7 +46,14 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/diskInfo"):
 					status := &stats.ClickHouseStats{
-						Stat: [][]string{{"test_diskInfo"}},
+						DiskInfos: []stats.DiskInfo{{
+							Shard:          "Shard_test",
+							Database:       "Database_test",
+							Path:           "Path_test",
+							FreeSpace:      "FreeSpace_test",
+							TotalSpace:     "TotalSpace",
+							UsedPercentage: "UsedPercentage_test",
+						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -55,7 +62,8 @@ func TestGetStatus(t *testing.T) {
 			})),
 			options:          &chOptions{diskInfo: true},
 			expectedErrorMsg: "",
-			expectedMsg:      "test_diskInfo",
+			expectedMsg: []string{"Shard", "DatabaseName", "Path", "Free", "Total", "Used_Percentage",
+				"Shard_test", "Database_test", "Path_test", "FreeSpace_test", "TotalSpace", "UsedPercentage_test"},
 		},
 		{
 			name: "Get tableInfo",
@@ -63,7 +71,14 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/tableInfo"):
 					status := &stats.ClickHouseStats{
-						Stat: [][]string{{"test_tableInfo"}},
+						TableInfos: []stats.TableInfo{{
+							Shard:      "Shard_test",
+							Database:   "Database_test",
+							TableName:  "TableName_test",
+							TotalRows:  "TotalRows_test",
+							TotalBytes: "TotalBytes_test",
+							TotalCols:  "TotalCols_test",
+						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -72,7 +87,8 @@ func TestGetStatus(t *testing.T) {
 			})),
 			options:          &chOptions{tableInfo: true},
 			expectedErrorMsg: "",
-			expectedMsg:      "test_tableInfo",
+			expectedMsg: []string{"Shard", "DatabaseName", "TableName", "TotalRows", "TotalBytes", "TotalCols",
+				"Shard_test", "Database_test", "TableName_test", "TotalRows_test", "TotalBytes_test", "TotalCols_test"},
 		},
 		{
 			name: "Get insertRate",
@@ -80,7 +96,11 @@ func TestGetStatus(t *testing.T) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/insertRate"):
 					status := &stats.ClickHouseStats{
-						Stat: [][]string{{"test_insertRate"}},
+						InsertRates: []stats.InsertRate{{
+							Shard:       "Shard_test",
+							RowsPerSec:  "RowsPerSec_test",
+							BytesPerSec: "RowsPerSec_test",
+						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
@@ -89,31 +109,61 @@ func TestGetStatus(t *testing.T) {
 			})),
 			options:          &chOptions{insertRate: true},
 			expectedErrorMsg: "",
-			expectedMsg:      "test_insertRate",
+			expectedMsg: []string{"Shard", "RowsPerSecond", "RowsPerSecond",
+				"Shard_test", "RowsPerSec_test", "RowsPerSec_test"},
 		},
 		{
 			name: "Get stackTraces",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTraces"):
+				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace"):
 					status := &stats.ClickHouseStats{
-						Stat: [][]string{{"test_stackTraces"}, {"fakeData"}},
+						StackTraces: []stats.StackTrace{{
+							Shard:          "Shard_test",
+							TraceFunctions: "TraceFunctions_test",
+							Count:          "Count_test",
+						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					json.NewEncoder(w).Encode(status)
 				}
 			})),
-			options:          &chOptions{stackTraces: true},
+			options:          &chOptions{stackTrace: true},
 			expectedErrorMsg: "",
-			expectedMsg:      "test_stackTraces: fakeData",
+			expectedMsg: []string{"Shard", "TraceFunctions", "Count()",
+				"Shard_test", "TraceFunctions_test", "Count_test"},
 		},
 		{
 			name:             "No metrics specified",
 			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
 			options:          &chOptions{},
 			expectedErrorMsg: "no metric related flag is specified",
-			expectedMsg:      "",
+			expectedMsg:      nil,
+		},
+		{
+			name: "ErrorMsg in response is not empty",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace"):
+					status := &stats.ClickHouseStats{
+						StackTraces: []stats.StackTrace{{
+							Shard:          "Shard_test",
+							TraceFunctions: "TraceFunctions_test",
+							Count:          "Count_test",
+						}},
+						ErrorMsg: []string{"converting NULL to string is unsupported"},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(status)
+				}
+			})),
+			options:          &chOptions{stackTrace: true},
+			expectedErrorMsg: "",
+			expectedMsg: []string{"Shard", "TraceFunctions", "Count()",
+				"Shard_test", "TraceFunctions_test", "Count_test",
+				"converting NULL to string is unsupported"},
 		},
 	}
 	for _, tt := range testCases {
@@ -140,7 +190,9 @@ func TestGetStatus(t *testing.T) {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)
 				os.Stdout = orig
-				assert.Contains(t, outcome, tt.expectedMsg)
+				for _, msg := range tt.expectedMsg {
+					assert.Contains(t, outcome, msg)
+				}
 			} else {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.expectedErrorMsg)

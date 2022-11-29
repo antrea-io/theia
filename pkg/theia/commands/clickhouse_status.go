@@ -22,10 +22,10 @@ import (
 )
 
 type chOptions struct {
-	diskInfo    bool
-	tableInfo   bool
-	insertRate  bool
-	stackTraces bool
+	diskInfo   bool
+	tableInfo  bool
+	insertRate bool
+	stackTrace bool
 }
 
 var options *chOptions
@@ -50,11 +50,11 @@ func init() {
 	clickHouseStatusCmd.Flags().BoolVar(&options.diskInfo, "diskInfo", false, "check disk usage information")
 	clickHouseStatusCmd.Flags().BoolVar(&options.tableInfo, "tableInfo", false, "check basic table information")
 	clickHouseStatusCmd.Flags().BoolVar(&options.insertRate, "insertRate", false, "check the insertion-rate of clickhouse")
-	clickHouseStatusCmd.Flags().BoolVar(&options.stackTraces, "stackTraces", false, "check stacktrace of clickhouse")
+	clickHouseStatusCmd.Flags().BoolVar(&options.stackTrace, "stackTrace", false, "check stacktrace of clickhouse")
 }
 
 func getStatus(cmd *cobra.Command, args []string) error {
-	if !options.diskInfo && !options.tableInfo && !options.insertRate && !options.stackTraces {
+	if !options.diskInfo && !options.tableInfo && !options.insertRate && !options.stackTrace {
 		return fmt.Errorf("no metric related flag is specified")
 	}
 	useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
@@ -78,18 +78,46 @@ func getStatus(cmd *cobra.Command, args []string) error {
 	if options.insertRate {
 		names = append(names, "insertRate")
 	}
-	if options.stackTraces {
-		names = append(names, "stackTraces")
+	if options.stackTrace {
+		names = append(names, "stackTrace")
 	}
 	for _, name := range names {
 		data, err := getClickHouseStatusByCategory(theiaClient, name)
 		if err != nil {
 			return fmt.Errorf("error when getting clickhouse %v status: %s", name, err)
 		}
-		if name == "stackTraces" {
-			TableOutputVertical(data.Stat)
+		if len(data.ErrorMsg) != 0 {
+			for _, errorMsg := range data.ErrorMsg {
+				fmt.Printf("Error message: %s\n", errorMsg)
+			}
+		}
+		var result [][]string
+		switch name {
+		case "diskInfo":
+			result = append(result, []string{"Shard", "DatabaseName", "Path", "Free", "Total", "Used_Percentage"})
+			for _, diskInfo := range data.DiskInfos {
+				result = append(result, []string{diskInfo.Shard, diskInfo.Database, diskInfo.Path, diskInfo.FreeSpace, diskInfo.TotalSpace, diskInfo.UsedPercentage})
+			}
+		case "tableInfo":
+			result = append(result, []string{"Shard", "DatabaseName", "TableName", "TotalRows", "TotalBytes", "TotalCols"})
+			for _, tableInfo := range data.TableInfos {
+				result = append(result, []string{tableInfo.Shard, tableInfo.Database, tableInfo.TableName, tableInfo.TotalRows, tableInfo.TotalBytes, tableInfo.TotalCols})
+			}
+		case "insertRate":
+			result = append(result, []string{"Shard", "RowsPerSecond", "BytesPerSecond"})
+			for _, insertRate := range data.InsertRates {
+				result = append(result, []string{insertRate.Shard, insertRate.RowsPerSec, insertRate.BytesPerSec})
+			}
+		case "stackTrace":
+			result = append(result, []string{"Shard", "TraceFunctions", "Count()"})
+			for _, stackTrace := range data.StackTraces {
+				result = append(result, []string{stackTrace.Shard, stackTrace.TraceFunctions, stackTrace.Count})
+			}
+		}
+		if name == "stackTrace" {
+			TableOutputVertical(result)
 		} else {
-			TableOutput(data.Stat)
+			TableOutput(result)
 		}
 	}
 	return nil

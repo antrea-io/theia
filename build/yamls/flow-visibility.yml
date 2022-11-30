@@ -6025,6 +6025,20 @@ spec:
               name: grafana-secret
         - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
           value: /opt/grafana/dashboards/homepage.json
+        - name: GF_LOG_MODE
+          value: console file
+        - name: GF_LOG_LEVEL
+          value: info
+        - name: GF_LOG_FILE_LOG_ROTATE
+          value: "true"
+        - name: GF_LOG_FILE_MAX_LINES
+          value: "1000000"
+        - name: GF_LOG_FILE_MAX_SIZE_SHIFT
+          value: "27"
+        - name: GF_LOG_FILE_DAILY_ROTATE
+          value: "true"
+        - name: GF_LOG_FILE_MAX_DAYS
+          value: "7"
         image: projects.registry.vmware.com/antrea/theia-grafana:8.3.3
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -6287,6 +6301,10 @@ spec:
         replicasCount: 1
         shardsCount: 1
       name: clickhouse
+    settings:
+      logger/count: 4
+      logger/level: information
+      logger/size: 100M
     users:
       clickhouse_operator/k8s_secret_password: flow-visibility/clickhouse-secret/password
       clickhouse_operator/networks/ip: ::/0

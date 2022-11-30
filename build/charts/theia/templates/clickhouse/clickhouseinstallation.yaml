@@ -42,6 +42,10 @@ spec:
       - host: {{ $host }}
       {{- end }}
       {{- end }}
+    settings:
+      logger/level: {{ .Values.clickhouse.logger.level }}
+      logger/size: {{ .Values.clickhouse.logger.size }}
+      logger/count: {{ .Values.clickhouse.logger.count }}
   defaults:
     templates:
       podTemplate: pod-template

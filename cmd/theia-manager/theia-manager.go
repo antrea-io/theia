@@ -47,6 +47,7 @@ const informerDefaultResync = 12 * time.Hour
 
 func createAPIServerConfig(
 	client kubernetes.Interface,
+	kubeConfig *rest.Config,
 	selfSignedCert bool,
 	bindPort int,
 	cipherSuites []uint16,
@@ -92,6 +93,7 @@ func createAPIServerConfig(
 	return apiserver.NewConfig(
 		serverConfig,
 		client,
+		kubeConfig,
 		caCertController,
 		nprq,
 		chq), nil
@@ -135,6 +137,7 @@ func run(o *Options) error {
 
 	apiServerConfig, err := createAPIServerConfig(
 		kubeClient,
+		kubeConfig,
 		*o.config.APIServer.SelfSignedCert,
 		o.config.APIServer.APIPort,
 		cipherSuites,

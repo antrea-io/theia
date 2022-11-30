@@ -61,6 +61,20 @@ spec:
                   key: admin-password
             - name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH
               value: /opt/grafana/dashboards/{{ .Values.grafana.homeDashboard }}
+            - name: GF_LOG_MODE
+              value: '{{ .Values.grafana.log.mode }}'
+            - name: GF_LOG_LEVEL
+              value: '{{ .Values.grafana.log.level }}'
+            - name: GF_LOG_FILE_LOG_ROTATE
+              value: '{{ .Values.grafana.log.log_rotate }}'
+            - name: GF_LOG_FILE_MAX_LINES
+              value: '{{ .Values.grafana.log.max_lines }}'
+            - name: GF_LOG_FILE_MAX_SIZE_SHIFT
+              value: '{{ .Values.grafana.log.max_size_shift }}'
+            - name: GF_LOG_FILE_DAILY_ROTATE
+              value: '{{ .Values.grafana.log.daily_rotate }}'
+            - name: GF_LOG_FILE_MAX_DAYS
+              value: '{{ .Values.grafana.log.max_days }}'
           ports:
             - containerPort: 3000
               name: http-grafana

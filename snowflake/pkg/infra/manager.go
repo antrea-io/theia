@@ -15,8 +15,6 @@
 package infra
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"database/sql"
 	"embed"
@@ -24,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -95,55 +92,6 @@ func writeMigrationsToDisk(fsys fs.FS, migrationsPath string, dest string) error
 	return nil
 }
 
-func downloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-	client := http.DefaultClient
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	gzr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer gzr.Close()
-	tr := tar.NewReader(gzr)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
-		if err != nil {
-			return err
-		}
-		dest := filepath.Join(dir, hdr.Name)
-		logger.V(4).Info("Untarring", "path", hdr.Name)
-		if hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-		if err := func() error {
-			f, err := os.OpenFile(dest, os.O_CREATE|os.O_RDWR, os.FileMode(hdr.Mode))
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error {
 	logger.Info("Downloading and installing Pulumi", "version", pulumiVersion)
 	cachedVersion, err := os.ReadFile(filepath.Join(dir, ".pulumi-version"))
@@ -176,7 +124,7 @@ func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error
 	if err := os.MkdirAll(filepath.Join(dir, "pulumi"), 0755); err != nil {
 		return err
 	}
-	if err := downloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := utils.DownloadAndUntar(ctx, logger, url, dir, "", true); err != nil {
 		return err
 	}
 
@@ -209,7 +157,7 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 		return fmt.Errorf("OS / arch combination is not supported: %s / %s", operatingSystem, arch)
 	}
 	url := fmt.Sprintf("https://github.com/antoninbas/migrate-snowflake/releases/download/%s/migrate-snowflake_%s_%s.tar.gz", migrateSnowflakeVersion, migrateSnowflakeVersion, target)
-	if err := downloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := utils.DownloadAndUntar(ctx, logger, url, dir, "", true); err != nil {
 		return err
 	}
 
@@ -536,7 +484,7 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 	}
 
 	// Download and stage Kubernetes python client for policy recommendation udf
-	err = utils.DownloadFile(k8sPythonClientUrl, k8sPythonClientFileName)
+	err = utils.DownloadAndUntar(ctx, logger, k8sPythonClientUrl, ".", k8sPythonClientFileName, false)
 	if err != nil {
 		return err
 	}
@@ -614,53 +562,4 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 		return fmt.Errorf("creating failed: %w", err)
 	}
 	return nil
-}
-
-func (m *Manager) RunUdf(ctx context.Context, query string, databaseName string) (*sql.Rows, error) {
-	logger := m.logger
-	logger.Info("Running UDF")
-	dsn, _, err := sf.GetDSN()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create DSN: %w", err)
-	}
-
-	db, err := sql.Open("snowflake", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Snowflake: %w", err)
-	}
-	defer db.Close()
-
-	sfClient := sf.NewClient(db, logger)
-
-	if err := sfClient.UseDatabase(ctx, databaseName); err != nil {
-		return nil, err
-	}
-
-	if err := sfClient.UseSchema(ctx, schemaName); err != nil {
-		return nil, err
-	}
-
-	warehouseName := m.warehouseName
-	if warehouseName == "" {
-		temporaryWarehouse := newTemporaryWarehouse(sfClient, logger)
-		warehouseName = temporaryWarehouse.Name()
-		if err := temporaryWarehouse.Create(ctx); err != nil {
-			return nil, err
-		}
-		defer func() {
-			if err := temporaryWarehouse.Delete(ctx); err != nil {
-				logger.Error(err, "Failed to delete temporary warehouse, please do it manually", "name", warehouseName)
-			}
-		}()
-	}
-
-	if err := sfClient.UseWarehouse(ctx, warehouseName); err != nil {
-		return nil, err
-	}
-
-	rows, err := sfClient.ExecMultiStatementQuery(ctx, query, true)
-	if err != nil {
-		return nil, fmt.Errorf("error when running UDF: %w", err)
-	}
-	return rows, nil
 }

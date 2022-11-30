@@ -163,7 +163,9 @@ take seconds to minutes depending on the number of flows. We recommend using a
 [Medium size warehouse](https://docs.snowflake.com/en/user-guide/warehouses-overview.html)
 if you are working on a big dataset. If no warehouse is provided by the
 `--warehouse-name` option, we will create a temporary X-Small size warehouse by
-default.
+default. Running NetworkPolicy Recommendation will consume Snowflake credits,
+the amount of which will depend on the size of the warehouse and the contents
+of the database.
 
 ## Network flow visibility with Grafana
 

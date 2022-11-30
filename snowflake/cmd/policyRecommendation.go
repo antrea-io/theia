@@ -17,13 +17,13 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"antrea.io/theia/snowflake/pkg/infra"
-	"antrea.io/theia/snowflake/pkg/udfs"
 	"antrea.io/theia/snowflake/pkg/utils/timestamps"
 )
 
@@ -34,14 +34,28 @@ const (
 	defaultFunctionVersion                 = "v0.1.0"
 	defaultWaitTimeout                     = "10m"
 	// Limit the number of rows per partition to avoid hitting the 5 minutes end_partition() timeout.
-	partitionSizeLimit = 30000
+	partitionSizeLimit = 50000
 )
 
-func buildPolicyRecommendationUdfQuery(jobType string, limit uint, isolationMethod int, start string, end string, startTs string, endTs string, nsAllowList string, labelIgnoreList string, clusterUUID string, databaseName string, functionVersion string) (string, error) {
+func buildPolicyRecommendationUdfQuery(
+	jobType string,
+	limit uint,
+	isolationMethod int,
+	start string,
+	end string,
+	startTs string,
+	endTs string,
+	nsAllowList string,
+	labelIgnoreList string,
+	clusterUUID string,
+	databaseName string,
+	functionVersion string,
+) (string, error) {
 	now := time.Now()
 	recommendationID := uuid.New().String()
-	functionName := udfs.GetFunctionName(staticPolicyRecommendationFunctionName, functionVersion)
-	query := fmt.Sprintf(`SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM
+	functionName := infra.GetFunctionName(staticPolicyRecommendationFunctionName, functionVersion)
+	var queryBuilder strings.Builder
+	fmt.Fprintf(&queryBuilder, `SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM
 	TABLE(%s(
 	  '%s',
 	  '%s',
@@ -50,7 +64,7 @@ func buildPolicyRecommendationUdfQuery(jobType string, limit uint, isolationMeth
 	) over (partition by 1)) as r;
 `, functionName, jobType, recommendationID, isolationMethod, nsAllowList)
 
-	query += `WITH filtered_flows AS (
+	queryBuilder.WriteString(`WITH filtered_flows AS (
 SELECT
   sourcePodNamespace,
   sourcePodLabels,
@@ -63,13 +77,11 @@ SELECT
   flowType
 FROM
   flows
-`
-
-	query += `WHERE
+WHERE
   ingressNetworkPolicyName IS NULL
 AND
   egressNetworkPolicyName IS NULL
-`
+`)
 
 	var startTime string
 	if startTs != "" {
@@ -82,7 +94,7 @@ AND
 		}
 	}
 	if startTime != "" {
-		query += fmt.Sprintf(`AND
+		fmt.Fprintf(&queryBuilder, `AND
   flowStartSeconds >= '%s'
 `, startTime)
 	}
@@ -98,7 +110,7 @@ AND
 		}
 	}
 	if endTime != "" {
-		query += fmt.Sprintf(`AND
+		fmt.Fprintf(&queryBuilder, `AND
   flowEndSeconds >= '%s'
 `, endTime)
 	}
@@ -108,14 +120,14 @@ AND
 		if err != nil {
 			return "", err
 		}
-		query += fmt.Sprintf(`AND
+		fmt.Fprintf(&queryBuilder, `AND
   clusterUUID = '%s'
 `, clusterUUID)
 	} else {
 		logger.Info("No clusterUUID input, all flows will be considered during policy recommendation.")
 	}
 
-	query += `GROUP BY
+	queryBuilder.WriteString(`GROUP BY
 sourcePodNamespace,
 sourcePodLabels,
 destinationIP,
@@ -125,21 +137,21 @@ destinationServicePortName,
 destinationTransportPort,
 protocolIdentifier,
 flowType
-	`
+`)
 
 	if limit > 0 {
-		query += fmt.Sprintf(`
+		fmt.Fprintf(&queryBuilder, `
 LIMIT %d`, limit)
 	} else {
 		// limit the number unique flow records to 500k to avoid udf timeout
-		query += `
-LIMIT 500000`
+		queryBuilder.WriteString(`
+LIMIT 500000`)
 	}
 
 	// Choose the destinationIP as the partition field for the preprocessing
 	// UDTF because flow rows could be divided into the most subsets
-	functionName = udfs.GetFunctionName(preprocessingFunctionName, functionVersion)
-	query += fmt.Sprintf(`), processed_flows AS (SELECT r.appliedTo, r.ingress, r.egress FROM filtered_flows AS f,
+	functionName = infra.GetFunctionName(preprocessingFunctionName, functionVersion)
+	fmt.Fprintf(&queryBuilder, `), processed_flows AS (SELECT r.appliedTo, r.ingress, r.egress FROM filtered_flows AS f,
 TABLE(%s(
 	'%s',
 	%d,
@@ -159,7 +171,7 @@ TABLE(%s(
 
 	// Scan the row number for each appliedTo group and divide the partitions
 	// larger than partitionSizeLimit.
-	query += fmt.Sprintf(`), pf_with_index AS (
+	fmt.Fprintf(&queryBuilder, `), pf_with_index AS (
 SELECT 
   pf.appliedTo, 
   pf.ingress, 
@@ -171,8 +183,8 @@ FROM processed_flows as pf
 	// Choose the appliedTo as the partition field for the policyRecommendation
 	// UDTF because each network policy is recommended based on all ingress and
 	// egress traffic related to an appliedTo group.
-	functionName = udfs.GetFunctionName(policyRecommendationFunctionName, functionVersion)
-	query += fmt.Sprintf(`) SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM pf_with_index,
+	functionName = infra.GetFunctionName(policyRecommendationFunctionName, functionVersion)
+	fmt.Fprintf(&queryBuilder, `) SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM pf_with_index,
 TABLE(%s(
   '%s',
   '%s',
@@ -184,7 +196,7 @@ TABLE(%s(
 ) over (partition by pf_with_index.appliedTo, pf_with_index.row_index)) as r
 `, functionName, jobType, recommendationID, isolationMethod, nsAllowList)
 
-	return query, nil
+	return queryBuilder.String(), nil
 }
 
 // policyRecommendationCmd represents the policy-recommendation command
@@ -228,17 +240,13 @@ You can also bring your own by using the "--warehouse-name" parameter.
 		if err != nil {
 			return fmt.Errorf("invalid --wait-timeout argument, err when parsing it as a duration: %v", err)
 		}
-		verbose := verbosity >= 2
 		query, err := buildPolicyRecommendationUdfQuery(jobType, limit, isolationMethod, start, end, startTs, endTs, nsAllowList, labelIgnoreList, clusterUUID, databaseName, functionVersion)
 		if err != nil {
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), waitDuration)
 		defer cancel()
-		// stackName, stateBackendURL, secretsProviderURL, region, workdir are not provided here
-		// because we only uses snowflake client in this command.
-		mgr := infra.NewManager(logger, "", "", "", "", warehouseName, "", verbose)
-		rows, err := mgr.RunUdf(ctx, query, databaseName)
+		rows, err := infra.RunUdf(ctx, logger, query, databaseName, warehouseName)
 		if err != nil {
 			return fmt.Errorf("error when running policy recommendation UDF: %w", err)
 		}

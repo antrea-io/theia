@@ -16,7 +16,6 @@ package commands
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -24,19 +23,20 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"antrea.io/theia/pkg/apis"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
+	stats "antrea.io/theia/pkg/apis/stats/v1alpha1"
 	"antrea.io/theia/pkg/apiserver/certificate"
 	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/theia/portforwarder"
+	"antrea.io/theia/pkg/util"
 )
 
 var (
@@ -86,7 +86,7 @@ func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string,
 	var host string
 	var portForward *portforwarder.PortForwarder
 	if useClusterIP {
-		serviceIP, servicePort, err := GetServiceAddr(k8sClient, config.TheiaManagerServiceName)
+		serviceIP, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service address: %v", err)
 		}
@@ -94,7 +94,7 @@ func CreateTheiaManagerClient(k8sClient kubernetes.Interface, kubeconfig string,
 	} else {
 		listenAddress := "localhost"
 		listenPort := apis.TheiaManagerAPIPort
-		_, servicePort, err := GetServiceAddr(k8sClient, config.TheiaManagerServiceName)
+		_, servicePort, err := util.GetServiceAddr(k8sClient, config.TheiaManagerServiceName, config.FlowVisibilityNS, v1.ProtocolTCP)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error when getting the Theia Manager Service port: %v", err)
 		}
@@ -146,85 +146,6 @@ func GetToken(clientset kubernetes.Interface) (string, error) {
 	return token, nil
 }
 
-func PolicyRecoPreCheck(clientset kubernetes.Interface) error {
-	err := CheckSparkOperatorPod(clientset)
-	if err != nil {
-		return err
-	}
-	err = CheckClickHousePod(clientset)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func CheckSparkOperatorPod(clientset kubernetes.Interface) error {
-	// Check the deployment of Spark Operator in flow-visibility ns
-	pods, err := clientset.CoreV1().Pods(config.FlowVisibilityNS).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=spark-operator",
-	})
-	if err != nil {
-		return fmt.Errorf("error %v when finding the policy-recommendation-spark-operator Pod, please check the deployment of the Spark Operator", err)
-	}
-	if len(pods.Items) < 1 {
-		return fmt.Errorf("can't find the policy-recommendation-spark-operator Pod, please check the deployment of the Spark Operator")
-	}
-	hasRunningPod := false
-	for _, pod := range pods.Items {
-		if pod.Status.Phase == "Running" {
-			hasRunningPod = true
-			break
-		}
-	}
-	if !hasRunningPod {
-		return fmt.Errorf("can't find a running Spark Operator Pod, please check the deployment of Spark")
-	}
-	return nil
-}
-
-func CheckClickHousePod(clientset kubernetes.Interface) error {
-	// Check the ClickHouse deployment in flow-visibility namespace
-	pods, err := clientset.CoreV1().Pods(config.FlowVisibilityNS).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: "app=clickhouse",
-	})
-	if err != nil {
-		return fmt.Errorf("error %v when finding the ClickHouse Pod, please check the deployment of the ClickHouse", err)
-	}
-	if len(pods.Items) < 1 {
-		return fmt.Errorf("can't find the ClickHouse Pod, please check the deployment of ClickHouse")
-	}
-	hasRunningPod := false
-	for _, pod := range pods.Items {
-		if pod.Status.Phase == "Running" {
-			hasRunningPod = true
-			break
-		}
-	}
-	if !hasRunningPod {
-		return fmt.Errorf("can't find a running ClickHouse Pod, please check the deployment of ClickHouse")
-	}
-	return nil
-}
-
-func GetServiceAddr(clientset kubernetes.Interface, serviceName string) (string, int, error) {
-	var serviceIP string
-	var servicePort int
-	service, err := clientset.CoreV1().Services(config.FlowVisibilityNS).Get(context.TODO(), serviceName, metav1.GetOptions{})
-	if err != nil {
-		return serviceIP, servicePort, fmt.Errorf("error when finding the Service %s: %v", serviceName, err)
-	}
-	serviceIP = service.Spec.ClusterIP
-	for _, port := range service.Spec.Ports {
-		if port.Name == "tcp" || port.Protocol == "TCP" {
-			servicePort = int(port.Port)
-		}
-	}
-	if servicePort == 0 {
-		return serviceIP, servicePort, fmt.Errorf("error when finding the Service %s: %v", serviceName, err)
-	}
-	return serviceIP, servicePort, nil
-}
-
 func StartPortForward(kubeconfig string, service string, servicePort int, listenAddress string, listenPort int) (*portforwarder.PortForwarder, error) {
 	configuration, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -256,91 +177,6 @@ func ResolveKubeConfig(cmd *cobra.Command) (string, error) {
 		}
 	}
 	return kubeconfigPath, nil
-}
-
-func getClickHouseSecret(clientset kubernetes.Interface) (username []byte, password []byte, err error) {
-	secret, err := clientset.CoreV1().Secrets(config.FlowVisibilityNS).Get(context.TODO(), "clickhouse-secret", metav1.GetOptions{})
-	if err != nil {
-		return username, password, fmt.Errorf("error %v when finding the ClickHouse secret, please check the deployment of ClickHouse", err)
-	}
-	username, ok := secret.Data["username"]
-	if !ok {
-		return username, password, fmt.Errorf("error when getting the ClickHouse username")
-	}
-	password, ok = secret.Data["password"]
-	if !ok {
-		return username, password, fmt.Errorf("error when getting the ClickHouse password")
-	}
-	return username, password, nil
-}
-
-func connectClickHouse(clientset kubernetes.Interface, url string) (*sql.DB, error) {
-	var connect *sql.DB
-	var connErr error
-	connRetryInterval := 1 * time.Second
-	connTimeout := 10 * time.Second
-
-	// Connect to ClickHouse in a loop
-	if err := wait.PollImmediate(connRetryInterval, connTimeout, func() (bool, error) {
-		// Open the database and ping it
-		var err error
-		connect, err = sql.Open("clickhouse", url)
-		if err != nil {
-			connErr = fmt.Errorf("failed to open ClickHouse: %v", err)
-			return false, nil
-		}
-		if err := connect.Ping(); err != nil {
-			if exception, ok := err.(*clickhouse.Exception); ok {
-				connErr = fmt.Errorf("failed to ping ClickHouse: %v", exception.Message)
-			} else {
-				connErr = fmt.Errorf("failed to ping ClickHouse: %v", err)
-			}
-			return false, nil
-		} else {
-			return true, nil
-		}
-	}); err != nil {
-		return nil, fmt.Errorf("failed to connect to ClickHouse after %s: %v", connTimeout, connErr)
-	}
-	return connect, nil
-}
-
-func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string, endpoint string, useClusterIP bool) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
-	if endpoint == "" {
-		service := "clickhouse-clickhouse"
-		if useClusterIP {
-			serviceIP, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", serviceIP, servicePort)
-		} else {
-			listenAddress := "localhost"
-			listenPort := 9000
-			_, servicePort, err := GetServiceAddr(clientset, service)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-			}
-			// Forward the ClickHouse service port
-			portForward, err = StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-			if err != nil {
-				return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
-			}
-			endpoint = fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-		}
-	}
-
-	// Connect to ClickHouse and execute query
-	username, password, err := getClickHouseSecret(clientset)
-	if err != nil {
-		return nil, portForward, err
-	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err = connectClickHouse(clientset, url)
-	if err != nil {
-		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
-	}
-	return connect, portForward, nil
 }
 
 func TableOutput(table [][]string) {
@@ -383,4 +219,17 @@ func getPolicyRecommendationByName(theiaClient restclient.Interface, name string
 		return npr, fmt.Errorf("failed to get policy recommendation job %s: %v", name, err)
 	}
 	return npr, nil
+}
+
+func getClickHouseStatusByCategory(theiaClient restclient.Interface, name string) (status stats.ClickHouseStats, err error) {
+	err = theiaClient.Get().
+		AbsPath("/apis/stats.theia.antrea.io/v1alpha1/").
+		Resource("clickhouse").
+		Name(name).
+		Do(context.TODO()).
+		Into(&status)
+	if err != nil {
+		return status, fmt.Errorf("failed to get clickhouse %s status: %v", name, err)
+	}
+	return status, nil
 }

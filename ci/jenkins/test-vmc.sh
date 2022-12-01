@@ -339,7 +339,7 @@ function deliver_antrea {
 
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --ch-size 100Mi --ch-monitor-threshold 0.1 > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility.yml
     ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --spark-operator --theia-manager > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-with-spark.yml
-    ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
+    ${GIT_CHECKOUT_DIR}/hack/generate-manifest.sh --no-grafana --theia-manager > ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility-ch-only.yml
 
     # policy/v1beta1 is deprecated in v1.21+, unavailable in v1.25+, while policy/v1 is available in v1.21+
     sed -i -e "s|apiVersion: policy/v1|apiVersion: policy/v1beta1|g" ${GIT_CHECKOUT_DIR}/build/yamls/flow-visibility.yml

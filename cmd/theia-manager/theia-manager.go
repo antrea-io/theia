@@ -33,6 +33,7 @@ import (
 
 	"antrea.io/theia/pkg/apiserver"
 	"antrea.io/theia/pkg/apiserver/certificate"
+	"antrea.io/theia/pkg/apiserver/utils/stats"
 	crdclientset "antrea.io/theia/pkg/client/clientset/versioned"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
 	"antrea.io/theia/pkg/controller/networkpolicyrecommendation"
@@ -50,7 +51,9 @@ func createAPIServerConfig(
 	bindPort int,
 	cipherSuites []uint16,
 	tlsMinVersion uint16,
-	nprq querier.NPRecommendationQuerier) (*apiserver.Config, error) {
+	nprq querier.NPRecommendationQuerier,
+	chq querier.ClickHouseStatQuerier,
+) (*apiserver.Config, error) {
 	secureServing := genericoptions.NewSecureServingOptions().WithLoopback()
 	authentication := genericoptions.NewDelegatingAuthenticationOptions()
 	authorization := genericoptions.NewDelegatingAuthorizationOptions()
@@ -90,7 +93,8 @@ func createAPIServerConfig(
 		serverConfig,
 		client,
 		caCertController,
-		nprq), nil
+		nprq,
+		chq), nil
 }
 
 func run(o *Options) error {
@@ -123,6 +127,7 @@ func run(o *Options) error {
 	npRecommendationInformer := crdInformerFactory.Crd().V1alpha1().NetworkPolicyRecommendations()
 	recommendedNPInformer := crdInformerFactory.Crd().V1alpha1().RecommendedNetworkPolicies()
 	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer, recommendedNPInformer)
+	clickHouseStatQuerierImpl := stats.NewClickHouseStatQuerierImpl(kubeClient)
 
 	cipherSuites, err := cipher.GenerateCipherSuitesList(o.config.APIServer.TLSCipherSuites)
 	if err != nil {
@@ -135,7 +140,8 @@ func run(o *Options) error {
 		o.config.APIServer.APIPort,
 		cipherSuites,
 		cipher.TLSVersionMap[o.config.APIServer.TLSMinVersion],
-		npRecoController)
+		npRecoController,
+		clickHouseStatQuerierImpl)
 	if err != nil {
 		return fmt.Errorf("error creating API server config: %v", err)
 	}

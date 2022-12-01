@@ -39,7 +39,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	crdv1a1informers "antrea.io/theia/pkg/client/informers/externalversions/crd/v1alpha1"
 	"antrea.io/theia/pkg/client/listers/crd/v1alpha1"
-	"antrea.io/theia/pkg/util/policyrecommendation"
+	"antrea.io/theia/pkg/util"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -347,7 +347,7 @@ func (c *NPRecommendationController) cleanupNPRecommendation(namespace string, s
 	}
 	// Delete the result from the ClickHouse
 	if c.clickhouseConnect == nil {
-		c.clickhouseConnect, err = setupClickHouseConnection(c.kubeClient, namespace)
+		c.clickhouseConnect, err = util.SetupClickHouseConnection(c.kubeClient, namespace)
 		if err != nil {
 			return err
 		}
@@ -393,7 +393,7 @@ func (c *NPRecommendationController) updateResult(npReco *crdv1alpha1.NetworkPol
 			}
 			// Get result from database
 			if c.clickhouseConnect == nil {
-				c.clickhouseConnect, err = setupClickHouseConnection(c.kubeClient, npReco.Namespace)
+				c.clickhouseConnect, err = util.SetupClickHouseConnection(c.kubeClient, npReco.Namespace)
 				if err != nil {
 					return err
 				}
@@ -598,7 +598,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	}
 	sparkResourceArgs.executorMemory = npReco.Spec.ExecutorMemory
 
-	err = policyrecommendation.ParseRecommendationName(npReco.Name)
+	err = util.ParseRecommendationName(npReco.Name)
 	if err != nil {
 		return IlleagelArguementError{fmt.Errorf("invalid request: Policy recommendation job name is invalid: %s", err)}
 	}

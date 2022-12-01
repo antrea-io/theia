@@ -16,6 +16,7 @@ package querier
 
 import (
 	"antrea.io/theia/pkg/apis/crd/v1alpha1"
+	statsV1 "antrea.io/theia/pkg/apis/stats/v1alpha1"
 )
 
 type NPRecommendationQuerier interface {
@@ -23,4 +24,11 @@ type NPRecommendationQuerier interface {
 	ListNetworkPolicyRecommendation(namespace string) ([]*v1alpha1.NetworkPolicyRecommendation, error)
 	DeleteNetworkPolicyRecommendation(namespace, name string) error
 	CreateNetworkPolicyRecommendation(namespace string, networkPolicyRecommendation *v1alpha1.NetworkPolicyRecommendation) (*v1alpha1.NetworkPolicyRecommendation, error)
+}
+
+type ClickHouseStatQuerier interface {
+	GetDiskInfo(namespace string, stats *statsV1.ClickHouseStats) error
+	GetTableInfo(namespace string, stats *statsV1.ClickHouseStats) error
+	GetInsertRate(namespace string, stats *statsV1.ClickHouseStats) error
+	GetStackTrace(namespace string, stats *statsV1.ClickHouseStats) error
 }

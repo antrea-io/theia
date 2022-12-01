@@ -27,9 +27,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 
 	"antrea.io/theia/pkg/theia/commands"
+	"antrea.io/theia/pkg/theia/commands/config"
+	"antrea.io/theia/pkg/theia/portforwarder"
+	"antrea.io/theia/pkg/util"
 )
 
 const (
@@ -128,7 +133,7 @@ func TestTheiaClickHouseStatusCommand(t *testing.T) {
 	clientset := data.clientset
 	kubeconfig, err := data.provider.GetKubeconfigPath()
 	require.NoError(t, err)
-	connect, pf, err := commands.SetupClickHouseConnection(clientset, kubeconfig, "", false)
+	connect, pf, err := SetupClickHouseConnection(clientset, kubeconfig)
 	require.NoError(t, err)
 	if pf != nil {
 		defer pf.Stop()
@@ -164,6 +169,7 @@ func testTheiaGetClickHouseDiskInfo(t *testing.T, data *TestData) {
 	assert.Containsf(stdout, "Free", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Total", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Used_Percentage", "stdout: %s", stdout)
+
 	for i := 1; i < length; i++ {
 		// check metrics' value
 		diskInfoArray := strings.Fields(resultArray[i])
@@ -390,4 +396,32 @@ func randInt(t *testing.T, limit int64) int64 {
 	randNum, error := rand.Int(rand.Reader, big.NewInt(limit))
 	assert.NoError(error)
 	return randNum.Int64()
+}
+
+func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
+	service := "clickhouse-clickhouse"
+	listenAddress := "localhost"
+	listenPort := 9000
+	_, servicePort, err := util.GetServiceAddr(clientset, service, config.FlowVisibilityNS, v1.ProtocolTCP)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
+	}
+	// Forward the ClickHouse service port
+	portForward, err = commands.StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
+	}
+	endpoint := fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
+
+	// Connect to ClickHouse and execute query
+	username, password, err := util.GetClickHouseSecret(clientset, "flow-visibility")
+	if err != nil {
+		return nil, portForward, err
+	}
+	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
+	connect, err = util.ConnectClickHouse(url)
+	if err != nil {
+		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
+	}
+	return connect, portForward, nil
 }

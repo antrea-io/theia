@@ -43,6 +43,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	fakecrd "antrea.io/theia/pkg/client/clientset/versioned/fake"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
+	"antrea.io/theia/pkg/util"
 	"antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -124,7 +125,7 @@ func createClickHouseService(kubeClient kubernetes.Interface) {
 			Namespace: testNamespace,
 		},
 		Spec: v1.ServiceSpec{
-			Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000}},
+			Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000, Protocol: v1.ProtocolTCP}},
 			ClusterIP: "10.98.208.26",
 		},
 	}
@@ -307,7 +308,7 @@ func TestNPRecommendation(t *testing.T) {
 			// the SparkApplication id.
 			if !serviceCreated {
 				// Mock ClickHouse database
-				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 					db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
 					if err != nil {
 						return db, err
@@ -344,7 +345,7 @@ func TestNPRecommendation(t *testing.T) {
 		assert.Equal(t, 1, len(nprList), "Expected exactly one NetworkPolicyRecommendation, got %d", len(nprList))
 		assert.Equal(t, npr, nprList[0])
 
-		openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+		util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
 			if err != nil {
 				return db, err
@@ -607,7 +608,7 @@ func TestGetPolicyRecommendationResult(t *testing.T) {
 			setup: func(client kubernetes.Interface) {
 				createClickHouseService(client)
 				createClickHouseSecret(client)
-				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 					return nil, fmt.Errorf("connection error")
 				}
 			},
@@ -618,7 +619,7 @@ func TestGetPolicyRecommendationResult(t *testing.T) {
 			setup: func(client kubernetes.Interface) {
 				createClickHouseService(client)
 				createClickHouseSecret(client)
-				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 					var err error
 					db, _, err = sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
 					return db, err
@@ -631,7 +632,7 @@ func TestGetPolicyRecommendationResult(t *testing.T) {
 			setup: func(client kubernetes.Interface) {
 				createClickHouseService(client)
 				createClickHouseSecret(client)
-				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
 					var err error
 					var mock sqlmock.Sqlmock
 					db, mock, err = sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
@@ -653,7 +654,7 @@ func TestGetPolicyRecommendationResult(t *testing.T) {
 			if db != nil {
 				defer db.Close()
 			}
-			connect, err := setupClickHouseConnection(kubeClient, testNamespace)
+			connect, err := util.SetupClickHouseConnection(kubeClient, testNamespace)
 			if err != nil {
 				assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 			} else {

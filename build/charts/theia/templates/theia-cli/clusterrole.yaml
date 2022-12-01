@@ -15,4 +15,10 @@ rules:
       - list
       - create
       - delete
+  - apiGroups:
+      - stats.theia.antrea.io
+    resources:
+      - clickhouse
+    verbs:
+      - get
 {{- end }}

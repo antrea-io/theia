@@ -15,124 +15,17 @@
 package commands
 
 import (
-	"database/sql"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
 type chOptions struct {
-	diskInfo    bool
-	tableInfo   bool
-	insertRate  bool
-	stackTraces bool
-}
-
-type diskInfo struct {
-	shard          string
-	name           string
-	path           string
-	freeSpace      string
-	totalSpace     string
-	usedPercentage string
-}
-
-type tableInfo struct {
-	shard      string
-	database   string
-	tableName  string
-	totalRows  sql.NullString
-	totalBytes sql.NullString
-	totalCols  string
-}
-
-type insertRate struct {
-	shard       string
-	rowsPerSec  string
-	bytesPerSec string
-}
-
-type stackTraces struct {
-	shard          string
-	traceFunctions string
-	count          string
-}
-
-const (
-	diskQuery int = iota
-	tableInfoQuery
-	// average writing rate for all tables per second
-	insertRateQuery
-	stackTracesQuery
-)
-
-var queryMap = map[int]string{
-	diskQuery: `
-SELECT
-	shardNum() as Shard,
-	name as DatabaseName,
-	path as Path,
-	formatReadableSize(free_space) as Free,
-	formatReadableSize(total_space) as Total,
-	TRUNCATE((1 - free_space/total_space) * 100, 2) as Used_Percentage
-FROM cluster('{cluster}', system.disks);`,
-	tableInfoQuery: `
-SELECT
-	Shard,
-	DatabaseName,
-	TableName,
-	TotalRows,
-	TotalBytes,
-	TotalCols
-FROM (
-	SELECT
-		shardNum() as Shard,
-		database AS DatabaseName,
-		name AS TableName,
-		total_rows AS TotalRows,
-		formatReadableSize(total_bytes) AS TotalBytes
-	FROM cluster('{cluster}', system.tables) WHERE database = 'default'
-	) as t1
-	INNER JOIN (
-		SELECT
-			shardNum() as Shard,
-			table_catalog as DatabaseName,
-			table_name as TableName,
-			COUNT(*) as TotalCols
-		FROM cluster('{cluster}', INFORMATION_SCHEMA.COLUMNS)
-		WHERE table_catalog == 'default'
-		GROUP BY table_name, table_catalog, Shard
-		) as t2
-		ON t1.DatabaseName = t2.DatabaseName and t1.TableName = t2.TableName and t1.Shard = t2.Shard`,
-	// average writing rate for all tables per second
-	insertRateQuery: `
-SELECT
-	sd.Shard,
-	sd.RowsPerSecond,
-	sd.BytesPerSecond
-FROM (
-	SELECT
-		shardNum() as Shard,
-		(intDiv(toUInt32(date_trunc('minute', toDateTime(event_time))), 2) * 2) * 1000 as t,
-		TRUNCATE(avg(ProfileEvent_InsertedRows),0) as RowsPerSecond,
-		formatReadableSize(avg(ProfileEvent_InsertedBytes)) as BytesPerSecond,
-		ROW_NUMBER() OVER(PARTITION BY shardNum() ORDER BY t DESC) rowNumber
-	FROM cluster('{cluster}', system.metric_log)
-	GROUP BY t, shardNum()
-	ORDER BY t DESC, shardNum()
-	) sd
-WHERE sd.rowNumber=1`,
-	stackTracesQuery: `
-SELECT
-	shardNum() as Shard,
-	arrayStringConcat(arrayMap(x -> demangle(addressToSymbol(x)), trace), '\\n') AS trace_function,
-	count()
-FROM cluster('{cluster}', system.stack_trace)
-GROUP BY trace_function, Shard
-ORDER BY count()
-DESC SETTINGS allow_introspection_functions=1`,
+	diskInfo   bool
+	tableInfo  bool
+	insertRate bool
+	stackTrace bool
 }
 
 var options *chOptions
@@ -142,7 +35,7 @@ var clickHouseStatusCmd = &cobra.Command{
 	Short:   "Get diagnostic infos of ClickHouse database",
 	Example: example,
 	Args:    cobra.NoArgs,
-	RunE:    getClickHouseStatus,
+	RunE:    getStatus,
 }
 
 var example = strings.Trim(`
@@ -157,119 +50,75 @@ func init() {
 	clickHouseStatusCmd.Flags().BoolVar(&options.diskInfo, "diskInfo", false, "check disk usage information")
 	clickHouseStatusCmd.Flags().BoolVar(&options.tableInfo, "tableInfo", false, "check basic table information")
 	clickHouseStatusCmd.Flags().BoolVar(&options.insertRate, "insertRate", false, "check the insertion-rate of clickhouse")
-	clickHouseStatusCmd.Flags().BoolVar(&options.stackTraces, "stackTraces", false, "check stacktrace of clickhouse")
+	clickHouseStatusCmd.Flags().BoolVar(&options.stackTrace, "stackTrace", false, "check stacktrace of clickhouse")
 }
 
-func getClickHouseStatus(cmd *cobra.Command, args []string) error {
-	if !options.diskInfo && !options.tableInfo && !options.insertRate && !options.stackTraces {
+func getStatus(cmd *cobra.Command, args []string) error {
+	if !options.diskInfo && !options.tableInfo && !options.insertRate && !options.stackTrace {
 		return fmt.Errorf("no metric related flag is specified")
-	}
-	kubeconfig, err := ResolveKubeConfig(cmd)
-	if err != nil {
-		return err
-	}
-	clientset, err := CreateK8sClient(kubeconfig)
-	if err != nil {
-		return fmt.Errorf("couldn't create k8s client using given kubeconfig, %v", err)
-	}
-
-	endpoint, err := cmd.Flags().GetString("clickhouse-endpoint")
-	if err != nil {
-		return err
-	}
-	if endpoint != "" {
-		_, err := url.ParseRequestURI(endpoint)
-		if err != nil {
-			return fmt.Errorf("failed to decode input endpoint %s into a url, err: %v", endpoint, err)
-		}
 	}
 	useClusterIP, err := cmd.Flags().GetBool("use-cluster-ip")
 	if err != nil {
 		return err
 	}
-	if err := CheckClickHousePod(clientset); err != nil {
-		return err
-	}
-	// Connect to ClickHouse and get the result
-	connect, pf, err := SetupClickHouseConnection(clientset, kubeconfig, endpoint, useClusterIP)
+	theiaClient, pf, err := SetupTheiaClientAndConnection(cmd, useClusterIP)
 	if err != nil {
-		return err
+		return fmt.Errorf("couldn't setup Theia manager client, %v", err)
 	}
 	if pf != nil {
 		defer pf.Stop()
 	}
+	var names []string
 	if options.diskInfo {
-		data, err := getDataFromClickHouse(connect, diskQuery)
-		if err != nil {
-			return fmt.Errorf("error when getting diskInfo from clickhouse: %v", err)
-		}
-		TableOutput(data)
+		names = append(names, "diskInfo")
 	}
 	if options.tableInfo {
-		data, err := getDataFromClickHouse(connect, tableInfoQuery)
-		if err != nil {
-			return fmt.Errorf("error when getting tableInfo from clickhouse: %v", err)
-		}
-		TableOutput(data)
+		names = append(names, "tableInfo")
 	}
 	if options.insertRate {
-		data, err := getDataFromClickHouse(connect, insertRateQuery)
-		if err != nil {
-			return fmt.Errorf("error when getting insertRate from clickhouse: %v", err)
-		}
-		TableOutput(data)
+		names = append(names, "insertRate")
 	}
-	if options.stackTraces {
-		data, err := getDataFromClickHouse(connect, stackTracesQuery)
+	if options.stackTrace {
+		names = append(names, "stackTrace")
+	}
+	for _, name := range names {
+		data, err := getClickHouseStatusByCategory(theiaClient, name)
 		if err != nil {
-			return fmt.Errorf("error when getting stackTraces from clickhouse: %v", err)
+			return fmt.Errorf("error when getting clickhouse %v status: %s", name, err)
 		}
-		TableOutputVertical(data)
+		if len(data.ErrorMsg) != 0 {
+			for _, errorMsg := range data.ErrorMsg {
+				fmt.Printf("Error message: %s\n", errorMsg)
+			}
+		}
+		var result [][]string
+		switch name {
+		case "diskInfo":
+			result = append(result, []string{"Shard", "DatabaseName", "Path", "Free", "Total", "Used_Percentage"})
+			for _, diskInfo := range data.DiskInfos {
+				result = append(result, []string{diskInfo.Shard, diskInfo.Database, diskInfo.Path, diskInfo.FreeSpace, diskInfo.TotalSpace, diskInfo.UsedPercentage})
+			}
+		case "tableInfo":
+			result = append(result, []string{"Shard", "DatabaseName", "TableName", "TotalRows", "TotalBytes", "TotalCols"})
+			for _, tableInfo := range data.TableInfos {
+				result = append(result, []string{tableInfo.Shard, tableInfo.Database, tableInfo.TableName, tableInfo.TotalRows, tableInfo.TotalBytes, tableInfo.TotalCols})
+			}
+		case "insertRate":
+			result = append(result, []string{"Shard", "RowsPerSecond", "BytesPerSecond"})
+			for _, insertRate := range data.InsertRates {
+				result = append(result, []string{insertRate.Shard, insertRate.RowsPerSec, insertRate.BytesPerSec})
+			}
+		case "stackTrace":
+			result = append(result, []string{"Shard", "TraceFunctions", "Count()"})
+			for _, stackTrace := range data.StackTraces {
+				result = append(result, []string{stackTrace.Shard, stackTrace.TraceFunctions, stackTrace.Count})
+			}
+		}
+		if name == "stackTrace" {
+			TableOutputVertical(result)
+		} else {
+			TableOutput(result)
+		}
 	}
 	return nil
-}
-
-func getDataFromClickHouse(connect *sql.DB, query int) ([][]string, error) {
-	result, err := connect.Query(queryMap[query])
-	if err != nil {
-		return nil, fmt.Errorf("failed to get data from clickhouse: %v", err)
-	}
-	defer result.Close()
-	columnName, err := result.Columns()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the name of columns: %v", err)
-	}
-	var data [][]string
-	data = append(data, columnName)
-	for result.Next() {
-		var err error
-		switch query {
-		case diskQuery:
-			var res diskInfo
-			err = result.Scan(&res.shard, &res.name, &res.path, &res.freeSpace, &res.totalSpace, &res.usedPercentage)
-			data = append(data, []string{res.shard, res.name, res.path, res.freeSpace, res.totalSpace, res.usedPercentage + " %"})
-		case tableInfoQuery:
-			res := tableInfo{}
-			err = result.Scan(&res.shard, &res.database, &res.tableName, &res.totalRows, &res.totalBytes, &res.totalCols)
-			if !res.totalRows.Valid || !res.totalBytes.Valid {
-				continue
-			}
-			data = append(data, []string{res.shard, res.database, res.tableName, res.totalRows.String, res.totalBytes.String, res.totalCols})
-		case insertRateQuery:
-			res := insertRate{}
-			err = result.Scan(&res.shard, &res.rowsPerSec, &res.bytesPerSec)
-			data = append(data, []string{res.shard, res.rowsPerSec, res.bytesPerSec})
-		case stackTracesQuery:
-			res := stackTraces{}
-			err = result.Scan(&res.shard, &res.traceFunctions, &res.count)
-			data = append(data, []string{res.shard, res.traceFunctions, res.count})
-		}
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse the data returned by database: %v", err)
-		}
-	}
-	if len(data) <= 1 {
-		return nil, fmt.Errorf("no data is returned by database")
-	}
-	return data, nil
 }

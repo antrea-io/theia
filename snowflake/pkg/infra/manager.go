@@ -36,7 +36,7 @@ import (
 
 	"antrea.io/theia/snowflake/database"
 	sf "antrea.io/theia/snowflake/pkg/snowflake"
-	utils "antrea.io/theia/snowflake/pkg/utils"
+	fileutils "antrea.io/theia/snowflake/pkg/utils/file"
 	"antrea.io/theia/snowflake/udfs"
 )
 
@@ -85,7 +85,7 @@ func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error
 	if err := os.MkdirAll(filepath.Join(dir, "pulumi"), 0755); err != nil {
 		return err
 	}
-	if err := utils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := fileutils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 		return fmt.Errorf("OS / arch combination is not supported: %s / %s", operatingSystem, arch)
 	}
 	url := fmt.Sprintf("https://github.com/antoninbas/migrate-snowflake/releases/download/%s/migrate-snowflake_%s_%s.tar.gz", migrateSnowflakeVersion, migrateSnowflakeVersion, target)
-	if err := utils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := fileutils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
 		return err
 	}
 
@@ -282,7 +282,7 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 	warehouseName := m.warehouseName
 	if !destroy {
 		logger.Info("Copying database migrations to disk")
-		if err := utils.WriteEmbedDirToDisk(ctx, logger, database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
+		if err := fileutils.WriteFSDirToDisk(ctx, logger, database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
 			return nil, err
 		}
 		logger.Info("Copied database migrations to disk")
@@ -445,7 +445,7 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 	}
 
 	// Download and stage Kubernetes python client for policy recommendation udf
-	k8sPythonClientFilePath, err := utils.Download(ctx, logger, k8sPythonClientUrl, workdir, k8sPythonClientFileName)
+	k8sPythonClientFilePath, err := fileutils.Download(ctx, logger, k8sPythonClientUrl, workdir, k8sPythonClientFileName)
 	if err != nil {
 		return err
 	}
@@ -463,7 +463,7 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 
 	logger.Info("Copying UDFs to disk")
 	udfsDirPath := filepath.Join(workdir, udfsDir)
-	if err := utils.WriteEmbedDirToDisk(ctx, logger, udfs.UdfsFs, udfs.UdfsPath, udfsDirPath); err != nil {
+	if err := fileutils.WriteFSDirToDisk(ctx, logger, udfs.UdfsFs, udfs.UdfsPath, udfsDirPath); err != nil {
 		return err
 	}
 	logger.Info("Copied UDFs to disk")
@@ -521,7 +521,7 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 			return fmt.Errorf("version placeholder '%s' not found in SQL file", udfVersionPlaceholder)
 		}
 		query = strings.ReplaceAll(query, udfVersionPlaceholder, version)
-		_, err = sfClient.ExecMultiStatementQuery(ctx, query, false)
+		err = sfClient.ExecMultiStatement(ctx, query)
 		if err != nil {
 			return fmt.Errorf("error when creating UDF: %w", err)
 		}

@@ -1,11 +1,14 @@
 GO                 ?= go
 BINDIR := $(CURDIR)/bin
 
-all: bin
+all: udfs bin
+
+.PHONY: udfs
+udfs:
+	make -C udfs/udfs/
 
 .PHONY: bin
 bin:
-	make -C udfs/udfs/
 	$(GO) build -o $(BINDIR)/theia-sf antrea.io/theia/snowflake
 
 .PHONY: .coverage

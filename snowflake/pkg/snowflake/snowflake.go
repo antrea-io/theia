@@ -115,26 +115,28 @@ func (c *client) UseDatabase(ctx context.Context, name string) error {
 
 func (c *client) UseSchema(ctx context.Context, name string) error {
 	query := fmt.Sprintf("USE SCHEMA %s", name)
-	c.logger.Info("Snowflake query", "query", query)
+	c.logger.V(2).Info("Snowflake query", "query", query)
 	_, err := c.db.ExecContext(ctx, query)
 	return err
 }
 
 func (c *client) StageFile(ctx context.Context, path string, stage string) error {
 	query := fmt.Sprintf("PUT file://%s @%s AUTO_COMPRESS = FALSE OVERWRITE = TRUE", path, stage)
-	c.logger.Info("Snowflake query", "query", query)
+	c.logger.V(2).Info("Snowflake query", "query", query)
 	_, err := c.db.ExecContext(ctx, query)
 	return err
 }
 
-func (c *client) ExecMultiStatementQuery(ctx context.Context, query string, result bool) (*sql.Rows, error) {
+func (c *client) ExecMultiStatement(ctx context.Context, query string) error {
 	multi_statement_context, _ := gosnowflake.WithMultiStatement(ctx, 0)
-	c.logger.Info("Snowflake query", "query", query)
-	if !result {
-		_, err := c.db.ExecContext(multi_statement_context, query)
-		return nil, err
-	} else {
-		rows, err := c.db.QueryContext(multi_statement_context, query)
-		return rows, err
-	}
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	_, err := c.db.ExecContext(multi_statement_context, query)
+	return err
+}
+
+func (c *client) QueryMultiStatement(ctx context.Context, query string) (*sql.Rows, error) {
+	multi_statement_context, _ := gosnowflake.WithMultiStatement(ctx, 0)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	rows, err := c.db.QueryContext(multi_statement_context, query)
+	return rows, err
 }

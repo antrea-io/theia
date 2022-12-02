@@ -12,28 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package infra
+package file
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"antrea.io/theia/snowflake/database"
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"antrea.io/theia/snowflake/database"
 )
 
-func TestWriteMigrationsToDisk(t *testing.T) {
+func TestWriteFSDirToDisk(t *testing.T) {
+	var logger logr.Logger
 	tempDir, err := os.MkdirTemp("", "antrea-pulumi-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-	err = writeMigrationsToDisk(database.Migrations, database.MigrationsPath, filepath.Join(tempDir, migrationsDir))
+	err = WriteFSDirToDisk(context.TODO(), logger, database.Migrations, database.MigrationsPath, filepath.Join(tempDir, database.MigrationsPath))
 	require.NoError(t, err)
 	entries, err := database.Migrations.ReadDir(database.MigrationsPath)
 	require.NoError(t, err)
 	for _, entry := range entries {
-		_, err := os.Stat(filepath.Join(tempDir, migrationsDir, entry.Name()))
+		_, err := os.Stat(filepath.Join(tempDir, database.MigrationsPath, entry.Name()))
 		assert.NoErrorf(t, err, "Migration file %s not exist", entry.Name())
 	}
 }

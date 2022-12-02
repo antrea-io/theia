@@ -72,7 +72,7 @@ func RunUdf(ctx context.Context, logger logr.Logger, query string, databaseName 
 		return nil, err
 	}
 
-	rows, err := sfClient.ExecMultiStatementQuery(ctx, query, true)
+	rows, err := sfClient.QueryMultiStatement(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("error when running UDF: %w", err)
 	}

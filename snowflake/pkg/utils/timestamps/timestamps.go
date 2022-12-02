@@ -42,7 +42,7 @@ func ParseTimestamp(t string, now time.Time) (string, error) {
 		return now, fmt.Errorf("bad timestamp: %s", t)
 	}()
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	return ts.UTC().Format(time.RFC3339), nil
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package utils
+package file
 
 import (
 	"archive/tar"
@@ -102,17 +102,17 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 	return nil
 }
 
-func WriteEmbedDirToDisk(ctx context.Context, logger logr.Logger, fsys fs.FS, embedPath string, dest string) error {
+func WriteFSDirToDisk(ctx context.Context, logger logr.Logger, fsys fs.FS, fsysPath string, dest string) error {
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return err
 	}
 
-	return fs.WalkDir(fsys, embedPath, func(path string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(fsys, fsysPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		outpath := filepath.Join(dest, strings.TrimPrefix(path, embedPath))
+		outpath := filepath.Join(dest, strings.TrimPrefix(path, fsysPath))
 
 		if d.IsDir() {
 			os.MkdirAll(outpath, 0755)

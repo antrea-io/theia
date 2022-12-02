@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package infra
+package udfs
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 
+	"antrea.io/theia/snowflake/pkg/infra"
 	sf "antrea.io/theia/snowflake/pkg/snowflake"
 )
 
@@ -50,12 +51,12 @@ func RunUdf(ctx context.Context, logger logr.Logger, query string, databaseName 
 		return nil, err
 	}
 
-	if err := sfClient.UseSchema(ctx, schemaName); err != nil {
+	if err := sfClient.UseSchema(ctx, infra.SchemaName); err != nil {
 		return nil, err
 	}
 
 	if warehouseName == "" {
-		temporaryWarehouse := newTemporaryWarehouse(sfClient, logger)
+		temporaryWarehouse := infra.NewTemporaryWarehouse(sfClient, logger)
 		warehouseName = temporaryWarehouse.Name()
 		if err := temporaryWarehouse.Create(ctx); err != nil {
 			return nil, err

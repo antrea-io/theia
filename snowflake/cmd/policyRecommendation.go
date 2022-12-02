@@ -23,7 +23,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"antrea.io/theia/snowflake/pkg/infra"
+	"antrea.io/theia/snowflake/pkg/udfs"
 	"antrea.io/theia/snowflake/pkg/utils/timestamps"
 )
 
@@ -53,7 +53,7 @@ func buildPolicyRecommendationUdfQuery(
 ) (string, error) {
 	now := time.Now()
 	recommendationID := uuid.New().String()
-	functionName := infra.GetFunctionName(staticPolicyRecommendationFunctionName, functionVersion)
+	functionName := udfs.GetFunctionName(staticPolicyRecommendationFunctionName, functionVersion)
 	var queryBuilder strings.Builder
 	fmt.Fprintf(&queryBuilder, `SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM
 	TABLE(%s(
@@ -150,7 +150,7 @@ LIMIT 500000`)
 
 	// Choose the destinationIP as the partition field for the preprocessing
 	// UDTF because flow rows could be divided into the most subsets
-	functionName = infra.GetFunctionName(preprocessingFunctionName, functionVersion)
+	functionName = udfs.GetFunctionName(preprocessingFunctionName, functionVersion)
 	fmt.Fprintf(&queryBuilder, `), processed_flows AS (SELECT r.appliedTo, r.ingress, r.egress FROM filtered_flows AS f,
 TABLE(%s(
 	'%s',
@@ -183,7 +183,7 @@ FROM processed_flows as pf
 	// Choose the appliedTo as the partition field for the policyRecommendation
 	// UDTF because each network policy is recommended based on all ingress and
 	// egress traffic related to an appliedTo group.
-	functionName = infra.GetFunctionName(policyRecommendationFunctionName, functionVersion)
+	functionName = udfs.GetFunctionName(policyRecommendationFunctionName, functionVersion)
 	fmt.Fprintf(&queryBuilder, `) SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM pf_with_index,
 TABLE(%s(
   '%s',
@@ -246,7 +246,7 @@ You can also bring your own by using the "--warehouse-name" parameter.
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), waitDuration)
 		defer cancel()
-		rows, err := infra.RunUdf(ctx, logger, query, databaseName, warehouseName)
+		rows, err := udfs.RunUdf(ctx, logger, query, databaseName, warehouseName)
 		if err != nil {
 			return fmt.Errorf("error when running policy recommendation UDF: %w", err)
 		}

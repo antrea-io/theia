@@ -238,7 +238,7 @@ func declareSnowflakeDatabase(
 
 		schema, err := snowflake.NewSchema(ctx, "antrea-sf-schema", &snowflake.SchemaArgs{
 			Database: db.ID(),
-			Name:     pulumi.String(schemaName),
+			Name:     pulumi.String(SchemaName),
 		}, pulumi.Parent(db), pulumi.DeleteBeforeReplace(true))
 		if err != nil {
 			return nil, err
@@ -293,7 +293,7 @@ func declareSnowflakeDatabase(
 			ErrorIntegration: notificationIntegration.ID(),
 			// FQN required for table and stage, see https://github.com/pulumi/pulumi-snowflake/issues/129
 			// 0x27 is the hex representation of single quote. We use it to enclose Pod labels string.
-			CopyStatement: pulumi.Sprintf("COPY INTO %s.%s.%s FROM @%s.%s.%s FILE_FORMAT = (TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY='0x27')", databaseName, schemaName, flowsTableName, databaseName, schemaName, ingestionStageName),
+			CopyStatement: pulumi.Sprintf("COPY INTO %s.%s.%s FROM @%s.%s.%s FILE_FORMAT = (TYPE = CSV FIELD_OPTIONALLY_ENCLOSED_BY='0x27')", databaseName, SchemaName, flowsTableName, databaseName, SchemaName, ingestionStageName),
 		}, pulumi.Parent(schema), pulumi.DependsOn([]pulumi.Resource{ingestionStage, dbMigrations}), pulumi.DeleteBeforeReplace(true))
 		if err != nil {
 			return nil, err

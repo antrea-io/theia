@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package udfs
 
 import (
-	"antrea.io/theia/snowflake/cmd"
+	"embed"
 )
 
-func main() {
-	cmd.Execute()
-}
+//go:embed udfs
+var UdfsFs embed.FS
+
+const UdfsPath = "udfs"

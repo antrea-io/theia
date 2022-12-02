@@ -5,7 +5,7 @@ all: bin
 
 .PHONY: bin
 bin:
-	make -C udf/
+	make -C udfs/udfs/
 	$(GO) build -o $(BINDIR)/theia-sf antrea.io/theia/snowflake
 
 .PHONY: .coverage

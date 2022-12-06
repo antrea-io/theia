@@ -1,7 +1,11 @@
 GO                 ?= go
 BINDIR := $(CURDIR)/bin
 
-all: bin
+all: udfs bin
+
+.PHONY: udfs
+udfs:
+	make -C udfs/udfs/
 
 .PHONY: bin
 bin:

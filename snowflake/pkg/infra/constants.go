@@ -43,7 +43,7 @@ const (
 
 	databaseNamePrefix = "ANTREA_"
 
-	schemaName           = "THEIA"
+	SchemaName           = "THEIA"
 	flowRetentionDays    = 30
 	flowDeletionTaskName = "DELETE_STALE_FLOWS"
 	udfStageName         = "UDFS"
@@ -54,4 +54,10 @@ const (
 	flowsTableName = "FLOWS"
 
 	migrationsDir = "migrations"
+	udfsDir       = "udfs"
+
+	udfVersionPlaceholder        = "%VERSION%"
+	udfCreateFunctionSQLFilename = "create_function.sql"
+	k8sPythonClientUrl           = "https://downloads.antrea.io/artifacts/snowflake-udf/k8s-client-python-v24.2.0.zip"
+	k8sPythonClientFileName      = "kubernetes.zip"
 )

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
+	"github.com/snowflakedb/gosnowflake"
 )
 
 type WarehouseSizeType string
@@ -45,6 +46,9 @@ type Client interface {
 	CreateWarehouse(ctx context.Context, name string, config WarehouseConfig) error
 	UseWarehouse(ctx context.Context, name string) error
 	DropWarehouse(ctx context.Context, name string) error
+	UseDatabase(ctx context.Context, name string) error
+	UseSchema(ctx context.Context, name string) error
+	StageFile(ctx context.Context, path string, stage string) error
 }
 
 type client struct {
@@ -100,4 +104,39 @@ func (c *client) DropWarehouse(ctx context.Context, name string) error {
 	c.logger.V(2).Info("Snowflake query", "query", query)
 	_, err := c.db.ExecContext(ctx, query)
 	return err
+}
+
+func (c *client) UseDatabase(ctx context.Context, name string) error {
+	query := fmt.Sprintf("USE DATABASE %s", name)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	_, err := c.db.ExecContext(ctx, query)
+	return err
+}
+
+func (c *client) UseSchema(ctx context.Context, name string) error {
+	query := fmt.Sprintf("USE SCHEMA %s", name)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	_, err := c.db.ExecContext(ctx, query)
+	return err
+}
+
+func (c *client) StageFile(ctx context.Context, path string, stage string) error {
+	query := fmt.Sprintf("PUT file://%s @%s AUTO_COMPRESS = FALSE OVERWRITE = TRUE", path, stage)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	_, err := c.db.ExecContext(ctx, query)
+	return err
+}
+
+func (c *client) ExecMultiStatement(ctx context.Context, query string) error {
+	multi_statement_context, _ := gosnowflake.WithMultiStatement(ctx, 0)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	_, err := c.db.ExecContext(multi_statement_context, query)
+	return err
+}
+
+func (c *client) QueryMultiStatement(ctx context.Context, query string) (*sql.Rows, error) {
+	multi_statement_context, _ := gosnowflake.WithMultiStatement(ctx, 0)
+	c.logger.V(2).Info("Snowflake query", "query", query)
+	rows, err := c.db.QueryContext(multi_statement_context, query)
+	return rows, err
 }

@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dustinkirkland/golang-petname"
+	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/go-logr/logr"
 
 	sf "antrea.io/theia/snowflake/pkg/snowflake"
@@ -31,7 +31,7 @@ type temporaryWarehouse struct {
 	warehouseName string
 }
 
-func newTemporaryWarehouse(sfClient sf.Client, logger logr.Logger) *temporaryWarehouse {
+func NewTemporaryWarehouse(sfClient sf.Client, logger logr.Logger) *temporaryWarehouse {
 	return &temporaryWarehouse{
 		sfClient:      sfClient,
 		logger:        logger,

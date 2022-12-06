@@ -15,17 +15,16 @@
 package infra
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/go-logr/logr"
 	"github.com/pulumi/pulumi/sdk/v3/go/auto"
@@ -37,6 +36,8 @@ import (
 
 	"antrea.io/theia/snowflake/database"
 	sf "antrea.io/theia/snowflake/pkg/snowflake"
+	fileutils "antrea.io/theia/snowflake/pkg/utils/file"
+	"antrea.io/theia/snowflake/udfs"
 )
 
 type pulumiPlugin struct {
@@ -50,92 +51,6 @@ func createTemporaryWorkdir() (string, error) {
 
 func deleteTemporaryWorkdir(d string) {
 	os.RemoveAll(d)
-}
-
-func writeMigrationsToDisk(fsys fs.FS, migrationsPath string, dest string) error {
-	if err := os.MkdirAll(dest, 0755); err != nil {
-		return err
-	}
-	entries, err := fs.ReadDir(fsys, migrationsPath)
-	if err != nil {
-		return err
-	}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		if err := func() error {
-			in, err := fsys.Open(filepath.Join(migrationsPath, e.Name()))
-			if err != nil {
-				return err
-			}
-			defer in.Close()
-
-			out, err := os.Create(filepath.Join(dest, e.Name()))
-			if err != nil {
-				return err
-			}
-			defer out.Close()
-
-			_, err = io.Copy(out, in)
-			if err != nil {
-				return err
-			}
-			return out.Close()
-		}(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func downloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return err
-	}
-	client := http.DefaultClient
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	gzr, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer gzr.Close()
-	tr := tar.NewReader(gzr)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break // End of archive
-		}
-		if err != nil {
-			return err
-		}
-		dest := filepath.Join(dir, hdr.Name)
-		logger.V(4).Info("Untarring", "path", hdr.Name)
-		if hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-		if err := func() error {
-			f, err := os.OpenFile(dest, os.O_CREATE|os.O_RDWR, os.FileMode(hdr.Mode))
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error {
@@ -170,7 +85,7 @@ func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error
 	if err := os.MkdirAll(filepath.Join(dir, "pulumi"), 0755); err != nil {
 		return err
 	}
-	if err := downloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := fileutils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
 		return err
 	}
 
@@ -203,7 +118,7 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 		return fmt.Errorf("OS / arch combination is not supported: %s / %s", operatingSystem, arch)
 	}
 	url := fmt.Sprintf("https://github.com/antoninbas/migrate-snowflake/releases/download/%s/migrate-snowflake_%s_%s.tar.gz", migrateSnowflakeVersion, migrateSnowflakeVersion, target)
-	if err := downloadAndUntar(ctx, logger, url, dir); err != nil {
+	if err := fileutils.DownloadAndUntar(ctx, logger, url, dir); err != nil {
 		return err
 	}
 
@@ -212,6 +127,14 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 	}
 	logger.Info("Installed Migrate Snowflake")
 	return nil
+}
+
+func readVersionFromFile(path string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 type Manager struct {
@@ -359,7 +282,7 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 	warehouseName := m.warehouseName
 	if !destroy {
 		logger.Info("Copying database migrations to disk")
-		if err := writeMigrationsToDisk(database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
+		if err := fileutils.WriteFSDirToDisk(ctx, logger, database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
 			return nil, err
 		}
 		logger.Info("Copied database migrations to disk")
@@ -375,7 +298,7 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 				return nil, fmt.Errorf("failed to connect to Snowflake: %w", err)
 			}
 			defer db.Close()
-			temporaryWarehouse := newTemporaryWarehouse(sf.NewClient(db, logger), logger)
+			temporaryWarehouse := NewTemporaryWarehouse(sf.NewClient(db, logger), logger)
 			warehouseName = temporaryWarehouse.Name()
 			if err := temporaryWarehouse.Create(ctx); err != nil {
 				return nil, err
@@ -468,12 +391,17 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 		return nil, err
 	}
 
+	err = createUdfs(ctx, logger, outs["databaseName"], warehouseName, workdir)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Result{
 		Region:            m.region,
 		BucketName:        outs["bucketID"],
 		BucketFlowsFolder: s3BucketFlowsFolder,
 		DatabaseName:      outs["databaseName"],
-		SchemaName:        schemaName,
+		SchemaName:        SchemaName,
 		FlowsTableName:    flowsTableName,
 		SNSTopicARN:       outs["snsTopicARN"],
 		SQSQueueARN:       outs["sqsQueueARN"],
@@ -487,4 +415,119 @@ func (m *Manager) Onboard(ctx context.Context) (*Result, error) {
 func (m *Manager) Offboard(ctx context.Context) error {
 	_, err := m.run(ctx, true)
 	return err
+}
+
+func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, warehouseName string, workdir string) error {
+	logger.Info("Creating UDFs")
+	dsn, _, err := sf.GetDSN()
+	if err != nil {
+		return fmt.Errorf("failed to create DSN: %w", err)
+	}
+
+	db, err := sql.Open("snowflake", dsn)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Snowflake: %w", err)
+	}
+	defer db.Close()
+
+	sfClient := sf.NewClient(db, logger)
+
+	if err := sfClient.UseDatabase(ctx, databaseName); err != nil {
+		return err
+	}
+
+	if err := sfClient.UseSchema(ctx, SchemaName); err != nil {
+		return err
+	}
+
+	if err := sfClient.UseWarehouse(ctx, warehouseName); err != nil {
+		return err
+	}
+
+	// Download and stage Kubernetes python client for policy recommendation udf
+	k8sPythonClientFilePath, err := fileutils.Download(ctx, logger, k8sPythonClientUrl, workdir, k8sPythonClientFileName)
+	if err != nil {
+		return err
+	}
+	k8sPythonClientFilePath, _ = filepath.Abs(k8sPythonClientFilePath)
+	err = sfClient.StageFile(ctx, k8sPythonClientFilePath, udfStageName)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = os.Remove(k8sPythonClientFilePath)
+		if err != nil {
+			logger.Error(err, "Failed to delete Kubernetes python client zip file, please do it manually", "filepath", k8sPythonClientFilePath)
+		}
+	}()
+
+	logger.Info("Copying UDFs to disk")
+	udfsDirPath := filepath.Join(workdir, udfsDir)
+	if err := fileutils.WriteFSDirToDisk(ctx, logger, udfs.UdfsFs, udfs.UdfsPath, udfsDirPath); err != nil {
+		return err
+	}
+	logger.Info("Copied UDFs to disk")
+
+	if err := filepath.WalkDir(udfsDirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if filepath.Ext(path) != ".zip" {
+			return nil
+		}
+		logger.Info("Staging", "path", path)
+		directoryPath := path[:len(path)-4]
+		functionVersionPath := filepath.Join(directoryPath, "version.txt")
+		var version string
+		if _, err := os.Stat(functionVersionPath); errors.Is(err, os.ErrNotExist) {
+			logger.Info("Did not find version.txt file for function", "functionVersionPath", functionVersionPath)
+			version = ""
+		} else {
+			version, err = readVersionFromFile(functionVersionPath)
+			if err != nil {
+				return err
+			}
+		}
+		version = strings.ReplaceAll(version, ".", "_")
+		version = strings.ReplaceAll(version, "-", "_")
+		absPath, _ := filepath.Abs(path)
+		var pathWithVersion string
+		if version != "" {
+			pathWithVersion = fmt.Sprintf("%s_%s.zip", absPath[:len(absPath)-4], version)
+		} else {
+			// Don't add a version suffix if there is no version information
+			pathWithVersion = absPath
+		}
+		err = os.Rename(absPath, pathWithVersion)
+		if err != nil {
+			return err
+		}
+		err = sfClient.StageFile(ctx, pathWithVersion, udfStageName)
+		if err != nil {
+			return err
+		}
+		createFunctionSQLPath := filepath.Join(directoryPath, udfCreateFunctionSQLFilename)
+		if _, err := os.Stat(createFunctionSQLPath); errors.Is(err, os.ErrNotExist) {
+			logger.Info("Did not find SQL file to create function, skipping", "createFunctionSQLPath", createFunctionSQLPath)
+			return nil
+		}
+		logger.Info("Creating UDF", "from", createFunctionSQLPath, "version", version)
+		b, err := os.ReadFile(createFunctionSQLPath)
+		if err != nil {
+			return err
+		}
+		query := string(b)
+		if !strings.Contains(query, udfVersionPlaceholder) {
+			return fmt.Errorf("version placeholder '%s' not found in SQL file", udfVersionPlaceholder)
+		}
+		query = strings.ReplaceAll(query, udfVersionPlaceholder, version)
+		err = sfClient.ExecMultiStatement(ctx, query)
+		if err != nil {
+			return fmt.Errorf("error when creating UDF: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("creating failed: %w", err)
+	}
+	return nil
 }

@@ -418,7 +418,7 @@ func (m *Manager) Offboard(ctx context.Context) error {
 }
 
 func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, warehouseName string, workdir string) error {
-	logger.Info("creating UDFs")
+	logger.Info("Creating UDFs")
 	dsn, _, err := sf.GetDSN()
 	if err != nil {
 		return fmt.Errorf("failed to create DSN: %w", err)
@@ -475,12 +475,12 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 		if filepath.Ext(path) != ".zip" {
 			return nil
 		}
-		logger.Info("staging", "path", path)
+		logger.Info("Staging", "path", path)
 		directoryPath := path[:len(path)-4]
 		functionVersionPath := filepath.Join(directoryPath, "version.txt")
 		var version string
 		if _, err := os.Stat(functionVersionPath); errors.Is(err, os.ErrNotExist) {
-			logger.Info("did not find version.txt file for function", "functionVersionPath", functionVersionPath)
+			logger.Info("Did not find version.txt file for function", "functionVersionPath", functionVersionPath)
 			version = ""
 		} else {
 			version, err = readVersionFromFile(functionVersionPath)
@@ -508,10 +508,10 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 		}
 		createFunctionSQLPath := filepath.Join(directoryPath, udfCreateFunctionSQLFilename)
 		if _, err := os.Stat(createFunctionSQLPath); errors.Is(err, os.ErrNotExist) {
-			logger.Info("did not find SQL file to create function, skipping", "createFunctionSQLPath", createFunctionSQLPath)
+			logger.Info("Did not find SQL file to create function, skipping", "createFunctionSQLPath", createFunctionSQLPath)
 			return nil
 		}
-		logger.Info("creating UDF", "from", createFunctionSQLPath, "version", version)
+		logger.Info("Creating UDF", "from", createFunctionSQLPath, "version", version)
 		b, err := os.ReadFile(createFunctionSQLPath)
 		if err != nil {
 			return err

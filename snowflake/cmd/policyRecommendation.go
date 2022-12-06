@@ -111,7 +111,7 @@ AND
 	}
 	if endTime != "" {
 		fmt.Fprintf(&queryBuilder, `AND
-  flowEndSeconds >= '%s'
+  flowEndSeconds < '%s'
 `, endTime)
 	}
 
@@ -221,10 +221,20 @@ You can also bring your own by using the "--warehouse-name" parameter.
 			return fmt.Errorf("invalid --type argument")
 		}
 		limit, _ := cmd.Flags().GetUint("limit")
-		isolationMethod, _ := cmd.Flags().GetInt("isolationMethod")
-		if isolationMethod < 1 && isolationMethod > 3 {
-			return fmt.Errorf("invalid -isolationMethod argument")
+
+		policyType, _ := cmd.Flags().GetString("policy-type")
+		var isolationMethod int
+		if policyType == "anp-deny-applied" {
+			isolationMethod = 1
+		} else if policyType == "anp-deny-all" {
+			isolationMethod = 2
+		} else if policyType == "k8s-np" {
+			isolationMethod = 3
+		} else {
+			return fmt.Errorf(`type of generated NetworkPolicy should be
+anp-deny-applied or anp-deny-all or k8s-np`)
 		}
+
 		start, _ := cmd.Flags().GetString("start")
 		end, _ := cmd.Flags().GetString("end")
 		startTs, _ := cmd.Flags().GetString("start-ts")
@@ -272,10 +282,10 @@ func init() {
 
 	policyRecommendationCmd.Flags().String("type", "initial", "Type of recommendation job (initial|subsequent), we only support initial jobType for now")
 	policyRecommendationCmd.Flags().Uint("limit", 0, "Limit on the number of flows to read, default it 0 (no limit)")
-	policyRecommendationCmd.Flags().Int("isolationMethod", 1, `Network isolation preference. Currently we have 3 options:
-1: Recommending allow ANP/ACNP policies, with default deny rules only on Pods which have an allow rule applied
-2: Recommending allow ANP/ACNP policies, with default deny rules for whole cluster
-3: Recommending allow K8s NetworkPolicies only`)
+	policyRecommendationCmd.Flags().String("policy-type", "anp-deny-applied", `Types of recommended NetworkPolicy. Currently we have 3 options:
+anp-deny-applied: Recommending allow ANP/ACNP policies, with default deny rules only on Pods which have an allow rule applied
+anp-deny-all: Recommending allow ANP/ACNP policies, with default deny rules for whole cluster
+k8s-np: Recommending allow K8s NetworkPolicies only`)
 	policyRecommendationCmd.Flags().String("start", "", "Start time for flows, with reference to the current time (e.g., now-1h)")
 	policyRecommendationCmd.Flags().String("end", "", "End time for flows, with reference to the current timr (e.g., now)")
 	policyRecommendationCmd.Flags().String("start-ts", "", "Start time for flows, as a RFC3339 UTC timestamp (e.g., 2022-07-01T19:35:31Z)")

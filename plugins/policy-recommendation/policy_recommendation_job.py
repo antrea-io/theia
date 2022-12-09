@@ -34,6 +34,7 @@ import antrea_crd
 from policy_recommendation_utils import (
     is_intstring,
     get_IP_version,
+    merge_policy_dict,
     dict_to_yaml,
 )
 
@@ -606,7 +607,7 @@ def recommend_k8s_policies(flows_df):
     )
     k8s_np_rdd = network_peers_rdd.flatMap(generate_k8s_np)
     k8s_np_list = k8s_np_rdd.collect()
-    return k8s_np_list
+    return {antrea_crd.PolicyKind.KNP: k8s_np_list}
 
 
 def recommend_antrea_policies(
@@ -664,13 +665,25 @@ def recommend_antrea_policies(
                 applied_groups_rdd = network_peers_rdd.map(lambda x: x[0])
             deny_anp_rdd = applied_groups_rdd.flatMap(generate_reject_acnp)
             deny_anp_list = deny_anp_rdd.collect()
-            return anp_list + svc_cg_list + svc_acnp_list + deny_anp_list
+            return {
+                antrea_crd.PolicyKind.ANP: anp_list,
+                antrea_crd.PolicyKind.ACG: svc_cg_list,
+                antrea_crd.PolicyKind.ACNP: svc_acnp_list + deny_anp_list
+            }
         else:
             # Recommend deny ACNP for whole cluster
             deny_all_policy = generate_reject_acnp("")
-            return anp_list + svc_cg_list + svc_acnp_list + [deny_all_policy]
+            return {
+                antrea_crd.PolicyKind.ANP: anp_list,
+                antrea_crd.PolicyKind.ACG: svc_cg_list,
+                antrea_crd.PolicyKind.ACNP: svc_acnp_list + [deny_all_policy]
+            }
     else:
-        return anp_list + svc_cg_list + svc_acnp_list
+        return {
+                antrea_crd.PolicyKind.ANP: anp_list,
+                antrea_crd.PolicyKind.ACG: svc_cg_list,
+                antrea_crd.PolicyKind.ACNP: svc_acnp_list
+        }
 
 
 def recommend_policies_for_unprotected_flows(
@@ -678,7 +691,7 @@ def recommend_policies_for_unprotected_flows(
 ):
     if option not in [1, 2, 3]:
         logger.error("Error: option {} is not valid".format(option))
-        return []
+        return {}
     if option == 3:
         # Recommend K8s native NetworkPolicies for unprotected flows
         return recommend_k8s_policies(unprotected_flows_df)
@@ -741,7 +754,7 @@ def recommend_policies_for_ns_allow_list(ns_allow_list):
             ),
         )
         policies.append(dict_to_yaml(acnp.to_dict()))
-    return policies
+    return {antrea_crd.PolicyKind.ACNP: policies}
 
 
 def generate_sql_query(table_name, limit, start_time, end_time, unprotected):
@@ -811,13 +824,22 @@ def write_recommendation_result(
         recommendation_id = str(uuid.uuid4())
     else:
         recommendation_id = recommendation_id_input
-    result_dict = {
-        "id": recommendation_id,
-        "type": recommendation_type,
-        "timeCreated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "yamls": "---\n".join(filter(None, result)),
-    }
-    result_df = spark.createDataFrame([result_dict])
+
+    result_dict_list = []
+    for key, value in result.items():
+        for item in value:
+            if item:
+                result_dict = {
+                    "id": recommendation_id,
+                    "type": recommendation_type,
+                    "timeCreated": datetime.datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+                    "policy": item,
+                    "kind": key,
+                }
+                result_dict_list.append(result_dict)
+    result_df = spark.createDataFrame(result_dict_list)
     result_df.write.mode("append").format("jdbc").option(
         "driver", "ru.yandex.clickhouse.ClickHouseDriver"
     ).option("url", db_jdbc_address).option(
@@ -886,10 +908,11 @@ def initial_recommendation_job(
     unprotected_flows_df = read_flow_df(
         spark, db_jdbc_address, sql_query, rm_labels
     )
-    return recommend_policies_for_ns_allow_list(
-        ns_allow_list
-    ) + recommend_policies_for_unprotected_flows(
-        unprotected_flows_df, option, to_services
+    return merge_policy_dict(
+        recommend_policies_for_ns_allow_list(ns_allow_list),
+        recommend_policies_for_unprotected_flows(
+            unprotected_flows_df, option, to_services
+        )
     )
 
 
@@ -940,15 +963,18 @@ def subsequent_recommendation_job(
         A list of recommended policies, each recommended policy is a string of
         YAML format.
     """
-    recommend_policies = []
+    recommend_policies = {}
     sql_query = generate_sql_query(
         table_name, limit, start_time, end_time, True
     )
     unprotected_flows_df = read_flow_df(
         spark, db_jdbc_address, sql_query, rm_labels
     )
-    recommend_policies += recommend_policies_for_unprotected_flows(
-        unprotected_flows_df, option, to_services
+    recommend_policies = merge_policy_dict(
+        recommend_policies,
+        recommend_policies_for_unprotected_flows(
+            unprotected_flows_df, option, to_services
+        )
     )
     if option in [1, 2]:
         sql_query = generate_sql_query(
@@ -957,8 +983,11 @@ def subsequent_recommendation_job(
         trusted_denied_flows_df = read_flow_df(
             spark, db_jdbc_address, sql_query, rm_labels
         )
-        recommend_policies += recommend_policies_for_trusted_denied_flows(
-            trusted_denied_flows_df, to_services
+        recommend_policies = merge_policy_dict(
+            recommend_policies,
+            recommend_policies_for_trusted_denied_flows(
+                trusted_denied_flows_df, to_services
+            )
         )
     return recommend_policies
 

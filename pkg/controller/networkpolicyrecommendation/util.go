@@ -22,12 +22,10 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -134,49 +132,6 @@ func getPolicyRecommendationProgress(baseUrl string) (completedStages int, total
 		}
 	}
 	return completedStages, totalStages, nil
-}
-
-func getPolicyRecommendationResult(connect *sql.DB, id string) (*crdv1alpha1.RecommendedNetworkPolicy, error) {
-	var resultType, resultTimeCreatedStr, resultYamls string
-	query := "SELECT type, timeCreated, yamls FROM recommendations WHERE id = (?);"
-	err := connect.QueryRow(query, id).Scan(&resultType, &resultTimeCreatedStr, &resultYamls)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get recommendation result with id %s: %v", id, err)
-	}
-	resultTimeCreated, err := time.Parse(clickHouseTimeFormat, resultTimeCreatedStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse timeCreated of the result for %s: %v", id, err)
-	}
-	recommendedNetworkPolicy := &crdv1alpha1.RecommendedNetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "rnp-",
-		},
-		Spec: crdv1alpha1.RecommendedNetworkPolicySpec{
-			Id:          id,
-			Type:        resultType,
-			TimeCreated: metav1.NewTime(resultTimeCreated),
-			Yamls:       resultYamls,
-		},
-	}
-	return recommendedNetworkPolicy, nil
-}
-
-func deleteSparkApplicationIfExists(client kubernetes.Interface, namespace string, id string) error {
-	sparkApplicationList, err := ListSparkApplication(client, namespace)
-	if err != nil {
-		return err
-	}
-	existed := false
-	for _, sparkApplication := range sparkApplicationList.Items {
-		existedId := sparkApplication.ObjectMeta.Name[3:]
-		if existedId == id {
-			existed = true
-		}
-	}
-	if existed {
-		DeleteSparkApplication(client, "pr-"+id, namespace)
-	}
-	return nil
 }
 
 func deletePolicyRecommendationResult(connect *sql.DB, id string) (err error) {

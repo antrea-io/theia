@@ -16,7 +16,6 @@ package networkpolicyrecommendation
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,24 +25,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	k8stesting "k8s.io/client-go/testing"
 	"k8s.io/klog/v2"
 
 	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	fakecrd "antrea.io/theia/pkg/client/clientset/versioned/fake"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
-	"antrea.io/theia/pkg/util"
 	"antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -64,21 +58,12 @@ func newFakeController() *fakeController {
 	kubeClient := fake.NewSimpleClientset()
 	createClickHousePod(kubeClient)
 	createSparkOperatorPod(kubeClient)
-	createClickHouseService(kubeClient)
-	createClickHouseSecret(kubeClient)
 	crdClient := fakecrd.NewSimpleClientset()
-
-	crdClient.PrependReactor("create", "recommendednetworkpolicies", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		rnp := action.(k8stesting.CreateAction).GetObject().(*crdv1alpha1.RecommendedNetworkPolicy)
-		rnp.Name = fmt.Sprintf("%s%s", rnp.GenerateName, rand.String(8))
-		return false, rnp, nil
-	})
 
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, informerDefaultResync)
 	npRecommendationInformer := crdInformerFactory.Crd().V1alpha1().NetworkPolicyRecommendations()
-	recommendedNPInformer := crdInformerFactory.Crd().V1alpha1().RecommendedNetworkPolicies()
 
-	nprController := NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer, recommendedNPInformer)
+	nprController := NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer)
 
 	return &fakeController{
 		nprController,
@@ -116,34 +101,6 @@ func createSparkOperatorPod(kubeClient kubernetes.Interface) {
 		},
 	}
 	kubeClient.CoreV1().Pods(testNamespace).Create(context.TODO(), sparkOperatorPod, metav1.CreateOptions{})
-}
-
-func createClickHouseService(kubeClient kubernetes.Interface) {
-	clickhouseService := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse-clickhouse",
-			Namespace: testNamespace,
-		},
-		Spec: v1.ServiceSpec{
-			Ports:     []v1.ServicePort{{Name: "tcp", Port: 9000, Protocol: v1.ProtocolTCP}},
-			ClusterIP: "10.98.208.26",
-		},
-	}
-	kubeClient.CoreV1().Services(testNamespace).Create(context.TODO(), clickhouseService, metav1.CreateOptions{})
-}
-
-func createClickHouseSecret(kubeClient kubernetes.Interface) {
-	clickhouseSecret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse-secret",
-			Namespace: testNamespace,
-		},
-		Data: map[string][]byte{
-			"username": []byte("clickhouse_operator"),
-			"password": []byte("clickhouse_operator_password"),
-		},
-	}
-	kubeClient.CoreV1().Secrets(testNamespace).Create(context.TODO(), clickhouseSecret, metav1.CreateOptions{})
 }
 
 func createFakeSparkApplicationService(kubeClient kubernetes.Interface, id string) error {
@@ -304,20 +261,8 @@ func TestNPRecommendation(t *testing.T) {
 			if err != nil {
 				return false, nil
 			}
-			// Mocking ClickHouse results and Spark Monitor service requires
-			// the SparkApplication id.
+			// Mocking Spark Monitor service requires the SparkApplication id.
 			if !serviceCreated {
-				// Mock ClickHouse database
-				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
-					db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
-					if err != nil {
-						return db, err
-					}
-					mock.ExpectPing()
-					recommendationRow := sqlmock.NewRows([]string{"type", "timeCreated", "yamls"}).AddRow("initial", "2022-10-01T12:30:10Z", "recommendations")
-					mock.ExpectQuery("SELECT type, timeCreated, yamls FROM recommendations WHERE id = (?);").WithArgs(npr.Status.SparkApplication).WillReturnRows(recommendationRow)
-					return db, err
-				}
 				// Create Spark Monitor service
 				err = createFakeSparkApplicationService(nprController.kubeClient, npr.Status.SparkApplication)
 				assert.NoError(t, err)
@@ -326,34 +271,19 @@ func TestNPRecommendation(t *testing.T) {
 			if npr != nil {
 				fakeSAClient.step("pr-"+npr.Status.SparkApplication, testNamespace)
 			}
-			return !(npr.Status.RecommendedNP == nil), nil
+			return npr.Status.State == crdv1alpha1.NPRecommendationStateCompleted, nil
 		})
 
 		assert.Equal(t, crdv1alpha1.NPRecommendationStateCompleted, npr.Status.State)
 		assert.Equal(t, 3, npr.Status.CompletedStages)
 		assert.Equal(t, 5, npr.Status.TotalStages)
 		assert.True(t, npr.Status.StartTime.Before(&npr.Status.EndTime))
-		assert.Equal(t, npr.Status.SparkApplication, npr.Status.RecommendedNP.Spec.Id)
-		assert.Equal(t, "initial", npr.Status.RecommendedNP.Spec.Type)
-		expectedTimeCreated, err := time.Parse(clickHouseTimeFormat, "2022-10-01T12:30:10Z")
-		assert.NoError(t, err)
-		assert.Equal(t, metav1.NewTime(expectedTimeCreated), npr.Status.RecommendedNP.Spec.TimeCreated)
-		assert.Equal(t, "recommendations", npr.Status.RecommendedNP.Spec.Yamls)
 
 		nprList, err := nprController.ListNetworkPolicyRecommendation(testNamespace)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(nprList), "Expected exactly one NetworkPolicyRecommendation, got %d", len(nprList))
 		assert.Equal(t, npr, nprList[0])
 
-		util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
-			db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
-			if err != nil {
-				return db, err
-			}
-			mock.ExpectPing()
-			mock.ExpectExec("ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(npr.Status.SparkApplication).WillReturnResult(sqlmock.NewResult(0, 1))
-			return db, err
-		}
 		err = nprController.DeleteNetworkPolicyRecommendation(testNamespace, "pr-364a180e-2d83-4502-8063-0c3db36cbcd3")
 		assert.NoError(t, err)
 	})
@@ -578,89 +508,6 @@ func TestGetPolicyRecommendationProgress(t *testing.T) {
 				_, _, err = getPolicyRecommendationProgress("http://127.0.0.1")
 			}
 			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-		})
-	}
-}
-
-func TestGetPolicyRecommendationResult(t *testing.T) {
-	sparkAppID := "spark-application-id"
-	var db *sql.DB
-
-	testCases := []struct {
-		name             string
-		setup            func(kubernetes.Interface)
-		expectedErrorMsg string
-	}{
-		{
-			name:             "no ClickHouse service",
-			setup:            func(client kubernetes.Interface) {},
-			expectedErrorMsg: "error when getting the ClickHouse Service address: error when finding the Service clickhouse-clickhouse",
-		},
-		{
-			name: "no ClickHouse secret",
-			setup: func(client kubernetes.Interface) {
-				createClickHouseService(client)
-			},
-			expectedErrorMsg: "error when finding the ClickHouse secret",
-		},
-		{
-			name: "connection error for ClickHouse",
-			setup: func(client kubernetes.Interface) {
-				createClickHouseService(client)
-				createClickHouseSecret(client)
-				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
-					return nil, fmt.Errorf("connection error")
-				}
-			},
-			expectedErrorMsg: "failed to open ClickHouse: connection error",
-		},
-		{
-			name: "ping error for ClickHouse",
-			setup: func(client kubernetes.Interface) {
-				createClickHouseService(client)
-				createClickHouseSecret(client)
-				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
-					var err error
-					db, _, err = sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
-					return db, err
-				}
-			},
-			expectedErrorMsg: "error when connecting to ClickHouse, failed to ping ClickHouse",
-		},
-		{
-			name: "no result in ClickHouse",
-			setup: func(client kubernetes.Interface) {
-				createClickHouseService(client)
-				createClickHouseSecret(client)
-				util.SqlOpenFunc = func(driverName, dataSourceName string) (*sql.DB, error) {
-					var err error
-					var mock sqlmock.Sqlmock
-					db, mock, err = sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
-					if err != nil {
-						return db, err
-					}
-					mock.ExpectPing()
-					mock.ExpectQuery("SELECT type, timeCreated, yamls FROM recommendations WHERE id = (?);").WithArgs(sparkAppID).WillReturnError(sql.ErrNoRows)
-					return db, err
-				}
-			},
-			expectedErrorMsg: fmt.Sprintf("failed to get recommendation result with id %s", sparkAppID),
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			kubeClient := fake.NewSimpleClientset()
-			tc.setup(kubeClient)
-			if db != nil {
-				defer db.Close()
-			}
-			connect, err := util.SetupClickHouseConnection(kubeClient, testNamespace)
-			if err != nil {
-				assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-			} else {
-				_, err := getPolicyRecommendationResult(connect, sparkAppID)
-				assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-			}
 		})
 	}
 }

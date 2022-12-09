@@ -91,13 +91,13 @@ func policyRecommendationRetrieve(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error when getting policy recommendation job by job name: %v", err)
 	}
 	if filePath != "" {
-		if err := os.WriteFile(filePath, []byte(npr.Status.RecommendedNetworkPolicy), 0600); err != nil {
+		if err := os.WriteFile(filePath, []byte(npr.Status.RecommendationOutcome), 0600); err != nil {
 			return fmt.Errorf("error when writing recommendation result to file: %v", err)
 		}
 		return nil
 	}
-	if npr.Status.RecommendedNetworkPolicy != "" {
-		fmt.Print(npr.Status.RecommendedNetworkPolicy)
+	if npr.Status.RecommendationOutcome != "" {
+		fmt.Print(npr.Status.RecommendationOutcome)
 	}
 	return nil
 }

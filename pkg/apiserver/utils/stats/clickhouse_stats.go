@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"antrea.io/theia/pkg/apis/stats/v1alpha1"
-	"antrea.io/theia/pkg/util"
+	"antrea.io/theia/pkg/util/clickhouse"
 )
 
 const (
@@ -148,7 +148,7 @@ func (c *ClickHouseStatQuerierImpl) GetStackTrace(namespace string, stats *v1alp
 func (c *ClickHouseStatQuerierImpl) getDataFromClickHouse(query int, namespace string, stats *v1alpha1.ClickHouseStats) error {
 	var err error
 	if c.clickhouseConnect == nil {
-		c.clickhouseConnect, err = util.SetupClickHouseConnection(c.kubeClient, namespace)
+		c.clickhouseConnect, err = clickhouse.SetupConnection()
 		if err != nil {
 			return err
 		}

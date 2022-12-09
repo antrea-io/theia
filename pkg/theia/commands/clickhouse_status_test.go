@@ -16,7 +16,6 @@ package commands
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,7 +43,7 @@ func TestGetStatus(t *testing.T) {
 			name: "Get diskInfo",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/diskInfo"):
+				case "/apis/stats.theia.antrea.io/v1alpha1/clickhouse/diskInfo":
 					status := &stats.ClickHouseStats{
 						DiskInfos: []stats.DiskInfo{{
 							Shard:          "Shard_test",
@@ -69,7 +68,7 @@ func TestGetStatus(t *testing.T) {
 			name: "Get tableInfo",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/tableInfo"):
+				case "/apis/stats.theia.antrea.io/v1alpha1/clickhouse/tableInfo":
 					status := &stats.ClickHouseStats{
 						TableInfos: []stats.TableInfo{{
 							Shard:      "Shard_test",
@@ -94,7 +93,7 @@ func TestGetStatus(t *testing.T) {
 			name: "Get insertRate",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/insertRate"):
+				case "/apis/stats.theia.antrea.io/v1alpha1/clickhouse/insertRate":
 					status := &stats.ClickHouseStats{
 						InsertRates: []stats.InsertRate{{
 							Shard:       "Shard_test",
@@ -116,7 +115,7 @@ func TestGetStatus(t *testing.T) {
 			name: "Get stackTraces",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace"):
+				case "/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace":
 					status := &stats.ClickHouseStats{
 						StackTraces: []stats.StackTrace{{
 							Shard:          "Shard_test",
@@ -145,7 +144,7 @@ func TestGetStatus(t *testing.T) {
 			name: "ErrorMsg in response is not empty",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace"):
+				case "/apis/stats.theia.antrea.io/v1alpha1/clickhouse/stackTrace":
 					status := &stats.ClickHouseStats{
 						StackTraces: []stats.StackTrace{{
 							Shard:          "Shard_test",

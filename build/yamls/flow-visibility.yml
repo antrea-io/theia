@@ -152,6 +152,40 @@ data:
     ADD COLUMN clusterUUID String;
     ALTER TABLE flows_local
     ADD COLUMN clusterUUID String;
+  000003_0-3-0.down.sql: |
+    --Remove structured recommendations
+    --Add yamls column
+    ALTER TABLE recommendations ADD COLUMN yamls String;
+    ALTER TABLE recommendations_local ADD COLUMN yamls String;
+    --Copy old data and replace policy and kind by yamls
+    INSERT INTO recommendations_local (id, type, timeCreated, yamls)
+    SELECT id, type, timeCreated, arrayStringConcat(groupArray(policy), '\n---\n') AS yamls FROM recommendations_local GROUP BY id, type, timeCreated;
+    --Delete old data
+    ALTER TABLE recommendations_local DELETE WHERE yamls='';
+    --Drop yamls column
+    ALTER TABLE recommendations DROP COLUMN kind;
+    ALTER TABLE recommendations_local DROP COLUMN kind;
+    ALTER TABLE recommendations DROP COLUMN policy;
+    ALTER TABLE recommendations_local DROP COLUMN policy;
+  000003_0-3-0.up.sql: |
+    --Support structured recommendations
+    --Add policy and kind column
+    ALTER TABLE recommendations ADD COLUMN kind String;
+    ALTER TABLE recommendations_local ADD COLUMN kind String;
+    ALTER TABLE recommendations ADD COLUMN policy String;
+    ALTER TABLE recommendations_local ADD COLUMN policy String;
+    --Copy old data and replace yamls column by policy and kind
+    INSERT INTO recommendations_local (id, type, timeCreated, policy)
+    SELECT id, type, timeCreated, arrayJoin(splitByString('---\n', yamls)) AS policy FROM recommendations_local WHERE kind='';
+    ALTER TABLE recommendations_local UPDATE kind='knp' WHERE policy LIKE '%networking.k8s.io/v1%NetworkPolicy%';
+    ALTER TABLE recommendations_local UPDATE kind='anp' WHERE policy LIKE '%crd.antrea.io/v1alpha1%NetworkPolicy%';
+    ALTER TABLE recommendations_local UPDATE kind='acnp' WHERE policy LIKE '%ClusterNetworkPolicy%';
+    ALTER TABLE recommendations_local UPDATE kind='acg' WHERE policy LIKE '%ClusterGroup%';
+    --Delete old data
+    ALTER TABLE recommendations_local DELETE WHERE policy='';
+    --Drop yamls column
+    ALTER TABLE recommendations DROP COLUMN yamls;
+    ALTER TABLE recommendations_local DROP COLUMN yamls;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -426,7 +460,8 @@ data:
             id String,
             type String,
             timeCreated DateTime,
-            yamls String
+            policy String,
+            kind String
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeCreated);
 
@@ -6343,6 +6378,10 @@ spec:
               path: migrators/000002_0-2-0.down.sql
             - key: 000002_0-2-0.up.sql
               path: migrators/000002_0-2-0.up.sql
+            - key: 000003_0-3-0.down.sql
+              path: migrators/000003_0-3-0.down.sql
+            - key: 000003_0-3-0.up.sql
+              path: migrators/000003_0-3-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

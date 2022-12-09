@@ -17,5 +17,3 @@
 package v1alpha1
 
 type NetworkPolicyRecommendationExpansion interface{}
-
-type RecommendedNetworkPolicyExpansion interface{}

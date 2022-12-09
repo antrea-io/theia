@@ -53,8 +53,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=crd.theia.antrea.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("networkpolicyrecommendations"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Crd().V1alpha1().NetworkPolicyRecommendations().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("recommendednetworkpolicies"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Crd().V1alpha1().RecommendedNetworkPolicies().Informer()}, nil
 
 	}
 

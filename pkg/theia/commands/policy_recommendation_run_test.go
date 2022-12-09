@@ -16,7 +16,6 @@ package commands
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -44,15 +43,15 @@ func TestPolicyRecommendationRun(t *testing.T) {
 			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations":
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 				}
 				if r.Method == "GET" && strings.Contains(r.URL.Path, "networkpolicyrecommendations/pr-") {
 					npr := &intelligence.NetworkPolicyRecommendation{
 						Status: intelligence.NetworkPolicyRecommendationStatus{
-							State:                    "COMPLETED",
-							RecommendedNetworkPolicy: "testOutcome",
+							State:                 "COMPLETED",
+							RecommendationOutcome: "testOutcome",
 						},
 					}
 					w.Header().Set("Content-Type", "application/json")
@@ -70,7 +69,7 @@ func TestPolicyRecommendationRun(t *testing.T) {
 			name: "waitFlag is false",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations":
 					if r.Method != "POST" {
 						http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 						return
@@ -80,7 +79,7 @@ func TestPolicyRecommendationRun(t *testing.T) {
 				}
 			})),
 			expectedMsg: []string{
-				fmt.Sprintf("Successfully created policy recommendation job with name"),
+				"Successfully created policy recommendation job with name",
 			},
 			expectedErrorMsg: "",
 		},
@@ -88,7 +87,7 @@ func TestPolicyRecommendationRun(t *testing.T) {
 			name: "Fail to post policy recommendation job",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations"):
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations":
 					http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				}
 			})),

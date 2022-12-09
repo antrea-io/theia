@@ -280,7 +280,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         id String,
         type String,
         timeCreated DateTime,
-        yamls String
+        policy String,
+        kind String
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeCreated);
 

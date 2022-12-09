@@ -239,19 +239,22 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		})
 		if err != nil {
 			if strings.Contains(err.Error(), "timed out") {
-				return fmt.Errorf(`Policy recommendation job with name %s wait timeout of 60 minutes expired.
-Job is still running. Please check completion status for job via CLI later.`, networkPolicyRecommendation.Name)
+				return fmt.Errorf(`policy recommendation job with name %s wait timeout of 60 minutes expired.
+				Job is still running. Please check completion status for job via CLI later`, networkPolicyRecommendation.Name)
 			}
 			return err
 		}
+		if npr.Status.RecommendationOutcome != "" {
+			fmt.Print(npr.Status.RecommendationOutcome)
+		}
 		if filePath != "" {
-			if err := os.WriteFile(filePath, []byte(npr.Status.RecommendedNetworkPolicy), 0600); err != nil {
+			if err := os.WriteFile(filePath, []byte(npr.Status.RecommendationOutcome), 0600); err != nil {
 				return fmt.Errorf("error when writing recommendation result to file: %v", err)
 			}
 			return nil
 		}
-		if npr.Status.RecommendedNetworkPolicy != "" {
-			fmt.Print(npr.Status.RecommendedNetworkPolicy)
+		if npr.Status.RecommendationOutcome != "" {
+			fmt.Print(npr.Status.RecommendationOutcome)
 		}
 		return nil
 	} else {

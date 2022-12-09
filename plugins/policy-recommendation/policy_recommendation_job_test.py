@@ -21,6 +21,9 @@ from pyspark.sql import SparkSession, Row
 
 import antrea_crd
 import policy_recommendation_job as pr
+from policy_recommendation_utils import (
+    flatten_policy_dict,
+)
 
 
 @pytest.fixture(scope="session")
@@ -192,8 +195,9 @@ def test_generate_sql_query(test_input, expected_sql_query):
     ],
 )
 def test_recommend_policies_for_ns_allow_list(test_input, expected_policies):
-    recommend_policies_yamls = pr.recommend_policies_for_ns_allow_list(
-        test_input)
+    recommend_policies_yamls = flatten_policy_dict(
+        pr.recommend_policies_for_ns_allow_list(test_input)
+    )
     recommend_policies_dicts = [
         yaml.load(i, Loader=yaml.FullLoader) for i in recommend_policies_yamls
     ]
@@ -830,7 +834,9 @@ def test_recommend_k8s_policies(spark_session, flows_input, expected_policies):
     test_df = spark_session.createDataFrame(
         flows_input, pr.FLOW_TABLE_COLUMNS
     )
-    recommend_k8s_policies_yamls = pr.recommend_k8s_policies(test_df)
+    recommend_k8s_policies_yamls = flatten_policy_dict(
+        pr.recommend_k8s_policies(test_df)
+    )
     recommend_k8s_policies_dicts = [
         yaml.load(i, Loader=yaml.FullLoader)
         for i in recommend_k8s_policies_yamls
@@ -1462,8 +1468,8 @@ def test_recommend_antrea_policies(
     test_df = spark_session.createDataFrame(
         flows_input, pr.FLOW_TABLE_COLUMNS
     )
-    recommend_policies_yamls = pr.recommend_antrea_policies(
-        test_df, option, deny_rules, to_services
+    recommend_policies_yamls = flatten_policy_dict(
+        pr.recommend_antrea_policies(test_df, option, deny_rules, to_services)
     )
     recommend_policies_dicts = [
         yaml.load(i, Loader=yaml.FullLoader) for i in recommend_policies_yamls

@@ -51,7 +51,7 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
 					npr := &intelligence.NetworkPolicyRecommendation{
 						Status: intelligence.NetworkPolicyRecommendationStatus{
-							RecommendedNetworkPolicy: "testOutcome",
+							RecommendationOutcome: "testOutcome",
 						},
 					}
 					w.Header().Set("Content-Type", "application/json")
@@ -70,7 +70,7 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
 					npr := &intelligence.NetworkPolicyRecommendation{
 						Status: intelligence.NetworkPolicyRecommendationStatus{
-							RecommendedNetworkPolicy: "testOutcome",
+							RecommendationOutcome: "testOutcome",
 						},
 					}
 					w.Header().Set("Content-Type", "application/json")

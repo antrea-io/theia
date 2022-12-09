@@ -83,7 +83,7 @@ func policyRecommendationStatus(cmd *cobra.Command, args []string) error {
 		totalStages := npr.Status.TotalStages
 		var stateProgress string
 		if totalStages == 0 {
-			stateProgress = fmt.Sprint(": 0/0 (0%) stages completed")
+			stateProgress = ": 0/0 (0%) stages completed"
 		} else {
 			stateProgress = fmt.Sprintf(": %d/%d (%d%%) stages completed", completedStages, totalStages, completedStages*100/totalStages)
 		}

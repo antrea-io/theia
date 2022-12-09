@@ -24,8 +24,6 @@ import (
 type Interface interface {
 	// NetworkPolicyRecommendations returns a NetworkPolicyRecommendationInformer.
 	NetworkPolicyRecommendations() NetworkPolicyRecommendationInformer
-	// RecommendedNetworkPolicies returns a RecommendedNetworkPolicyInformer.
-	RecommendedNetworkPolicies() RecommendedNetworkPolicyInformer
 }
 
 type version struct {
@@ -42,9 +40,4 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // NetworkPolicyRecommendations returns a NetworkPolicyRecommendationInformer.
 func (v *version) NetworkPolicyRecommendations() NetworkPolicyRecommendationInformer {
 	return &networkPolicyRecommendationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
-}
-
-// RecommendedNetworkPolicies returns a RecommendedNetworkPolicyInformer.
-func (v *version) RecommendedNetworkPolicies() RecommendedNetworkPolicyInformer {
-	return &recommendedNetworkPolicyInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -140,7 +140,10 @@ func (r *supportBundleREST) Create(ctx context.Context, obj runtime.Object, _ re
 			defer r.statusLocker.Unlock()
 			if err != nil {
 				klog.Errorf("Error when collecting supportBundle: %v", err)
-				r.cache.Status = systemv1alpha1.SupportBundleStatusNone
+				r.cache = &systemv1alpha1.SupportBundle{
+					ObjectMeta: metav1.ObjectMeta{Name: bundleName},
+					Status:     systemv1alpha1.SupportBundleStatusNone,
+				}
 				return
 			}
 			select {
@@ -167,8 +170,14 @@ func (r *supportBundleREST) New() runtime.Object {
 func (r *supportBundleREST) Get(_ context.Context, name string, _ *metav1.GetOptions) (runtime.Object, error) {
 	r.statusLocker.RLock()
 	defer r.statusLocker.RUnlock()
-	if r.cache.Name != name {
+	if name != bundleName {
 		return nil, errors.NewNotFound(systemv1alpha1.Resource("supportBundle"), name)
+	}
+	if r.cache == nil {
+		r.cache = &systemv1alpha1.SupportBundle{
+			ObjectMeta: metav1.ObjectMeta{Name: bundleName},
+			Status:     systemv1alpha1.SupportBundleStatusNone,
+		}
 	}
 	return r.cache, nil
 }
@@ -213,7 +222,7 @@ func (r *supportBundleREST) collect(ctx context.Context, dumpers ...func(string)
 	defer outputFile.Close()
 	hashSum, err := packDir(basedir, outputFile)
 	if err != nil {
-		return nil, fmt.Errorf("error when packaing supportBundle: %w", err)
+		return nil, fmt.Errorf("error when packing supportBundle: %w", err)
 	}
 
 	select {
@@ -315,7 +324,7 @@ func (r *supportBundleREST) clean(ctx context.Context, bundlePath string, durati
 			select { // check the context again in case of cancellation when acquiring the lock.
 			case <-ctx.Done():
 			default:
-				if r.cache.Status == systemv1alpha1.SupportBundleStatusCollected {
+				if r.cache != nil && r.cache.Status == systemv1alpha1.SupportBundleStatusCollected {
 					r.cache = &systemv1alpha1.SupportBundle{
 						ObjectMeta: metav1.ObjectMeta{Name: bundleName},
 						Status:     systemv1alpha1.SupportBundleStatusNone,

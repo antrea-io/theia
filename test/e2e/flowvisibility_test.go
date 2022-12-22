@@ -518,6 +518,12 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		}
 		checkClickHouseMonitor(t, data, isIPv6, flow)
 	})
+
+	// SupportBundle tests collection of log bundle via Theia CLI is successful
+	// and contains log files from common components in the test setup.
+	t.Run("SupportBundle", func(t *testing.T) {
+		testSupportBundleCollection(t, data)
+	})
 }
 
 func checkGrafanaQueryResults(t *testing.T, data *TestData, dashboardName, dashboardUid string, queryList *[]query) {

@@ -21,4 +21,18 @@ rules:
       - clickhouse
     verbs:
       - get
+  - apiGroups:
+      - system.theia.antrea.io
+    resources:
+      - supportbundles
+    verbs:
+      - get
+      - create
+      - delete
+  - apiGroups:
+      - system.theia.antrea.io
+    resources:
+      - supportbundles/download
+    verbs:
+      - get
 {{- end }}

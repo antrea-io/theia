@@ -60,6 +60,7 @@ $GOPATH/bin/informer-gen \
 
 $GOPATH/bin/deepcopy-gen \
   --input-dirs "${THEIA_PKG}/pkg/apis/intelligence/v1alpha1" \
+  --input-dirs "${THEIA_PKG}/pkg/apis/system/v1alpha1" \
   --input-dirs "${THEIA_PKG}/pkg/apis/crd/v1alpha1" \
   --input-dirs "${THEIA_PKG}/pkg/apis/stats/v1alpha1" \
   -O zz_generated.deepcopy \

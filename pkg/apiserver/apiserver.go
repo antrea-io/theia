@@ -25,15 +25,19 @@ import (
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/client-go/kubernetes"
+	clientrest "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
 	intelligenceinstall "antrea.io/theia/pkg/apis/intelligence/install"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	statsinstall "antrea.io/theia/pkg/apis/stats/install"
 	apistats "antrea.io/theia/pkg/apis/stats/v1alpha1"
+	systeminstall "antrea.io/theia/pkg/apis/system/install"
+	system "antrea.io/theia/pkg/apis/system/v1alpha1"
 	"antrea.io/theia/pkg/apiserver/certificate"
 	"antrea.io/theia/pkg/apiserver/registry/intelligence/networkpolicyrecommendation"
 	clickhouseStatus "antrea.io/theia/pkg/apiserver/registry/stats/clickhouse"
+	"antrea.io/theia/pkg/apiserver/registry/system/supportbundle"
 	"antrea.io/theia/pkg/querier"
 )
 
@@ -64,12 +68,14 @@ var (
 func init() {
 	intelligenceinstall.Install(scheme)
 	statsinstall.Install(scheme)
+	systeminstall.Install(scheme)
 	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
 }
 
 // ExtraConfig holds custom apiserver config.
 type ExtraConfig struct {
 	k8sClient               kubernetes.Interface
+	kubeConfig              *clientrest.Config
 	caCertController        *certificate.CACertController
 	npRecommendationQuerier querier.NPRecommendationQuerier
 	clickHouseStatQuerier   querier.ClickHouseStatQuerier
@@ -100,6 +106,7 @@ func (s *TheiaManagerAPIServer) Run(ctx context.Context) error {
 func NewConfig(
 	genericConfig *genericapiserver.Config,
 	k8sClient kubernetes.Interface,
+	kubeConfig *clientrest.Config,
 	caCertController *certificate.CACertController,
 	npRecommendationQuerier querier.NPRecommendationQuerier,
 	clickHouseStatQuerier querier.ClickHouseStatQuerier,
@@ -108,6 +115,7 @@ func NewConfig(
 		genericConfig: genericConfig,
 		extraConfig: ExtraConfig{
 			k8sClient:               k8sClient,
+			kubeConfig:              kubeConfig,
 			caCertController:        caCertController,
 			npRecommendationQuerier: npRecommendationQuerier,
 			clickHouseStatQuerier:   clickHouseStatQuerier,
@@ -115,7 +123,7 @@ func NewConfig(
 	}
 }
 
-func installAPIGroup(s *TheiaManagerAPIServer) error {
+func installAPIGroup(s *TheiaManagerAPIServer, c Config) error {
 	npRecommendationStorage := networkpolicyrecommendation.NewREST(s.NPRecommendationQuerier)
 	clickhouseStatusStorage := clickhouseStatus.NewREST(s.ClickHouseStatusQuerier)
 
@@ -129,7 +137,14 @@ func installAPIGroup(s *TheiaManagerAPIServer) error {
 	statsStorage["clickhouse"] = clickhouseStatusStorage
 	statsGroup.VersionedResourcesStorageMap["v1alpha1"] = statsStorage
 
-	groups := []*genericapiserver.APIGroupInfo{&intelligenceGroup, &statsGroup}
+	systemGroup := genericapiserver.NewDefaultAPIGroupInfo(system.GroupName, scheme, parameterCodec, Codecs)
+	systemStorage := map[string]rest.Storage{}
+	bundleStorage := supportbundle.NewSupportBundleStorage(c.extraConfig.kubeConfig, c.extraConfig.k8sClient)
+	systemStorage["supportbundles"] = bundleStorage.SupportBundle
+	systemStorage["supportbundles/download"] = bundleStorage.Download
+	systemGroup.VersionedResourcesStorageMap["v1alpha1"] = systemStorage
+
+	groups := []*genericapiserver.APIGroupInfo{&intelligenceGroup, &statsGroup, &systemGroup}
 
 	for _, apiGroupInfo := range groups {
 		klog.Info(apiGroupInfo)
@@ -152,7 +167,7 @@ func (c Config) New() (*TheiaManagerAPIServer, error) {
 		NPRecommendationQuerier: c.extraConfig.npRecommendationQuerier,
 		ClickHouseStatusQuerier: c.extraConfig.clickHouseStatQuerier,
 	}
-	if err := installAPIGroup(apiServer); err != nil {
+	if err := installAPIGroup(apiServer, c); err != nil {
 		return nil, err
 	}
 	return apiServer, nil

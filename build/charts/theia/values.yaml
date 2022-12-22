@@ -4,6 +4,14 @@ clickhouse:
     repository: "projects.registry.vmware.com/antrea/theia-clickhouse-server"
     pullPolicy: "IfNotPresent"
     tag: ""
+  logger:
+    # -- Logging level. Acceptable values: trace, debug, information, warning, error.
+    level: information
+    # --  Size of log files. Applies to log and errorlog. Once the file reaches size,
+    # ClickHouse archives and renames it, and creates a new log file in its place.
+    size: 100M
+    # -- The number of archived log files that ClickHouse stores.
+    count: 4
   monitor:
     # -- Determine whether to run a monitor to periodically check the ClickHouse
     # memory usage and clean data.
@@ -126,6 +134,29 @@ grafana:
   # -- Determine whether to install Grafana. It is used as a data visualization
   # and monitoring tool.  
   enable: true
+  # -- Grafana logging options.
+  log:
+    # -- Logging mode. Options are “console”, “file”, and “syslog”. Default is “console” and “file”.
+    # Use spaces to separate multiple modes, e.g. console file
+    mode: "console file"
+    # -- Logging level. Options are “debug”, “info”, “warn”, “error”, and “critical”. Default is info.
+    level: info
+    # -- Enable automated log rotation, valid options are false or true. Default is true.
+    # When enabled use the max_lines, max_size_shift, daily_rotate and max_days to configure
+    # the behavior of the log rotation. Only applicable when “file” used in [log] mode.
+    log_rotate: "true"
+    # -- Maximum lines per file before rotating it. Default is "1000000".
+    # Only applicable when “file” used in [log] mode.
+    max_lines: "1000000"
+    # -- Maximum size of file before rotating it. Default is "27", which means 1 << 27, 128MB.
+    # Only applicable when “file” used in [log] mode.
+    max_size_shift: "27"
+    # -- Enable daily rotation of files, valid options are false or true. Default is true.
+    # Only applicable when “file” used in [log] mode.
+    daily_rotate: "true"
+    # -- Maximum number of days to keep log files. Default is "7".
+    # Only applicable when “file” used in [log] mode.
+    max_days: "7"
   # -- Set securityContext.
   # Use a specific uid, gid for grafana.
   securityContext:

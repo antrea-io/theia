@@ -13,7 +13,7 @@ GO_VERSION            := $(shell head -n 1 build/images/deps/go-version)
 DOCKER_BUILD_ARGS = --build-arg GO_VERSION=$(GO_VERSION)
 
 .PHONY: all
-all: build
+all: theia
 
 include versioning.mk
 
@@ -122,7 +122,7 @@ clean:
 codegen:
 	@echo "===> Updating generated code <==="
 	$(CURDIR)/hack/update-codegen.sh
-	
+
 .PHONY: manifest
 manifest:
 	@echo "===> Generating dev manifest for Theia <==="

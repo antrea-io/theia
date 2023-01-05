@@ -72,20 +72,33 @@ helm repo add antrea https://charts.antrea.io
 helm repo update
 ```
 
-To enable both [Grafana Flow Collector](network-flow-visibility.md) and
-[NetworkPolicy Recommendation](networkpolicy-recommendation.md), please install
-Flow Aggregator and Theia by runnning the following commands:
+To install Flow Aggregator, please run the following command:
 
 ```bash
 helm install flow-aggregator antrea/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
+```
+
+To enable both [Grafana Flow Collector](network-flow-visibility.md) and
+[NetworkPolicy Recommendation](networkpolicy-recommendation.md), please install
+Theia by runnning the following commands:
+
+```bash
 helm install theia antrea/theia --set sparkOperator.enable=true -n flow-visibility --create-namespace
 ```
 
-To enable only Grafana Flow Collector, please install Flow Aggregator and Theia
-by runnning the following commands:
+From Theia v0.3, [Theia Command-line Tool](theia-cli.md) uses Theia Manager
+as a layer to connect and manage other resources like ClickHouse and Spark
+Operator. To enable Theia Manager, please install Theia by runnning the
+following commands:
 
 ```bash
-helm install flow-aggregator antrea/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
+helm install theia antrea/theia --set sparkOperator.enable=true,theiaManager.enable=true -n flow-visibility --create-namespace
+```
+
+To enable only Grafana Flow Collector, please install Theia by runnning the
+following commands:
+
+```bash
 helm install theia antrea/theia -n flow-visibility --create-namespace
 ```
 

@@ -203,9 +203,8 @@ TABLE(%s(
 var policyRecommendationCmd = &cobra.Command{
 	Use:   "policy-recommendation",
 	Short: "Run the policy recommendation UDF in Snowflake",
-	Long: `This command runs the policy recommendation UDF in Snowflake. 
-You need to bring your own Snowflake account and created the policy
-recommendation UDF using the create-udfs command first.
+	Long: `This command runs the policy recommendation UDF in Snowflake.
+You need to bring your own Snowflake account and run the onboard command first.
 
 Run policy recommendation with default configuration on database ANTREA_C9JR8KUKUIV4R72S:
 "theia-sf policy-recommendation --database-name ANTREA_C9JR8KUKUIV4R72S"
@@ -281,7 +280,7 @@ func init() {
 	rootCmd.AddCommand(policyRecommendationCmd)
 
 	policyRecommendationCmd.Flags().String("type", "initial", "Type of recommendation job (initial|subsequent), we only support initial jobType for now")
-	policyRecommendationCmd.Flags().Uint("limit", 0, "Limit on the number of flows to read, default it 0 (no limit)")
+	policyRecommendationCmd.Flags().Uint("limit", 0, "Limit on the number of flows to read, default is 0 (no limit)")
 	policyRecommendationCmd.Flags().String("policy-type", "anp-deny-applied", `Types of recommended NetworkPolicy. Currently we have 3 options:
 anp-deny-applied: Recommending allow ANP/ACNP policies, with default deny rules only on Pods which have an allow rule applied
 anp-deny-all: Recommending allow ANP/ACNP policies, with default deny rules for whole cluster

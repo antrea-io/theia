@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	staticPolicyRecommendationFunctionName = "static_policy_recommendation"
-	preprocessingFunctionName              = "preprocessing"
-	policyRecommendationFunctionName       = "policy_recommendation"
-	defaultFunctionVersion                 = "v0.1.0"
-	defaultWaitTimeout                     = "10m"
+	staticPolicyRecommendationFunctionName     = "static_policy_recommendation"
+	preprocessingFunctionName                  = "preprocessing"
+	policyRecommendationFunctionName           = "policy_recommendation"
+	defaultPolicyRecommendationFunctionVersion = "v0.1.0"
+	defaultPolicyRecommendationWaitTimeout     = "10m"
 	// Limit the number of rows per partition to avoid hitting the 5 minutes end_partition() timeout.
 	partitionSizeLimit = 50000
 )
@@ -296,7 +296,7 @@ If no UUID is provided, all flows will be considered during policy recommendatio
 	policyRecommendationCmd.Flags().String("database-name", "", "Snowflake database name to run policy recommendation, it can be found in the output of the onboard command")
 	policyRecommendationCmd.MarkFlagRequired("database-name")
 	policyRecommendationCmd.Flags().String("warehouse-name", "", "Snowflake Virtual Warehouse to use for running policy recommendation, by default we will use a temporary one")
-	policyRecommendationCmd.Flags().String("udf-version", defaultFunctionVersion, "Version of the UDF function to use")
-	policyRecommendationCmd.Flags().String("wait-timeout", defaultWaitTimeout, "Wait timeout of the recommendation job (e.g., 5m, 100s)")
+	policyRecommendationCmd.Flags().String("udf-version", defaultPolicyRecommendationFunctionVersion, "Version of the UDF function to use")
+	policyRecommendationCmd.Flags().String("wait-timeout", defaultPolicyRecommendationWaitTimeout, "Wait timeout of the recommendation job (e.g., 5m, 100s)")
 
 }

@@ -16,15 +16,18 @@ package networkpolicyrecommendation
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,6 +41,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	fakecrd "antrea.io/theia/pkg/client/clientset/versioned/fake"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
+	"antrea.io/theia/pkg/util/clickhouse"
 	"antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -45,6 +49,7 @@ const informerDefaultResync = 30 * time.Second
 
 var (
 	testNamespace = "controller-test"
+	prName        = "pr-364a180e-2d83-4502-8063-0c3db36cbcd3"
 )
 
 type fakeController struct {
@@ -54,9 +59,10 @@ type fakeController struct {
 	crdInformerFactory crdinformers.SharedInformerFactory
 }
 
-func newFakeController() *fakeController {
+func newFakeController(t *testing.T) (*fakeController, *sql.DB) {
 	kubeClient := fake.NewSimpleClientset()
-	createClickHousePod(kubeClient)
+	// db, mock := clickhouse.CreateFakeClickHouse
+	db, mock := clickhouse.CreateFakeClickHouse(t, kubeClient, testNamespace)
 	createSparkOperatorPod(kubeClient)
 	crdClient := fakecrd.NewSimpleClientset()
 
@@ -65,26 +71,14 @@ func newFakeController() *fakeController {
 
 	nprController := NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer)
 
+	mock.ExpectQuery("SELECT DISTINCT id FROM recommendations;").WillReturnRows(sqlmock.NewRows([]string{}))
+	mock.ExpectExec("ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(prName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
 	return &fakeController{
 		nprController,
 		crdClient,
 		kubeClient,
 		crdInformerFactory,
-	}
-}
-
-func createClickHousePod(kubeClient kubernetes.Interface) {
-	clickHousePod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse",
-			Namespace: testNamespace,
-			Labels:    map[string]string{"app": "clickhouse"},
-		},
-		Status: v1.PodStatus{
-			Phase: v1.PodRunning,
-		},
-	}
-	kubeClient.CoreV1().Pods(testNamespace).Create(context.TODO(), clickHousePod, metav1.CreateOptions{})
+	}, db
 }
 
 func createSparkOperatorPod(kubeClient kubernetes.Interface) {
@@ -216,11 +210,17 @@ func TestNPRecommendation(t *testing.T) {
 	DeleteSparkApplication = fakeSAClient.delete
 	ListSparkApplication = fakeSAClient.list
 	GetSparkApplication = fakeSAClient.get
+	os.Setenv("POD_NAMESPACE", testNamespace)
+	defer os.Unsetenv("POD_NAMESPACE")
 
 	// Use a shorter resync period
 	npRecommendationResyncPeriod = 500 * time.Millisecond
 
-	nprController := newFakeController()
+	nprController, db := newFakeController(t)
+	if db != nil {
+		defer db.Close()
+	}
+
 	stopCh := make(chan struct{})
 
 	nprController.crdInformerFactory.Start(stopCh)
@@ -230,7 +230,7 @@ func TestNPRecommendation(t *testing.T) {
 
 	t.Run("NormalNetworkPolicyRecommendation", func(t *testing.T) {
 		npr := &crdv1alpha1.NetworkPolicyRecommendation{
-			ObjectMeta: metav1.ObjectMeta{Name: "pr-364a180e-2d83-4502-8063-0c3db36cbcd3", Namespace: testNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: prName, Namespace: testNamespace},
 			Spec: crdv1alpha1.NetworkPolicyRecommendationSpec{
 				JobType:             "initial",
 				PolicyType:          "anp-deny-applied",
@@ -257,7 +257,7 @@ func TestNPRecommendation(t *testing.T) {
 		timeout := 30 * time.Second
 
 		wait.PollImmediate(stepInterval, timeout, func() (done bool, err error) {
-			npr, err = nprController.GetNetworkPolicyRecommendation(testNamespace, "pr-364a180e-2d83-4502-8063-0c3db36cbcd3")
+			npr, err = nprController.GetNetworkPolicyRecommendation(testNamespace, prName)
 			if err != nil {
 				return false, nil
 			}
@@ -284,7 +284,7 @@ func TestNPRecommendation(t *testing.T) {
 		assert.Equal(t, 1, len(nprList), "Expected exactly one NetworkPolicyRecommendation, got %d", len(nprList))
 		assert.Equal(t, npr, nprList[0])
 
-		err = nprController.DeleteNetworkPolicyRecommendation(testNamespace, "pr-364a180e-2d83-4502-8063-0c3db36cbcd3")
+		err = nprController.DeleteNetworkPolicyRecommendation(testNamespace, prName)
 		assert.NoError(t, err)
 	})
 
@@ -454,7 +454,8 @@ func TestValidateCluster(t *testing.T) {
 		{
 			name: "spark operator pod not found",
 			setupClient: func(client kubernetes.Interface) {
-				createClickHousePod(client)
+				db, _ := clickhouse.CreateFakeClickHouse(t, client, testNamespace)
+				db.Close()
 			},
 			expectedErrorMsg: "failed to find the Spark Operator Pod, please check the deployment",
 		},

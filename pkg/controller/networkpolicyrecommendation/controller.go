@@ -41,6 +41,7 @@ import (
 	"antrea.io/theia/pkg/client/listers/crd/v1alpha1"
 	"antrea.io/theia/pkg/util"
 	"antrea.io/theia/pkg/util/clickhouse"
+	"antrea.io/theia/pkg/util/env"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -69,12 +70,20 @@ var (
 	// Spark Application CRUD functions, for unit tests
 	CreateSparkApplication   = createSparkApplication
 	DeleteSparkApplication   = deleteSparkApplication
-	ListSparkApplication     = listSparkApplication
+	ListSparkApplication     = listSparkApplicationWithLabel
 	GetSparkApplication      = getSparkApplication
 	GetSparkMonitoringSvcDNS = getSparkMonitoringSvcDNS
 	// For NPR in scheduled or running state, check its status periodically
 	npRecommendationResyncPeriod = 10 * time.Second
+	sparkAppLabelMap             = map[string]string{"app": "theia-npr"}
+	sparkAppLabel                = "app=theia-npr"
 )
+
+type gcKey struct {
+	removeStaleDbEntries bool
+	removeStaleSparkApp  bool
+	addResync            bool
+}
 
 type NPRecommendationController struct {
 	crdClient  versioned.Interface
@@ -86,6 +95,7 @@ type NPRecommendationController struct {
 	// queue maintains the Service objects that need to be synced.
 	queue                  workqueue.RateLimitingInterface
 	deletionQueue          workqueue.RateLimitingInterface
+	gcQueue                workqueue.RateLimitingInterface
 	periodicResyncSetMutex sync.Mutex
 	periodicResyncSet      map[apimachinerytypes.NamespacedName]struct{}
 	clickhouseConnect      *sql.DB
@@ -106,6 +116,7 @@ func NewNPRecommendationController(
 		kubeClient:               kubeClient,
 		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendation"),
 		deletionQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendationCleanup"),
+		gcQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendationGarbageCollection"),
 		npRecommendationInformer: npRecommendationInformer.Informer(),
 		npRecommendationLister:   npRecommendationInformer.Lister(),
 		npRecommendationSynced:   npRecommendationInformer.Informer().HasSynced,
@@ -186,6 +197,8 @@ func (c *NPRecommendationController) deleteNPRecommendation(old interface{}) {
 // workqueue.
 func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 	defer c.queue.ShutDown()
+	defer c.deletionQueue.ShutDown()
+	defer c.gcQueue.ShutDown()
 
 	klog.InfoS("Starting controller", "name", controllerName)
 	defer klog.InfoS("Shutting down controller", "name", controllerName)
@@ -194,9 +207,14 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 		return
 	}
 
-	go func() {
-		wait.Until(c.resyncNPRecommendation, npRecommendationResyncPeriod, stopCh)
-	}()
+	c.gcQueue.Add(gcKey{
+		removeStaleDbEntries: true,
+		removeStaleSparkApp:  true,
+		addResync:            true,
+	})
+	go c.gcworker(stopCh)
+
+	go wait.Until(c.resyncNPRecommendation, npRecommendationResyncPeriod, stopCh)
 
 	go wait.Until(c.deletionworker, time.Second, stopCh)
 
@@ -204,6 +222,135 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 		go wait.Until(c.worker, time.Second, stopCh)
 	}
 	<-stopCh
+}
+
+func (c *NPRecommendationController) handleStaleDbEntries() error {
+	if c.clickhouseConnect == nil {
+		var err error
+		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
+		if err != nil {
+			return fmt.Errorf("failed to connect ClickHouse: %v", err)
+		}
+	}
+	idList, err := getPolicyRecommendationIds(c.clickhouseConnect)
+	if err != nil {
+		return fmt.Errorf("failed to get recommendation ids from ClickHouse: %v", err)
+	}
+	var errorList []error
+	for _, id := range idList {
+		_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), "pr-"+id)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				err = deletePolicyRecommendationResult(c.clickhouseConnect, id)
+				if err != nil {
+					errorList = append(errorList, err)
+				}
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
+	}
+	return nil
+}
+
+func (c *NPRecommendationController) handleStaleSparkApp() error {
+	saList, err := ListSparkApplication(c.kubeClient, sparkAppLabel)
+	if err != nil {
+		return fmt.Errorf("failed to list Spark Application: %v", err)
+	}
+	// Remove stale Spark Applications
+	var errorList []error
+	for _, sa := range saList.Items {
+		_, err := c.GetNetworkPolicyRecommendation(sa.Namespace, sa.Name)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				DeleteSparkApplication(c.kubeClient, sa.Name, sa.Namespace)
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+	}
+	return nil
+}
+
+// handleStaleResources handles the stale Spark Applications and database entries.
+// It will delete the dangling resources without a matching NetworkPolicyRecommendation
+// and add the running NetworkPolicyRecommendation back to the periodical watch list.
+func (c *NPRecommendationController) handleStaleResources(key gcKey) (updatedKey gcKey, err error) {
+	var errorList []error
+	if key.addResync {
+		// Add scheduled/running NPR back to resycn list
+		nprList, err := c.ListNetworkPolicyRecommendation(env.GetTheiaNamespace())
+		if err != nil {
+			errorList = append(errorList, fmt.Errorf("failed to list NetworkPolicyRecommendations: %v", err))
+		} else {
+			for _, npr := range nprList {
+				if npr.Status.State == crdv1alpha1.NPRecommendationStateScheduled || npr.Status.State == crdv1alpha1.NPRecommendationStateRunning {
+					c.addPeriodicSync(apimachinerytypes.NamespacedName{
+						Namespace: npr.Namespace,
+						Name:      npr.Name,
+					})
+				}
+			}
+			key.addResync = false
+		}
+	}
+	if key.removeStaleDbEntries {
+		err = c.handleStaleDbEntries()
+		if err != nil {
+			errorList = append(errorList, err)
+		} else {
+			key.removeStaleDbEntries = false
+		}
+	}
+
+	if key.removeStaleSparkApp {
+		err = c.handleStaleSparkApp()
+		if err != nil {
+			errorList = append(errorList, err)
+		} else {
+			key.removeStaleSparkApp = false
+		}
+	}
+
+	if len(errorList) > 0 {
+		return key, fmt.Errorf("failed during garbage collection: %v", errorList)
+	} else {
+		return key, nil
+	}
+}
+
+func (c *NPRecommendationController) gcworker(stopCh <-chan struct{}) {
+	wait.PollImmediateUntil(time.Second, func() (done bool, err error) {
+		return !c.processNextGcWorkItem(), nil
+	}, stopCh)
+}
+
+func (c *NPRecommendationController) processNextGcWorkItem() bool {
+	obj, quit := c.gcQueue.Get()
+	if quit {
+		return false
+	}
+	defer c.gcQueue.Done(obj)
+
+	if key, ok := obj.(gcKey); !ok {
+		c.queue.Forget(obj)
+		klog.ErrorS(nil, "Expected gcKey in work queue", "got", obj)
+		return false
+	} else if updatedKey, err := c.handleStaleResources(key); err == nil {
+		c.gcQueue.Forget(key)
+		return false
+	} else {
+		klog.ErrorS(err, "Error handling stale resources, requeuing it")
+		c.gcQueue.AddRateLimited(updatedKey)
+	}
+	return true
 }
 
 func (c *NPRecommendationController) deletionworker() {
@@ -312,7 +459,7 @@ func (c *NPRecommendationController) cleanupNPRecommendation(namespace string, s
 	// Delete the result from the ClickHouse
 	if c.clickhouseConnect == nil {
 		var err error
-		c.clickhouseConnect, err = clickhouse.SetupConnection()
+		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
 		if err != nil {
 			return err
 		}
@@ -538,6 +685,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      npReco.Name,
 			Namespace: npReco.Namespace,
+			Labels:    sparkAppLabelMap,
 		},
 		Spec: sparkv1.SparkApplicationSpec{
 			Type:                "Python",

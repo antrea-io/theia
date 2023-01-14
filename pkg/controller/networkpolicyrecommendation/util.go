@@ -25,6 +25,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
@@ -143,6 +144,25 @@ func deletePolicyRecommendationResult(connect *sql.DB, id string) (err error) {
 	return nil
 }
 
+func getPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
+	query := "SELECT DISTINCT id FROM recommendations;"
+	rows, err := connect.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from ClickHouse: %v", err)
+	}
+	defer rows.Close()
+	var idList []string
+	for rows.Next() {
+		var id string
+		err := rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse id %s: %v", id, err)
+		}
+		idList = append(idList, id)
+	}
+	return idList, nil
+}
+
 func getSparkApplication(client kubernetes.Interface, name string, namespace string) (sparkApp sparkv1.SparkApplication, err error) {
 	err = client.CoreV1().RESTClient().Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
@@ -157,12 +177,14 @@ func getSparkApplication(client kubernetes.Interface, name string, namespace str
 	return sparkApp, nil
 }
 
-func listSparkApplication(client kubernetes.Interface, namespace string) (*sparkv1.SparkApplicationList, error) {
+func listSparkApplicationWithLabel(client kubernetes.Interface, label string) (*sparkv1.SparkApplicationList, error) {
 	sparkApplicationList := &sparkv1.SparkApplicationList{}
 	err := client.CoreV1().RESTClient().Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(namespace).
 		Resource("sparkapplications").
+		VersionedParams(&metav1.ListOptions{
+			LabelSelector: label,
+		}, scheme.ParameterCodec).
 		Do(context.TODO()).Into(sparkApplicationList)
 	return sparkApplicationList, err
 }

@@ -22,8 +22,6 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -33,31 +31,29 @@ const (
 )
 
 func TestSetupConnection(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
-	if err != nil {
-		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-	defer db.Close()
-
-	openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
-		assert.Equal(t, driverName, "clickhouse")
-		assert.Equal(t, dataSourceName, "tcp://localhost:9000?debug=false&username=username&password=password")
-		return db, nil
-	}
-
 	testCases := []struct {
 		name             string
-		setup            func()
+		setup            func() (*sql.DB, sqlmock.Sqlmock)
 		cleanup          func()
 		expectedErrorMsg string
 	}{
 		{
 			name: "Read address from environment",
-			setup: func() {
+			setup: func() (*sql.DB, sqlmock.Sqlmock) {
 				os.Setenv(usernameKey, "username")
 				os.Setenv(passwordKey, "password")
 				os.Setenv(urlKey, "tcp://localhost:9000")
+				db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual), sqlmock.MonitorPingsOption(true))
+				if err != nil {
+					t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+				}
+				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+					assert.Equal(t, driverName, "clickhouse")
+					assert.Equal(t, dataSourceName, "tcp://localhost:9000?debug=false&username=username&password=password")
+					return db, nil
+				}
 				mock.ExpectPing()
+				return db, mock
 			},
 			cleanup: func() {
 				os.Unsetenv(usernameKey)
@@ -67,61 +63,47 @@ func TestSetupConnection(t *testing.T) {
 		},
 		{
 			name: "Get address from K8s client",
-			setup: func() {
-				fakeClientset := fake.NewSimpleClientset(
-					&v1.Service{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      serviceName,
-							Namespace: testNamespace,
-						},
-						Spec: v1.ServiceSpec{
-							Ports:     []v1.ServicePort{{Port: 9000, Protocol: "TCP"}},
-							ClusterIP: "localhost",
-						},
-					},
-					&v1.Secret{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      secretName,
-							Namespace: testNamespace,
-						},
-						Data: map[string][]byte{
-							"username": []byte("username"),
-							"password": []byte("password"),
-						},
-					},
-				)
+			setup: func() (*sql.DB, sqlmock.Sqlmock) {
+				fakeClientset := fake.NewSimpleClientset()
+				db, mock := CreateFakeClickHouse(t, fakeClientset, testNamespace)
 				createK8sClient = func() (client kubernetes.Interface, err error) {
 					return fakeClientset, nil
 				}
-				mock.ExpectPing()
+				return db, mock
 			},
 		},
 		{
 			name: "Service not exists",
-			setup: func() {
+			setup: func() (*sql.DB, sqlmock.Sqlmock) {
 				fakeClientset := fake.NewSimpleClientset()
 				createK8sClient = func() (client kubernetes.Interface, err error) {
 					return fakeClientset, nil
 				}
+				return nil, nil
 			},
-			expectedErrorMsg: fmt.Sprintf("failed to get ClickHouse URL: error when getting the ClickHouse Service address: error when finding the Service %s: services \"%s\" not found", serviceName, serviceName),
+			expectedErrorMsg: fmt.Sprintf("failed to get ClickHouse URL: error when getting the ClickHouse Service address: error when finding the Service %s: services \"%s\" not found", ServiceName, ServiceName),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.setup()
-			_, err = SetupConnection()
+			db, mock := tc.setup()
+			_, err := SetupConnection(nil)
 			if tc.expectedErrorMsg != "" {
 				assert.ErrorContains(t, err, tc.expectedErrorMsg)
 			} else {
 				assert.NoError(t, err)
 			}
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unfulfilled expectations: %s", err)
+			if mock != nil {
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unfulfilled expectations: %s", err)
+				}
 			}
 			if tc.cleanup != nil {
 				tc.cleanup()
+			}
+			if db != nil {
+				db.Close()
 			}
 		})
 	}

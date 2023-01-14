@@ -147,7 +147,6 @@ func installAPIGroup(s *TheiaManagerAPIServer, c Config) error {
 	groups := []*genericapiserver.APIGroupInfo{&intelligenceGroup, &statsGroup, &systemGroup}
 
 	for _, apiGroupInfo := range groups {
-		klog.Info(apiGroupInfo)
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {
 			return err
 		}

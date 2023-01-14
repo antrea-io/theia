@@ -187,7 +187,7 @@ func (r *REST) copyNetworkPolicyRecommendation(intelli *intelligence.NetworkPoli
 
 func (r *REST) getRecommendationResult(id string) (result string, err error) {
 	if r.clickhouseConnect == nil {
-		r.clickhouseConnect, err = setupClickHouseConnection()
+		r.clickhouseConnect, err = setupClickHouseConnection(nil)
 		if err != nil {
 			return result, err
 		}

@@ -167,6 +167,77 @@ func TestPolicyRecommendation(t *testing.T) {
 			testPolicyRecommendationRetrieve(t, data, true, testFlowPodToPod, testFlowPodToSvc, testFlowPodToExternal)
 		})
 	}
+
+	t.Run("testTheiaManagerRestart", func(t *testing.T) {
+		testTheiaManagerRestart(t, data)
+	})
+}
+
+func testTheiaManagerRestart(t *testing.T, data *TestData) {
+	_, jobName1, err := runJob(t, data)
+	require.NoError(t, err)
+	_, jobName2, err := runJob(t, data)
+	require.NoError(t, err)
+
+	// Simulate the Theia Manager downtime
+	cmd := "kubectl delete deployment theia-manager -n flow-visibility"
+	_, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	require.NoErrorf(t, err, fmt.Sprintf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr))
+
+	// Delete the first job during the Theia Manager downtime
+	cmd = fmt.Sprintf("kubectl delete npr %s -n flow-visibility", jobName1)
+	// Sometimes the deletion will fail with 'error: the server doesn't have a resource type "npr"'
+	// Retry under this condition
+	err = wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		_, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		if err == nil && stderr == "" {
+			return true, nil
+		}
+		// Keep trying
+		return false, nil
+	})
+	require.NoError(t, err, "error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+
+	// Redeploy the Theia Manager
+	err = data.deployFlowVisibilityCommon(flowVisibilityWithSparkYML)
+	require.NoError(t, err)
+	// Sleep for a short period to make sure the previous deletion of the theia management ends
+	time.Sleep(3 * time.Second)
+	theiaManagerPodName, err := data.getPodByLabel(theiaManagerPodLabel, flowVisibilityNamespace)
+	require.NoError(t, err)
+	err = data.podWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace)
+	require.NoError(t, err, "error when waiting for Theia Manager %s", theiaManagerPodName)
+
+	// Check the status of jobName2
+	stdout, err = getJobStatus(t, data, jobName2)
+	require.NoError(t, err)
+	assert := assert.New(t)
+	assert.Containsf(stdout, "Status of this policy recommendation job is", "stdout: %s", stdout)
+	err = data.podWaitForReady(defaultTimeout, jobName2+"-driver", flowVisibilityNamespace)
+	require.NoError(t, err)
+	_, err = deleteJob(t, data, jobName2)
+	require.NoError(t, err)
+
+	// Check the SparkApplication and database entries of jobName1 do not exist
+	// Allow some time for Theia Manager to delete the stale resources
+	var queryOutput string
+	err = wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		cmd = fmt.Sprintf("kubectl get sparkapplication %s -n flow-visibility", jobName1)
+		_, stdout, stderr, _ = data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		if !strings.Contains(stderr, fmt.Sprintf("sparkapplications.sparkoperator.k8s.io \"%s\" not found", jobName1)) {
+			// Keep trying
+			return false, nil
+		}
+		cmd = fmt.Sprintf("clickhouse client -q \"SELECT COUNT() FROM recommendations WHERE id='%s'\"", jobName1[3:])
+		queryOutput, stderr, err = data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", cmd})
+		require.NoErrorf(t, err, "fail to get recommendations from ClickHouse, stderr: %v", stderr)
+		if queryOutput != "0\n" {
+			// Keep trying
+			return false, nil
+		}
+		return true, nil
+	})
+	require.NoErrorf(t, err, "stale resources expected to be deleted, but got stdout: %s, stderr: %s, ClickHouse query result expected to be 0, got: %s", stdout, stderr, queryOutput)
 }
 
 // Example output: Successfully created policy recommendation job with name pr-e998433e-accb-4888-9fc8-06563f073e86

@@ -18,7 +18,7 @@ def generate_policy_name(info):
 
 def generate_k8s_egress_rule(egress):
     if len(egress.split(ROW_DELIMITER)) == 4:
-        ns, labels, port, protocolIdentifier = egress.split(ROW_DELIMITER)
+        ns, labels, port, protocol_identifier = egress.split(ROW_DELIMITER)
         egress_peer = kubernetes.client.V1NetworkPolicyPeer(
             namespace_selector = kubernetes.client.V1LabelSelector(
                 match_labels = {
@@ -30,11 +30,11 @@ def generate_k8s_egress_rule(egress):
             ),
         )
     elif len(egress.split(ROW_DELIMITER)) == 3:
-        destinationIP, port, protocolIdentifier = egress.split(ROW_DELIMITER)
-        if get_IP_version(destinationIP) == "v4":
-            cidr = destinationIP + "/32"
+        destination_ip, port, protocol_identifier = egress.split(ROW_DELIMITER)
+        if get_IP_version(destination_ip) == "v4":
+            cidr = destination_ip + "/32"
         else:
-            cidr = destinationIP + "/128"
+            cidr = destination_ip + "/128"
         egress_peer = kubernetes.client.V1NetworkPolicyPeer(
             ip_block = kubernetes.client.V1IPBlock(
                 cidr = cidr,
@@ -44,7 +44,7 @@ def generate_k8s_egress_rule(egress):
         sys.exit(1)
     ports = kubernetes.client.V1NetworkPolicyPort(
         port = int(port),
-        protocol = protocolIdentifier
+        protocol = protocol_identifier
     )
     egress_rule = kubernetes.client.V1NetworkPolicyEgressRule(
         to = [egress_peer],
@@ -55,7 +55,7 @@ def generate_k8s_egress_rule(egress):
 def generate_k8s_ingress_rule(ingress):
     if len(ingress.split(ROW_DELIMITER)) != 4:
         sys.exit(1)
-    ns, labels, port, protocolIdentifier = ingress.split(ROW_DELIMITER)
+    ns, labels, port, protocol_identifier = ingress.split(ROW_DELIMITER)
     ingress_peer = kubernetes.client.V1NetworkPolicyPeer(
         namespace_selector = kubernetes.client.V1LabelSelector(
             match_labels = {
@@ -68,7 +68,7 @@ def generate_k8s_ingress_rule(ingress):
     )
     ports = kubernetes.client.V1NetworkPolicyPort(
         port = int(port),
-        protocol = protocolIdentifier
+        protocol = protocol_identifier
     )
     ingress_rule = kubernetes.client.V1NetworkPolicyIngressRule(
         _from = [ingress_peer],
@@ -120,7 +120,7 @@ def generate_k8s_np(applied_to, ingresses, egresses, ns_allow_list):
 def generate_anp_egress_rule(egress):
     if len(egress.split(ROW_DELIMITER)) == 4:
         # Pod-to-Pod flow
-        ns, labels, port, protocolIdentifier = egress.split(ROW_DELIMITER)
+        ns, labels, port, protocol_identifier = egress.split(ROW_DELIMITER)
         egress_peer = antrea_crd.NetworkPolicyPeer(
             namespace_selector = kubernetes.client.V1LabelSelector(
                 match_labels = {
@@ -132,7 +132,7 @@ def generate_anp_egress_rule(egress):
             ),
         )
         ports = antrea_crd.NetworkPolicyPort(
-            protocol = protocolIdentifier,
+            protocol = protocol_identifier,
             port = int(port)
         )
         egress_rule = antrea_crd.Rule(
@@ -142,18 +142,18 @@ def generate_anp_egress_rule(egress):
         )
     elif len(egress.split(ROW_DELIMITER)) == 3:
         # Pod-to-External flow
-        destinationIP, port, protocolIdentifier = egress.split(ROW_DELIMITER)
-        if get_IP_version(destinationIP) == "v4":
-            cidr = destinationIP + "/32"
+        destination_ip, port, protocol_identifier = egress.split(ROW_DELIMITER)
+        if get_IP_version(destination_ip) == "v4":
+            cidr = destination_ip + "/32"
         else:
-            cidr = destinationIP + "/128"
+            cidr = destination_ip + "/128"
         egress_peer = antrea_crd.NetworkPolicyPeer(
             ip_block = antrea_crd.IPBlock(
                 CIDR = cidr,
             )
         )
         ports = antrea_crd.NetworkPolicyPort(
-            protocol = protocolIdentifier,
+            protocol = protocol_identifier,
             port = int(port)
         )
         egress_rule = antrea_crd.Rule(
@@ -180,7 +180,7 @@ def generate_anp_egress_rule(egress):
 def generate_anp_ingress_rule(ingress):
     if len(ingress.split(ROW_DELIMITER)) != 4:
         sys.exit(1)
-    ns, labels, port, protocolIdentifier = ingress.split(ROW_DELIMITER)
+    ns, labels, port, protocol_identifier = ingress.split(ROW_DELIMITER)
     ingress_peer = antrea_crd.NetworkPolicyPeer(
         namespace_selector = kubernetes.client.V1LabelSelector(
             match_labels = {
@@ -192,7 +192,7 @@ def generate_anp_ingress_rule(ingress):
         ),
     )
     ports = antrea_crd.NetworkPolicyPort(
-        protocol = protocolIdentifier,
+        protocol = protocol_identifier,
         port = int(port)
     )
     ingress_rule = antrea_crd.Rule(
@@ -300,40 +300,40 @@ class PolicyRecommendation:
         self._egresses = set()
 
     def process(self,
-                jobType,
-                recommendationId,
-                isolationMethod,
-                nsAllowList,
-                appliedTo,
+                job_type,
+                recommendation_id,
+                isolation_method,
+                ns_allow_list,
+                applied_to,
                 ingress,
                 egress):
-        assert(jobType == "initial")
+        assert(job_type == "initial")
         # ideally this would be done in the constructor, but this is not
         # supported in Snowflake (passing arguments once via the constructor)
-        # instead we will keep overriding self._jobType with the same value
-        self._jobType = jobType
-        self._recommendationId = recommendationId
-        self._isolationMethod = isolationMethod
-        self._nsAllowList = nsAllowList
-        self._applied_to = appliedTo
+        # instead we will keep overriding self._job_type with the same value
+        self._job_type = job_type
+        self._recommendation_id = recommendation_id
+        self._isolation_method = isolation_method
+        self._ns_allow_list = ns_allow_list
+        self._applied_to = applied_to
         self._ingresses.add(ingress)
         self._egresses.add(egress)
         yield None
 
     def end_partition(self):
-        nsAllowList = self._nsAllowList.split(',')
-        if self._isolationMethod == 3:
-            allow_policy = generate_k8s_np(self._applied_to, self._ingresses, self._egresses, nsAllowList)
+        ns_allow_list = self._ns_allow_list.split(',')
+        if self._isolation_method == 3:
+            allow_policy = generate_k8s_np(self._applied_to, self._ingresses, self._egresses, ns_allow_list)
             if allow_policy:
-                result = Result(self._jobType,  self._recommendationId, allow_policy)
+                result = Result(self._job_type,  self._recommendation_id, allow_policy)
                 yield(result.job_type, result.recommendation_id, result.time_created, result.yamls)
         else:
-            allow_policy = generate_anp(self._applied_to, self._ingresses, self._egresses, nsAllowList)
+            allow_policy = generate_anp(self._applied_to, self._ingresses, self._egresses, ns_allow_list)
             if allow_policy:
-                result = Result(self._jobType,  self._recommendationId, allow_policy)
+                result = Result(self._job_type,  self._recommendation_id, allow_policy)
                 yield(result.job_type, result.recommendation_id, result.time_created, result.yamls)
-            if self._isolationMethod == 1:
-                reject_policy = generate_reject_acnp(self._applied_to, nsAllowList)
+            if self._isolation_method == 1:
+                reject_policy = generate_reject_acnp(self._applied_to, ns_allow_list)
                 if reject_policy:
-                    result = Result(self._jobType,  self._recommendationId, reject_policy)
+                    result = Result(self._job_type,  self._recommendation_id, reject_policy)
                     yield(result.job_type, result.recommendation_id, result.time_created, result.yamls)

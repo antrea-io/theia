@@ -28,12 +28,12 @@ import (
 )
 
 const (
-	trafficDropFunctionName           = "traffic_drop"
-	defaultTrafficDropFunctionVersion = "v0.1.0"
-	defaultTrafficDropWaitTimeout     = "5m"
+	dropDetectionFunctionName           = "drop_detection"
+	defaultDropDetectionFunctionVersion = "v0.1.0"
+	defaultDropDetectionWaitTimeout     = "5m"
 )
 
-func buildTrafficDropUdfQuery(
+func buildDropDetectionUdfQuery(
 	jobType string,
 	start string,
 	end string,
@@ -131,12 +131,12 @@ SELECT
 CASE WHEN f.ingressNetworkPolicyRuleAction = 2 OR f.ingressNetworkPolicyRuleAction = 3
 	THEN
 	(CASE WHEN f.destinationPodName IS NOT NULL
-		THEN CONCAT(f.destinationPodNamespace, '#', f.destinationPodName)
+		THEN CONCAT(f.destinationPodNamespace, '/', f.destinationPodName)
 		ELSE f.destinationIP
 	END)
 ELSE
 	(CASE WHEN f.sourcePodName IS NOT NULL
-		THEN CONCAT(f.sourcePodNamespace, '#', f.sourcePodName)
+		THEN CONCAT(f.sourcePodNamespace, '/', f.sourcePodName)
 		ELSE f.sourceIP
 	END)
 END as endpoint,
@@ -165,20 +165,20 @@ GROUP BY
 	pf.date
 `)
 
-	// Choose the endpoint + direction as the partition field for the trafficDrop UDTF
-	// because traffic drop detection are worked on ingress and egress direction for each endpoint.
-	functionName := udfs.GetFunctionName(trafficDropFunctionName, functionVersion)
+	// Choose the endpoint + direction as the partition field for the dropDetection UDTF
+	// because traffic drop detection is run on ingress and egress direction for each endpoint.
+	functionName := udfs.GetFunctionName(dropDetectionFunctionName, functionVersion)
 	fmt.Fprintf(&queryBuilder, `)
 SELECT 
-	r.jobType, 
-	r.detectionID, 
-	r.timeCreated, 
+	r.job_type, 
+	r.detection_id, 
+	r.time_created, 
 	r.endpoint,
 	r.direction,
-	r.avgDrop,
-	r.stdevDrop,
-	r.anomalyDropDate,
-	r.anomalyDropNumber FROM aggregated_flows AS af,
+	r.avg_drop,
+	r.stdev_drop,
+	r.anomaly_drop_date,
+	r.anomaly_drop_number FROM aggregated_flows AS af,
 TABLE(%s(
 	'%s',
 	'%s',
@@ -192,18 +192,18 @@ TABLE(%s(
 	return queryBuilder.String(), nil
 }
 
-// trafficDropCmd represents the traffic-drop command
-var trafficDropCmd = &cobra.Command{
-	Use:   "traffic-drop",
+// dropDetectionCmd represents the drop-detection command
+var dropDetectionCmd = &cobra.Command{
+	Use:   "drop-detection",
 	Short: "Run the abnormal traffic drop detection UDF in Snowflake",
 	Long: `This command runs the abnormal traffic drop detection UDF in
 Snowflake. You need to bring your own Snowflake account and run the onboard
 command first.
 
 Run abnormal traffic drop detection with default configuration on database ANTREA_C9JR8KUKUIV4R72S:
-"theia-sf traffic-drop --database-name ANTREA_C9JR8KUKUIV4R72S"
+"theia-sf drop-detection --database-name ANTREA_C9JR8KUKUIV4R72S"
 
-The "traffic-drop" command requires a Snowflake warehouse to run abnormal
+The "drop-detection" command requires a Snowflake warehouse to run the abnormal
 traffic drop detection UDF in Snowflake. By default, it will create a temporary
 one.
 You can also bring your own by using the "--warehouse-name" parameter.
@@ -211,7 +211,7 @@ You can also bring your own by using the "--warehouse-name" parameter.
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		jobType, _ := cmd.Flags().GetString("type")
-		if jobType != "initial" && jobType != "periodical" {
+		if jobType != "initial" {
 			return fmt.Errorf("invalid --type argument")
 		}
 
@@ -229,7 +229,7 @@ You can also bring your own by using the "--warehouse-name" parameter.
 			return fmt.Errorf("invalid --wait-timeout argument, err when parsing it as a duration: %v", err)
 		}
 
-		query, err := buildTrafficDropUdfQuery(jobType, start, end, startTs, endTs, clusterUUID, databaseName, functionVersion)
+		query, err := buildDropDetectionUdfQuery(jobType, start, end, startTs, endTs, clusterUUID, databaseName, functionVersion)
 		if err != nil {
 			return err
 		}
@@ -277,18 +277,18 @@ You can also bring your own by using the "--warehouse-name" parameter.
 }
 
 func init() {
-	rootCmd.AddCommand(trafficDropCmd)
+	rootCmd.AddCommand(dropDetectionCmd)
 
-	trafficDropCmd.Flags().String("type", "initial", "Type of abnormal traffic drop detection job (initial|periodical), we only support initial jobType for now")
-	trafficDropCmd.Flags().String("start", "", "Start time for flows, with reference to the current time (e.g., now-1h)")
-	trafficDropCmd.Flags().String("end", "", "End time for flows, with reference to the current timr (e.g., now)")
-	trafficDropCmd.Flags().String("start-ts", "", "Start time for flows, as a RFC3339 UTC timestamp (e.g., 2022-07-01T19:35:31Z)")
-	trafficDropCmd.Flags().String("end-ts", "", "End time for flows, as a RFC3339 UTC timestamp (e.g., 2022-07-01T19:35:31Z)")
-	trafficDropCmd.Flags().String("cluster-uuid", "", `UUID of the cluster for which abnormal traffic drop will be detected
+	dropDetectionCmd.Flags().String("type", "initial", "Type of abnormal traffic drop detection job (initial|periodical), we only support initial jobType for now")
+	dropDetectionCmd.Flags().String("start", "", "Start time for flows, with reference to the current time (e.g., now-1h)")
+	dropDetectionCmd.Flags().String("end", "", "End time for flows, with reference to the current timr (e.g., now)")
+	dropDetectionCmd.Flags().String("start-ts", "", "Start time for flows, as a RFC3339 UTC timestamp (e.g., 2022-07-01T19:35:31Z)")
+	dropDetectionCmd.Flags().String("end-ts", "", "End time for flows, as a RFC3339 UTC timestamp (e.g., 2022-07-01T19:35:31Z)")
+	dropDetectionCmd.Flags().String("cluster-uuid", "", `UUID of the cluster for which abnormal traffic drop will be detected
 If no UUID is provided, all flows will be considered during abnormal traffic drop detection`)
-	trafficDropCmd.Flags().String("database-name", "", "Snowflake database name to run abnormal traffic drop detection, it can be found in the output of the onboard command")
-	trafficDropCmd.MarkFlagRequired("database-name")
-	trafficDropCmd.Flags().String("warehouse-name", "", "Snowflake Virtual Warehouse to run abnormal traffic drop detection, by default we will use a temporary one")
-	trafficDropCmd.Flags().String("udf-version", defaultTrafficDropFunctionVersion, "Version of the UDF function to use")
-	trafficDropCmd.Flags().String("wait-timeout", defaultTrafficDropWaitTimeout, "Wait timeout of the abnormal traffic drop detection job (e.g., 5m, 100s)")
+	dropDetectionCmd.Flags().String("database-name", "", "Snowflake database name to run abnormal traffic drop detection, it can be found in the output of the onboard command")
+	dropDetectionCmd.MarkFlagRequired("database-name")
+	dropDetectionCmd.Flags().String("warehouse-name", "", "Snowflake Virtual Warehouse to run abnormal traffic drop detection, by default we will use a temporary one")
+	dropDetectionCmd.Flags().String("udf-version", defaultDropDetectionFunctionVersion, "Version of the UDF function to use")
+	dropDetectionCmd.Flags().String("wait-timeout", defaultDropDetectionWaitTimeout, "Wait timeout of the abnormal traffic drop detection job (e.g., 5m, 100s)")
 }

@@ -33,3 +33,14 @@ func ParseRecommendationName(npName string) error {
 	}
 	return nil
 }
+
+func ParseADAlgorythmName(algoName string) error {
+	switch algoName {
+	case
+		"EMWA",
+		"ARIMA",
+		"DBSCAN":
+		return nil
+	}
+	return fmt.Errorf("input name %s is not a valid throughputanomaly Detection Algorythm name", algoName)
+}

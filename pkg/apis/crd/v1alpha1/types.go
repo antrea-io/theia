@@ -75,3 +75,21 @@ type NetworkPolicyRecommendationList struct {
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NetworkPolicyRecommendation `json:"items"`
 }
+
+type ThroughputAnomalyDetector struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec ThroughputAnomalyDetectorSpec `json:"spec,omitempty"`
+}
+
+type ThroughputAnomalyDetectorSpec struct {
+	JobType             string      `json:"jobType,omitempty"`
+	StartInterval       metav1.Time `json:"startInterval,omitempty"`
+	EndInterval         metav1.Time `json:"endInterval,omitempty"`
+	ExecutorInstances   int         `json:"executorInstances,omitempty"`
+	DriverCoreRequest   string      `json:"driverCoreRequest,omitempty"`
+	DriverMemory        string      `json:"driverMemory,omitempty"`
+	ExecutorCoreRequest string      `json:"executorCoreRequest,omitempty"`
+	ExecutorMemory      string      `json:"executorMemory,omitempty"`
+}

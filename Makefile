@@ -224,3 +224,12 @@ theia: $(THEIA_BINARIES)
 .PHONY: theia-release
 theia-release:
 	@$(GO) build -o $(BINDIR)/$(THEIA_BINARY_NAME) $(GOFLAGS) -ldflags '-s -w $(LDFLAGS)' antrea.io/theia/pkg/theia
+
+.PHONY: throughput-anomaly-detection
+throughput-anomaly-detection:
+	@echo "===> Building antrea/theia-throughput-anomaly-detection Docker image <==="
+	docker build --pull -t antrea/theia-throughput-anomaly-detection:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.throughput-anomaly-detection.ubuntu .
+	docker tag antrea/theia-throughput-anomaly-detection:$(DOCKER_IMG_VERSION) antrea/theia-throughput-anomaly-detection
+	docker tag antrea/theia-throughput-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-throughput-anomaly-detection
+	docker tag antrea/theia-throughput-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-throughput-anomaly-detection:$(DOCKER_IMG_VERSION)
+

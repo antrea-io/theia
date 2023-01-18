@@ -15,6 +15,7 @@
 package querier
 
 import (
+	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
 	"antrea.io/theia/pkg/apis/crd/v1alpha1"
 	statsV1 "antrea.io/theia/pkg/apis/stats/v1alpha1"
 )
@@ -31,4 +32,9 @@ type ClickHouseStatQuerier interface {
 	GetTableInfo(namespace string, stats *statsV1.ClickHouseStats) error
 	GetInsertRate(namespace string, stats *statsV1.ClickHouseStats) error
 	GetStackTrace(namespace string, stats *statsV1.ClickHouseStats) error
+}
+
+type ThroughputAnomalyDetectorQuerier interface {
+	GetThroughputAnomalyDetection(namespace, name string) (*anomalydetector.ThroughputAnomalyDetector, error)
+	CreateThroughputAnomalyDetection(namespace string, anomalydetector *v1alpha1.ThroughputAnomalyDetector) (*v1alpha1.ThroughputAnomalyDetector, error)
 }

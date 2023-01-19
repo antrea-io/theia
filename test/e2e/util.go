@@ -15,9 +15,12 @@
 package e2e
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"os"
+	"strings"
+	"testing"
 )
 
 const (
@@ -404,4 +407,52 @@ spec:
 	default:
 		return ""
 	}
+}
+
+func RunJob(t *testing.T, data *TestData, jobcmd string) (stdout string, jobName string, err error) {
+	cmd := "chmod +x ./theia"
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil || rc != 0 {
+		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), jobcmd)
+	if err != nil || rc != 0 {
+		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	stdout = strings.TrimSuffix(stdout, "\n")
+	stdoutSlice := strings.Split(stdout, " ")
+	jobName = stdoutSlice[len(stdoutSlice)-1]
+	return stdout, jobName, nil
+}
+
+func GetJobStatus(t *testing.T, data *TestData, cmd string) (stdout string, err error) {
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	return strings.TrimSuffix(stdout, "\n"), nil
+}
+
+func ListJobs(t *testing.T, data *TestData, cmd string) (stdout string, err error) {
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	return strings.TrimSuffix(stdout, "\n"), nil
+}
+
+func DeleteJob(t *testing.T, data *TestData, cmd string) (stdout string, err error) {
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	return strings.TrimSuffix(stdout, "\n"), nil
+}
+
+func RetrieveJobResult(t *testing.T, data *TestData, cmd string) (stdout string, err error) {
+	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil || rc != 0 {
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+	return strings.TrimSuffix(stdout, "\n"), nil
 }

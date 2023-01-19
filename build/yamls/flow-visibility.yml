@@ -87,6 +87,15 @@ rules:
   - supportbundles/download
   verbs:
   - get
+- apiGroups:
+  - anomalydetector.theia.antrea.io
+  resources:
+  - throughputanomalydetectors
+  verbs:
+  - get
+  - list
+  - create
+  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -137,6 +146,7 @@ rules:
   resources:
   - networkpolicyrecommendations
   - recommendednetworkpolicies
+  - throughputanomalydetectors
   verbs:
   - get
   - list
@@ -147,6 +157,7 @@ rules:
   - crd.theia.antrea.io
   resources:
   - networkpolicyrecommendations/status
+  - throughputanomalydetectors/status
   verbs:
   - update
 - apiGroups:
@@ -361,6 +372,30 @@ data:
     --Drop yamls column
     ALTER TABLE recommendations DROP COLUMN yamls;
     ALTER TABLE recommendations_local DROP COLUMN yamls;
+  000004_0-4-0.down.sql: |
+    --Drop table
+    DROP tadetector_local
+  000004_0-4-0.up.sql: |
+    --Create a table to store the Throughput Anomaly Detector results
+    CREATE TABLE IF NOT EXISTS tadetector_local (
+        sourceIP String,
+        sourceTransportPort UInt16,
+        destinationIP String,
+        destinationTransportPort UInt16,
+        protocolIdentifier UInt16,
+        flowStartSeconds DateTime,
+        flowEndSeconds DateTime,
+        throughputStandardDeviation Float64,
+        algoType String,
+        algoCalc Float64,
+        throughput Float64,
+        anomaly String,
+        id String
+    ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
+    ORDER BY (flowStartSeconds);
+
+    CREATE TABLE IF NOT EXISTS tadetector AS tadetector_local
+        engine=Distributed('{cluster}', default, tadetector_local, rand());
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -640,6 +675,24 @@ data:
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeCreated);
 
+        --Create a table to store the Throughput Anomaly Detector results
+        CREATE TABLE IF NOT EXISTS tadetector_local (
+            sourceIP String,
+            sourceTransportPort UInt16,
+            destinationIP String,
+            destinationTransportPort UInt16,
+            protocolIdentifier UInt16,
+            flowStartSeconds DateTime,
+            flowEndSeconds DateTime,
+            throughputStandardDeviation Float64,
+            algoType String,
+            algoCalc Float64,
+            throughput Float64,
+            anomaly String,
+            id String
+        ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
+        ORDER BY (flowStartSeconds);
+
         --Create distributed tables for cluster
         CREATE TABLE IF NOT EXISTS flows AS flows_local
         engine=Distributed('{cluster}', default, flows_local, rand());
@@ -655,6 +708,10 @@ data:
 
         CREATE TABLE IF NOT EXISTS recommendations AS recommendations_local
         engine=Distributed('{cluster}', default, recommendations_local, rand());
+
+        CREATE TABLE IF NOT EXISTS tadetector AS tadetector_local
+        engine=Distributed('{cluster}', default, tadetector_local, rand());
+
     EOSQL
     }
   init.sh: |
@@ -6691,6 +6748,10 @@ spec:
               path: migrators/000003_0-3-0.down.sql
             - key: 000003_0-3-0.up.sql
               path: migrators/000003_0-3-0.up.sql
+            - key: 000004_0-4-0.down.sql
+              path: migrators/000004_0-4-0.down.sql
+            - key: 000004_0-4-0.up.sql
+              path: migrators/000004_0-4-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

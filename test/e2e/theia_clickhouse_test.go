@@ -15,10 +15,8 @@
 package e2e
 
 import (
-	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 	"sync"
@@ -27,75 +25,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-
-	"antrea.io/theia/pkg/theia/commands"
-	"antrea.io/theia/pkg/theia/commands/config"
-	"antrea.io/theia/pkg/theia/portforwarder"
-	"antrea.io/theia/pkg/util/clickhouse"
-	"antrea.io/theia/pkg/util/k8s"
 )
 
 const (
 	getDiskInfoCmd   = "./theia clickhouse status --diskInfo"
 	getTableInfoCmd  = "./theia clickhouse status --tableInfo"
 	getInsertRateCmd = "./theia clickhouse status --insertRate"
-	insertQuery      = `INSERT INTO flows (
-                   flowStartSeconds,
-                   flowEndSeconds,
-                   flowEndSecondsFromSourceNode,
-                   flowEndSecondsFromDestinationNode,
-                   flowEndReason,
-                   sourceIP,
-                   destinationIP,
-                   sourceTransportPort,
-                   destinationTransportPort,
-                   protocolIdentifier,
-                   packetTotalCount,
-                   octetTotalCount,
-                   packetDeltaCount,
-                   octetDeltaCount,
-                   reversePacketTotalCount,
-                   reverseOctetTotalCount,
-                   reversePacketDeltaCount,
-                   reverseOctetDeltaCount,
-                   sourcePodName,
-                   sourcePodNamespace,
-                   sourceNodeName,
-                   destinationPodName,
-                   destinationPodNamespace,
-                   destinationNodeName,
-                   destinationClusterIP,
-                   destinationServicePort,
-                   destinationServicePortName,
-                   ingressNetworkPolicyName,
-                   ingressNetworkPolicyNamespace,
-                   ingressNetworkPolicyRuleName,
-                   ingressNetworkPolicyRuleAction,
-                   ingressNetworkPolicyType,
-                   egressNetworkPolicyName,
-                   egressNetworkPolicyNamespace,
-                   egressNetworkPolicyRuleName,
-                   egressNetworkPolicyRuleAction,
-                   egressNetworkPolicyType,
-                   tcpState,
-                   flowType,
-                   sourcePodLabels,
-                   destinationPodLabels,
-                   throughput,
-                   reverseThroughput,
-                   throughputFromSourceNode,
-                   throughputFromDestinationNode,
-                   reverseThroughputFromSourceNode,
-                   reverseThroughputFromDestinationNode,
-                   clusterUUID)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                           ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                           ?, ?, ?, ?, ?, ?, ?, ?)`
+
 	recordPerCommit      = 1000
 	insertInterval       = 1
 	threshold            = 25
@@ -365,7 +302,7 @@ func writeRecords(t *testing.T, connect *sql.DB, wg *sync.WaitGroup) {
 		if err != nil {
 			return false, nil
 		}
-		stmt, _ := tx.Prepare(insertQuery)
+		stmt, _ := tx.Prepare(insertQueryflowtable)
 		defer stmt.Close()
 		for j := 0; j < recordPerCommit; j++ {
 			addFakeRecord(t, stmt)
@@ -390,39 +327,4 @@ func sendTraffic(t *testing.T, connect *sql.DB, commitNum int) {
 		time.Sleep(time.Duration(insertInterval) * time.Second)
 	}
 	wg.Wait()
-}
-
-func randInt(t *testing.T, limit int64) int64 {
-	assert := assert.New(t)
-	randNum, error := rand.Int(rand.Reader, big.NewInt(limit))
-	assert.NoError(error)
-	return randNum.Int64()
-}
-
-func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
-	service := "clickhouse-clickhouse"
-	listenAddress := "localhost"
-	listenPort := 9000
-	_, servicePort, err := k8s.GetServiceAddr(clientset, service, config.FlowVisibilityNS, v1.ProtocolTCP)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
-	}
-	// Forward the ClickHouse service port
-	portForward, err = commands.StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
-	}
-	endpoint := fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
-
-	// Connect to ClickHouse and execute query
-	username, password, err := clickhouse.GetSecret(clientset, "flow-visibility")
-	if err != nil {
-		return nil, portForward, err
-	}
-	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
-	connect, err = clickhouse.Connect(url)
-	if err != nil {
-		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
-	}
-	return connect, portForward, nil
 }

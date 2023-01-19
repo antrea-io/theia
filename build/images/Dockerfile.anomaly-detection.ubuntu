@@ -1,0 +1,17 @@
+FROM gcr.io/spark-operator/spark-py:v3.1.1
+
+LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
+LABEL description="A docker image to deploy Throughput Anomaly Detection Spark job."
+
+WORKDIR /opt/spark/work-dir
+USER root
+
+RUN apt-get --allow-releaseinfo-change update && \
+    apt-get install -y --no-install-recommends wget ca-certificates && \
+    wget https://github.com/ClickHouse/clickhouse-jdbc/releases/download/v0.3.1/clickhouse-jdbc-0.3.1.jar -P /opt/spark/jars/
+
+COPY plugins/anomaly-detection/AnomalyDetection.py /opt/spark/work-dir/AnomalyDetection.py
+COPY plugins/anomaly-detection/requirements.txt /opt/spark/work-dir/requirements.txt
+
+RUN pip3 install --upgrade pip && \
+    pip3 install -r  /opt/spark/work-dir/requirements.txt

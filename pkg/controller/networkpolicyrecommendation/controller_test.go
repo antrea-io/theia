@@ -41,6 +41,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	fakecrd "antrea.io/theia/pkg/client/clientset/versioned/fake"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
+	controllerutil "antrea.io/theia/pkg/controller"
 	"antrea.io/theia/pkg/util/clickhouse"
 	"antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
@@ -121,7 +122,7 @@ func createFakeSparkApplicationService(kubeClient kubernetes.Interface, id strin
 		}
 	}))
 
-	GetSparkMonitoringSvcDNS = func(id, namespace string) string {
+	GetSparkMonitoringSvcDNS = func(id, namespace string, sparkPort int) string {
 		return testServer.URL
 	}
 	return nil
@@ -464,7 +465,7 @@ func TestValidateCluster(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			kubeClient := fake.NewSimpleClientset()
 			tc.setupClient(kubeClient)
-			err := validateCluster(kubeClient, testNamespace)
+			err := controllerutil.ValidateCluster(kubeClient, testNamespace)
 			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})
 	}
@@ -504,9 +505,9 @@ func TestGetPolicyRecommendationProgress(t *testing.T) {
 			var err error
 			if tc.testServer != nil {
 				defer tc.testServer.Close()
-				_, _, err = getPolicyRecommendationProgress(tc.testServer.URL)
+				_, _, err = controllerutil.GetSparkAppProgress(tc.testServer.URL)
 			} else {
-				_, _, err = getPolicyRecommendationProgress("http://127.0.0.1")
+				_, _, err = controllerutil.GetSparkAppProgress("http://127.0.0.1")
 			}
 			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})

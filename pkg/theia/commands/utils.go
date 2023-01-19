@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"antrea.io/theia/pkg/apis"
+	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	stats "antrea.io/theia/pkg/apis/stats/v1alpha1"
 	"antrea.io/theia/pkg/apiserver/certificate"
@@ -228,4 +229,17 @@ func getClickHouseStatusByCategory(theiaClient restclient.Interface, name string
 		return status, fmt.Errorf("failed to get clickhouse %s status: %v", name, err)
 	}
 	return status, nil
+}
+
+func GetThroughputAnomalyDetectorByID(theiaClient restclient.Interface, name string) (tad anomalydetector.ThroughputAnomalyDetector, err error) {
+	err = theiaClient.Get().
+		AbsPath("/apis/anomalydetector.theia.antrea.io/v1alpha1/").
+		Resource("throughputanomalydetectors").
+		Name(name).
+		Do(context.TODO()).
+		Into(&tad)
+	if err != nil {
+		return tad, fmt.Errorf("failed to get Throughput Anomaly Detector job %s: %v", name, err)
+	}
+	return tad, nil
 }

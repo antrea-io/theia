@@ -9,14 +9,15 @@
 - [Features](#features)
   - [Network Flow Visualization and Monitoring](#network-flow-visualization-and-monitoring)
   - [NetworkPolicy Recommendation](#networkpolicy-recommendation)
+  - [Throughput Anomaly Detection](#throughput-anomaly-detection)
 - [Additional Information](#additional-information)
 <!-- /toc -->
 
 ## Overview
 
 Theia is a network observability and analytics platform for Kubernetes, built
-on top of [Antrea](https://github.com/antrea-io/antrea). Theia consumes [network
-flows exported by Antrea](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md)
+on top of [Antrea](https://github.com/antrea-io/antrea). Theia consumes
+[network flows exported by Antrea](https://github.com/antrea-io/antrea/blob/main/docs/network-flow-visibility.md)
 to provide fine-grained visibility into the communication and NetworkPolicies
 among Pods and Services in a Kubernetes cluster.
 
@@ -78,9 +79,10 @@ To install Flow Aggregator, please run the following command:
 helm install flow-aggregator antrea/flow-aggregator --set clickHouse.enable=true,recordContents.podLabels=true -n flow-aggregator --create-namespace
 ```
 
-To enable both [Grafana Flow Collector](network-flow-visibility.md) and
-[NetworkPolicy Recommendation](networkpolicy-recommendation.md), please install
-Theia by runnning the following commands:
+To enable [Grafana Flow Collector](network-flow-visibility.md),
+[NetworkPolicy Recommendation](networkpolicy-recommendation.md) and
+[Throughput Anomaly Detection](throughput-anomaly-detection.md), please install
+Theia by running the following commands:
 
 ```bash
 helm install theia antrea/theia --set sparkOperator.enable=true -n flow-visibility --create-namespace
@@ -88,14 +90,14 @@ helm install theia antrea/theia --set sparkOperator.enable=true -n flow-visibili
 
 From Theia v0.3, [Theia Command-line Tool](theia-cli.md) uses Theia Manager
 as a layer to connect and manage other resources like ClickHouse and Spark
-Operator. To enable Theia Manager, please install Theia by runnning the
+Operator. To enable Theia Manager, please install Theia by running the
 following commands:
 
 ```bash
 helm install theia antrea/theia --set sparkOperator.enable=true,theiaManager.enable=true -n flow-visibility --create-namespace
 ```
 
-To enable only Grafana Flow Collector, please install Theia by runnning the
+To enable only Grafana Flow Collector, please install Theia by running the
 following commands:
 
 ```bash
@@ -122,14 +124,19 @@ GRAFANA_NODEPORT=$(kubectl get svc grafana -n flow-visibility -o jsonpath='{.spe
 echo "=== Grafana Service is listening on ${NODE_IP}:${GRAFANA_NODEPORT} ==="
 ```
 
-You can access Grafana in your browser at: `http://[NodeIP]:[NodePort]`, and log
-in with username: `admin` and password: `admin`. Navigate to the [Theia
+You can access Grafana in your browser at: `http://[NodeIP]:[NodePort]`,
+and log in with username: `admin` and password: `admin`. Navigate to the [Theia
 dashboards](network-flow-visibility.md#grafana-dashboards) to view the network
 flows in the cluster.
 
 ### NetworkPolicy Recommendation
 
 Please follow the instructions in the [NetworkPolicy Recommendation](networkpolicy-recommendation.md)
+user guide.
+
+### Throughput Anomaly Detection
+
+Please follow the instructions in the [Throughput Anomaly Detection](throughput-anomaly-detection.md)
 user guide.
 
 ## Additional Information

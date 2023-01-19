@@ -442,52 +442,44 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 }
 
 func runJob(t *testing.T, data *TestData) (stdout string, jobName string, err error) {
-	cmd := "chmod +x ./theia"
-	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
-	if err != nil || rc != 0 {
-		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	stdout, jobName, err = RunJob(t, data, startCmd)
+	if err != nil {
+		return "", "", err
 	}
-	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), startCmd)
-	if err != nil || rc != 0 {
-		return "", "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
-	}
-	stdout = strings.TrimSuffix(stdout, "\n")
-	stdoutSlice := strings.Split(stdout, " ")
-	jobName = stdoutSlice[len(stdoutSlice)-1]
 	return stdout, jobName, nil
 }
 
 func getJobStatus(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
 	cmd := fmt.Sprintf("%s %s", statusCmd, jobName)
-	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
-	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	stdout, err = GetJobStatus(t, data, cmd)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSuffix(stdout, "\n"), nil
+	return stdout, nil
 }
 
 func listJobs(t *testing.T, data *TestData) (stdout string, err error) {
-	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), listCmd)
-	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", listCmd, controlPlaneNodeName(), err, stdout, stderr)
+	stdout, err = ListJobs(t, data, listCmd)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSuffix(stdout, "\n"), nil
+	return stdout, nil
 }
 
 func deleteJob(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
 	cmd := fmt.Sprintf("%s %s", deleteCmd, jobName)
-	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
-	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	stdout, err = DeleteJob(t, data, cmd)
+	if err != nil {
+		return "", err
 	}
-	return strings.TrimSuffix(stdout, "\n"), nil
+	return stdout, nil
 }
 
 func retrieveJobResult(t *testing.T, data *TestData, jobName string) error {
 	cmd := fmt.Sprintf("%s %s -f %s", retrieveCmd, jobName, policyOutputYML)
-	rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
-	if err != nil || rc != 0 {
-		return fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	_, err := RetrieveJobResult(t, data, cmd)
+	if err != nil {
+		return err
 	}
 	return nil
 }

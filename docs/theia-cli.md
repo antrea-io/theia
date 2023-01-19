@@ -9,6 +9,7 @@ visibility capabilities.
 - [Installation](#installation)
 - [Usage](#usage)
   - [NetworkPolicy Recommendation feature](#networkpolicy-recommendation-feature)
+  - [Throughput Anomaly Detection feature](#throughput-anomaly-detection-feature)
   - [ClickHouse](#clickhouse)
     - [Disk usage information](#disk-usage-information)
     - [Table Information](#table-information)
@@ -56,6 +57,19 @@ We currently have 5 commands for NetworkPolicy Recommendation:
 
 For details, please refer to [NetworkPolicy recommendation doc](
 networkpolicy-recommendation.md)
+
+### Throughput Anomaly Detection feature
+
+We currently have 5 commands for Throughput Anomaly Detection:
+
+- `theia throughput-anomaly-detection run`
+- `theia throughput-anomaly-detection status`
+- `theia throughput-anomaly-detection retrieve`
+- `theia throughput-anomaly-detection list`
+- `theia throughput-anomaly-detection delete`
+
+For details, please refer to [Throughput Anomaly Detection doc](
+throughput-anomaly-detection.md)
 
 ### ClickHouse
 

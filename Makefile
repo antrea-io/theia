@@ -216,6 +216,14 @@ policy-recommendation:
 	docker tag antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-policy-recommendation
 	docker tag antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION)
 
+.PHONY: anomaly-detection
+anomaly-detection:
+	@echo "===> Building antrea/theia-anomaly-detection Docker image <==="
+	docker build --pull -t antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.anomaly-detection.ubuntu .
+	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) antrea/theia-anomaly-detection
+	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-anomaly-detection
+	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION)
+
 THEIA_BINARIES := theia-darwin theia-linux theia-windows
 $(THEIA_BINARIES): theia-%:
 	@GOOS=$* $(GO) build -o $(BINDIR)/$@ $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/pkg/theia
@@ -231,3 +239,4 @@ theia: $(THEIA_BINARIES)
 .PHONY: theia-release
 theia-release:
 	@$(GO) build -o $(BINDIR)/$(THEIA_BINARY_NAME) $(GOFLAGS) -ldflags '-s -w $(LDFLAGS)' antrea.io/theia/pkg/theia
+

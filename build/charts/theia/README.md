@@ -73,9 +73,9 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.storage.createPersistentVolume.type | string | `"HostPath"` | Type of PersistentVolume. Can be set to "HostPath", "Local" or "NFS". Please set this value to use a PersistentVolume created by Theia. |
 | grafana.storage.persistentVolumeClaimSpec | object | `{}` | Specification for PersistentVolumeClaim. This is ignored if createPersistentVolume.type is non-empty. To use a custom PersistentVolume, please set storageClassName: "" volumeName: "<my-pv>". To dynamically provision a PersistentVolume, please set storageClassName: "<my-storage-class>". HostPath storage is used if both createPersistentVolume.type and persistentVolumeClaimSpec are empty. |
 | grafana.storage.size | string | `"1Gi"` | Grafana storage size. It is used to store Grafana configuration files. Can be a plain integer or as a fixed-point number using one of these quantity suffixes: E, P, T, G, M, K. Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki. |
-| sparkOperator.enable | bool | `false` | Determine whether to install Spark Operator. It is required to run Network Policy Recommendation jobs. |
+| sparkOperator.enable | bool | `false` | Determine whether to install Spark Operator. It is required to run Network Policy Recommendation and Throughput Anomaly Detection jobs. |
 | sparkOperator.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-spark-operator","tag":"v1beta2-1.3.3-3.1.1"}` | Container image used by Spark Operator. |
-| sparkOperator.name | string | `"policy-recommendation"` | Name of Spark Operator. |
+| sparkOperator.name | string | `"theia"` | Name of Spark Operator. |
 | theiaManager.apiServer.apiPort | int | `11347` | The port for the Theia Manager APIServer to serve on. |
 | theiaManager.apiServer.selfSignedCert | bool | `true` | Indicates whether to use auto-generated self-signed TLS certificates. If false, a Secret named "theia-manager-tls" must be provided with the following keys: ca.crt, tls.crt, tls.key. |
 | theiaManager.apiServer.tlsCipherSuites | string | `""` | Comma-separated list of cipher suites that will be used by the Theia Manager APIservers. If empty, the default Go Cipher Suites will be used. |

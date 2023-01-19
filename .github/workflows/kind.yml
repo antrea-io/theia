@@ -45,6 +45,23 @@ jobs:
         name: policy-recommendation
         path: policy-recommendation.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+
+  build-anomaly-detection-image:
+    name: Build Anomaly Detection image to be used for Kind e2e tests
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    runs-on: [ ubuntu-latest ]
+    steps:
+    - uses: actions/checkout@v3
+    - run: make anomaly-detection
+    - name: Save Anomaly Detection image to tarball
+      run: docker save -o anomaly-detection.tar antrea/theia-anomaly-detection
+    - name: Upload Anomaly Detection image for subsequent jobs
+      uses: actions/upload-artifact@v3
+      with:
+        name: anomaly-detection
+        path: anomaly-detection.tar
+        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
   
   build-clickhouse-monitor-image:
     name: Build ClickHouse monitor image to be used for Kind e2e tests
@@ -101,6 +118,7 @@ jobs:
     name: E2e tests on a Kind cluster on Linux
     needs: 
       - build-policy-recommendation-image
+      - build-anomaly-detection-image
       - build-clickhouse-monitor-image
       - build-clickhouse-server-image
       - build-theia-manager-image
@@ -123,6 +141,10 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: policy-recommendation
+      - name: Download Anomaly Detection images from previous jobs
+        uses: actions/download-artifact@v3
+        with:
+          name: anomaly-detection
       - name: Download ClickHouse monitor images from previous jobs
         uses: actions/download-artifact@v3
         with:
@@ -139,6 +161,8 @@ jobs:
         run:  |
           docker load -i policy-recommendation.tar
           docker tag antrea/theia-policy-recommendation:latest projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
+          docker load -i anomaly-detection.tar
+          docker tag antrea/theia-anomaly-detection:latest projects.registry.vmware.com/antrea/theia-anomaly-detection:latest
           docker load -i clickhouse-monitor.tar
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           docker load -i clickhouse-server.tar
@@ -229,6 +253,7 @@ jobs:
     name: Delete uploaded images
     needs:
     - build-policy-recommendation-image
+    - build-anomaly-detection-image
     - build-clickhouse-monitor-image
     - build-clickhouse-server-image
     - build-theia-manager-image
@@ -241,6 +266,11 @@ jobs:
       uses: geekyeggo/delete-artifact@v1
       with:
         name: policy-recommendation
+    - name: Delete anomaly-detection
+      if: ${{ needs.build-anomaly-detection-image.result == 'success' }}
+      uses: geekyeggo/delete-artifact@v1
+      with:
+        name: anomaly-detection
     - name: Delete clickhouse-monitor
       if: ${{ needs.build-clickhouse-monitor-image.result == 'success' }}
       uses: geekyeggo/delete-artifact@v1

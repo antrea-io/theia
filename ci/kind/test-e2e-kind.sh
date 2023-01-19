@@ -125,7 +125,8 @@ done
 COMMON_IMAGES_LIST+=("projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"\
                      "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest"\
                      "projects.registry.vmware.com/antrea/theia-clickhouse-server:latest"\
-                     "projects.registry.vmware.com/antrea/theia-manager:latest")
+                     "projects.registry.vmware.com/antrea/theia-manager:latest"\
+                     "projects.registry.vmware.com/antrea/theia-anomaly-detection:latest")
 
 printf -v COMMON_IMAGES "%s " "${COMMON_IMAGES_LIST[@]}"
 

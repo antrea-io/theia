@@ -35,4 +35,13 @@ rules:
       - supportbundles/download
     verbs:
       - get
+  - apiGroups:
+      - anomalydetector.theia.antrea.io
+    resources:
+      - throughputanomalydetectors
+    verbs:
+      - get
+      - list
+      - create
+      - delete
 {{- end }}

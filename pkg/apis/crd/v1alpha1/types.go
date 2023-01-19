@@ -29,6 +29,12 @@ const (
 	NPRecommendationStateRunning   string = "RUNNING"
 	NPRecommendationStateCompleted string = "COMPLETED"
 	NPRecommendationStateFailed    string = "FAILED"
+
+	ThroughputAnomalyDetectorStateNew       string = "NEW"
+	ThroughputAnomalyDetectorStateScheduled string = "SCHEDULED"
+	ThroughputAnomalyDetectorStateRunning   string = "RUNNING"
+	ThroughputAnomalyDetectorStateCompleted string = "COMPLETED"
+	ThroughputAnomalyDetectorStateFailed    string = "FAILED"
 )
 
 // +genclient
@@ -74,4 +80,44 @@ type NetworkPolicyRecommendationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []NetworkPolicyRecommendation `json:"items"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ThroughputAnomalyDetector struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   ThroughputAnomalyDetectorSpec   `json:"spec,omitempty"`
+	Status ThroughputAnomalyDetectorStatus `json:"status,omitempty"`
+}
+
+type ThroughputAnomalyDetectorSpec struct {
+	JobType             string      `json:"jobType,omitempty"`
+	StartInterval       metav1.Time `json:"startInterval,omitempty"`
+	EndInterval         metav1.Time `json:"endInterval,omitempty"`
+	ExecutorInstances   int         `json:"executorInstances,omitempty"`
+	DriverCoreRequest   string      `json:"driverCoreRequest,omitempty"`
+	DriverMemory        string      `json:"driverMemory,omitempty"`
+	ExecutorCoreRequest string      `json:"executorCoreRequest,omitempty"`
+	ExecutorMemory      string      `json:"executorMemory,omitempty"`
+}
+
+type ThroughputAnomalyDetectorStatus struct {
+	State            string      `json:"state,omitempty"`
+	SparkApplication string      `json:"sparkApplication,omitempty"`
+	CompletedStages  int         `json:"completedStages,omitempty"`
+	TotalStages      int         `json:"totalStages,omitempty"`
+	ErrorMsg         string      `json:"errorMsg,omitempty"`
+	StartTime        metav1.Time `json:"startTime,omitempty"`
+	EndTime          metav1.Time `json:"endTime,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ThroughputAnomalyDetectorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ThroughputAnomalyDetector `json:"items"`
 }

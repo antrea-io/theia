@@ -17,8 +17,11 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"database/sql"
 	"fmt"
 	"io"
+	"math/big"
 	"net"
 	"regexp"
 	"strconv"
@@ -28,6 +31,7 @@ import (
 
 	"github.com/containernetworking/plugins/pkg/ip"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/semver"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -50,6 +54,11 @@ import (
 	crdv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdclientset "antrea.io/antrea/pkg/client/clientset/versioned"
 
+	"antrea.io/theia/pkg/theia/commands"
+	"antrea.io/theia/pkg/theia/commands/config"
+	"antrea.io/theia/pkg/theia/portforwarder"
+	"antrea.io/theia/pkg/util/clickhouse"
+	"antrea.io/theia/pkg/util/k8s"
 	"antrea.io/theia/test/e2e/providers"
 )
 
@@ -96,6 +105,61 @@ const (
 	exporterActiveFlowExportTimeout    = 2 * time.Second
 	aggregatorActiveFlowRecordTimeout  = 3500 * time.Millisecond
 	aggregatorClickHouseCommitInterval = 1 * time.Second
+
+	insertQueryflowtable = `INSERT INTO flows (
+		flowStartSeconds,
+		flowEndSeconds,
+		flowEndSecondsFromSourceNode,
+		flowEndSecondsFromDestinationNode,
+		flowEndReason,
+		sourceIP,
+		destinationIP,
+		sourceTransportPort,
+		destinationTransportPort,
+		protocolIdentifier,
+		packetTotalCount,
+		octetTotalCount,
+		packetDeltaCount,
+		octetDeltaCount,
+		reversePacketTotalCount,
+		reverseOctetTotalCount,
+		reversePacketDeltaCount,
+		reverseOctetDeltaCount,
+		sourcePodName,
+		sourcePodNamespace,
+		sourceNodeName,
+		destinationPodName,
+		destinationPodNamespace,
+		destinationNodeName,
+		destinationClusterIP,
+		destinationServicePort,
+		destinationServicePortName,
+		ingressNetworkPolicyName,
+		ingressNetworkPolicyNamespace,
+		ingressNetworkPolicyRuleName,
+		ingressNetworkPolicyRuleAction,
+		ingressNetworkPolicyType,
+		egressNetworkPolicyName,
+		egressNetworkPolicyNamespace,
+		egressNetworkPolicyRuleName,
+		egressNetworkPolicyRuleAction,
+		egressNetworkPolicyType,
+		tcpState,
+		flowType,
+		sourcePodLabels,
+		destinationPodLabels,
+		throughput,
+		reverseThroughput,
+		throughputFromSourceNode,
+		throughputFromDestinationNode,
+		reverseThroughputFromSourceNode,
+		reverseThroughputFromDestinationNode,
+		clusterUUID)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+				?, ?, ?, ?, ?, ?, ?, ?)`
 )
 
 type FlowVisibiltiySetUpConfig struct {
@@ -1457,4 +1521,39 @@ func (data *TestData) Cleanup(namespaces []string) {
 func flowVisibilityCleanup(tb testing.TB, data *TestData, config FlowVisibiltiySetUpConfig) {
 	teardownTest(tb, data)
 	teardownFlowVisibility(tb, data, config)
+}
+
+func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
+	service := "clickhouse-clickhouse"
+	listenAddress := "localhost"
+	listenPort := 9000
+	_, servicePort, err := k8s.GetServiceAddr(clientset, service, config.FlowVisibilityNS, corev1.ProtocolTCP)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when getting the ClickHouse Service port: %v", err)
+	}
+	// Forward the ClickHouse service port
+	portForward, err = commands.StartPortForward(kubeconfig, service, servicePort, listenAddress, listenPort)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error when forwarding port: %v", err)
+	}
+	endpoint := fmt.Sprintf("tcp://%s:%d", listenAddress, listenPort)
+
+	// Connect to ClickHouse and execute query
+	username, password, err := clickhouse.GetSecret(clientset, "flow-visibility")
+	if err != nil {
+		return nil, portForward, err
+	}
+	url := fmt.Sprintf("%s?debug=false&username=%s&password=%s", endpoint, username, password)
+	connect, err = clickhouse.Connect(url)
+	if err != nil {
+		return nil, portForward, fmt.Errorf("error when connecting to ClickHouse, %v", err)
+	}
+	return connect, portForward, nil
+}
+
+func randInt(t *testing.T, limit int64) int64 {
+	assert := assert.New(t)
+	randNum, error := rand.Int(rand.Reader, big.NewInt(limit))
+	assert.NoError(error)
+	return randNum.Int64()
 }

@@ -137,3 +137,34 @@ jobs:
       run: |
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         docker push antrea/theia-manager:latest
+  
+  check-anomaly-detection-changes:
+    name: Check whether anomaly-detection image needs to be built based on diff
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: antrea-io/has-changes@v2
+      id: check_diff
+      with:
+        paths: plugins/anomaly-detection/* build/images/Dockerfile.anomaly-detection.ubuntu
+    outputs:
+      has_changes: ${{ steps.check_diff.outputs.has_changes }}
+
+  build-anomaly-detection:
+    needs: check-anomaly-detection-changes
+    if: ${{ needs.check-anomaly-detection-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
+    runs-on: [ubuntu-latest]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build anomaly-detection Docker image
+      run: make anomaly-detection
+    - name: Push anomaly-detection Docker image to registry
+      if: ${{ github.repository == 'antrea-io/theia' && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        docker push antrea/theia-anomaly-detection:latest

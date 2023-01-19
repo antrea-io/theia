@@ -32,3 +32,10 @@ type ClickHouseStatQuerier interface {
 	GetInsertRate(namespace string, stats *statsV1.ClickHouseStats) error
 	GetStackTrace(namespace string, stats *statsV1.ClickHouseStats) error
 }
+
+type ThroughputAnomalyDetectorQuerier interface {
+	GetThroughputAnomalyDetector(namespace, name string) (*v1alpha1.ThroughputAnomalyDetector, error)
+	ListThroughputAnomalyDetector(namespace string) ([]*v1alpha1.ThroughputAnomalyDetector, error)
+	DeleteThroughputAnomalyDetector(namespace, name string) error
+	CreateThroughputAnomalyDetector(namespace string, anomalydetector *v1alpha1.ThroughputAnomalyDetector) (*v1alpha1.ThroughputAnomalyDetector, error)
+}

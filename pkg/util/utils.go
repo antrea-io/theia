@@ -33,3 +33,26 @@ func ParseRecommendationName(npName string) error {
 	}
 	return nil
 }
+
+func ParseADAlgorithmName(algoName string) error {
+	switch algoName {
+	case
+		"EWMA",
+		"ARIMA",
+		"DBSCAN":
+		return nil
+	}
+	return fmt.Errorf("input name %s is not a valid Throughput Anomaly Detection algorithm name", algoName)
+}
+
+func ParseADAlgorithmID(tadName string) error {
+	if !strings.HasPrefix(tadName, "tad-") {
+		return fmt.Errorf("input name %s is not a valid Throughput Anomaly Detection job name", tadName)
+	}
+	id := tadName[4:]
+	_, err := uuid.Parse(id)
+	if err != nil {
+		return fmt.Errorf("input name %s does not contain a valid UUID, parsing error: %v", tadName, err)
+	}
+	return nil
+}

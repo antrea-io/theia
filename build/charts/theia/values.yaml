@@ -234,10 +234,10 @@ grafana:
       # volumeName: ""
 sparkOperator:
   # -- Determine whether to install Spark Operator. It is required to run Network
-  # Policy Recommendation jobs.
+  # Policy Recommendation and Throughput Anomaly Detection jobs.
   enable: false
   # -- Name of Spark Operator.
-  name: "policy-recommendation"
+  name: "theia"
   # -- Container image used by Spark Operator.
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-spark-operator"

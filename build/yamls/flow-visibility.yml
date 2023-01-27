@@ -513,8 +513,8 @@ data:
         else
             clickhouse client -h 127.0.0.1 -q "CREATE TABLE migrate_version (version String) engine=MergeTree ORDER BY version"
         fi
-        clickhouse client -h 127.0.0.1 -q "INSERT INTO migrate_version (*) VALUES ('0.4.0')"
-        echo "=== Set data schema version to 0.4.0 ==="
+        clickhouse client -h 127.0.0.1 -q "INSERT INTO migrate_version (*) VALUES ('0.5.0')"
+        echo "=== Set data schema version to 0.5.0 ==="
     }
 
     ../clickhouse-schema-management
@@ -6326,7 +6326,7 @@ spec:
         containers:
         - env:
           - name: THEIA_VERSION
-            value: 0.4.0
+            value: 0.5.0
           - name: CLICKHOUSE_INIT_TIMEOUT
             value: "60"
           - name: DB_URL

@@ -67,6 +67,8 @@ for build in "${THEIA_BUILDS[@]}"; do
     # for native builds. We ensure it is always disabled for portability since
     # these binaries will be distributed as release assets.
     GOOS=$os GOARCH=$arch CGO_ENABLED=0 THEIA_BINARY_NAME="theia-$suffix" BINDIR="$OUTPUT_DIR"/ make theia-release
+
+    GOOS=$os GOARCH=$arch CGO_ENABLED=0 CLI_BINARY_NAME="theia-sf-$suffix" BINDIR="$OUTPUT_DIR"/ make -C snowflake bin
 done
 
 

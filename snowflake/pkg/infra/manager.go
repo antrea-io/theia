@@ -282,7 +282,7 @@ func (m *Manager) run(ctx context.Context, destroy bool) (*Result, error) {
 	warehouseName := m.warehouseName
 	if !destroy {
 		logger.Info("Copying database migrations to disk")
-		if err := fileutils.WriteFSDirToDisk(ctx, logger, database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
+		if err := fileutils.WriteFSDirToDisk(database.Migrations, database.MigrationsPath, filepath.Join(workdir, migrationsDir)); err != nil {
 			return nil, err
 		}
 		logger.Info("Copied database migrations to disk")
@@ -463,7 +463,7 @@ func createUdfs(ctx context.Context, logger logr.Logger, databaseName string, wa
 
 	logger.Info("Copying UDFs to disk")
 	udfsDirPath := filepath.Join(workdir, udfsDir)
-	if err := fileutils.WriteFSDirToDisk(ctx, logger, udfs.UdfsFs, udfs.UdfsPath, udfsDirPath); err != nil {
+	if err := fileutils.WriteFSDirToDisk(udfs.UdfsFs, udfs.UdfsPath, udfsDirPath); err != nil {
 		return err
 	}
 	logger.Info("Copied UDFs to disk")

@@ -15,12 +15,10 @@
 package file
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,11 +26,10 @@ import (
 )
 
 func TestWriteFSDirToDisk(t *testing.T) {
-	var logger logr.Logger
 	tempDir, err := os.MkdirTemp("", "antrea-pulumi-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
-	err = WriteFSDirToDisk(context.TODO(), logger, database.Migrations, database.MigrationsPath, filepath.Join(tempDir, database.MigrationsPath))
+	err = WriteFSDirToDisk(database.Migrations, database.MigrationsPath, filepath.Join(tempDir, database.MigrationsPath))
 	require.NoError(t, err)
 	entries, err := database.Migrations.ReadDir(database.MigrationsPath)
 	require.NoError(t, err)

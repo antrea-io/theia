@@ -102,7 +102,7 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 	return nil
 }
 
-func WriteFSDirToDisk(ctx context.Context, logger logr.Logger, fsys fs.FS, fsysPath string, dest string) error {
+func WriteFSDirToDisk(fsys fs.FS, fsysPath string, dest string) error {
 	if err := os.MkdirAll(dest, 0755); err != nil {
 		return err
 	}

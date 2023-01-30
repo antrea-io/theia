@@ -17,6 +17,13 @@ all: theia
 
 include versioning.mk
 
+VERSION_LDFLAGS = -X antrea.io/theia/pkg/version.Version=$(VERSION)
+VERSION_LDFLAGS += -X antrea.io/theia/pkg/version.GitSHA=$(GIT_SHA)
+VERSION_LDFLAGS += -X antrea.io/theia/pkg/version.GitTreeState=$(GIT_TREE_STATE)
+VERSION_LDFLAGS += -X antrea.io/theia/pkg/version.ReleaseStatus=$(RELEASE_STATUS)
+
+LDFLAGS += $(VERSION_LDFLAGS)
+
 UNAME_S := $(shell uname -s)
 
 .PHONY: bin

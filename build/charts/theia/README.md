@@ -53,12 +53,12 @@ Kubernetes: `>= 1.16.0-0`
 | grafana.homeDashboard | string | `"homepage.json"` | Default home dashboard. |
 | grafana.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-grafana","tag":"8.3.3"}` | Container image used by Grafana. |
 | grafana.installPlugins | list | `["https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin","https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin","grafana-clickhouse-datasource 1.0.1"]` | Grafana plugins to install. |
-| grafana.log | object | `{"daily_rotate":"true","level":"info","log_rotate":"true","max_days":"7","max_lines":"10.4.0-dev0","max_size_shift":"27","mode":"console file"}` | Grafana logging options. |
+| grafana.log | object | `{"daily_rotate":"true","level":"info","log_rotate":"true","max_days":"7","max_lines":"1000000","max_size_shift":"27","mode":"console file"}` | Grafana logging options. |
 | grafana.log.daily_rotate | string | `"true"` | Enable daily rotation of files, valid options are false or true. Default is true. Only applicable when “file” used in [log] mode. |
 | grafana.log.level | string | `"info"` | Logging level. Options are “debug”, “info”, “warn”, “error”, and “critical”. Default is info. |
 | grafana.log.log_rotate | string | `"true"` | Enable automated log rotation, valid options are false or true. Default is true. When enabled use the max_lines, max_size_shift, daily_rotate and max_days to configure the behavior of the log rotation. Only applicable when “file” used in [log] mode. |
 | grafana.log.max_days | string | `"7"` | Maximum number of days to keep log files. Default is "7". Only applicable when “file” used in [log] mode. |
-| grafana.log.max_lines | string | `"10.4.0-dev0"` | Maximum lines per file before rotating it. Default is "10.4.0-dev0". Only applicable when “file” used in [log] mode. |
+| grafana.log.max_lines | string | `"1000000"` | Maximum lines per file before rotating it. Default is "1000000". Only applicable when “file” used in [log] mode. |
 | grafana.log.max_size_shift | string | `"27"` | Maximum size of file before rotating it. Default is "27", which means 1 << 27, 128MB. Only applicable when “file” used in [log] mode. |
 | grafana.log.mode | string | `"console file"` | Logging mode. Options are “console”, “file”, and “syslog”. Default is “console” and “file”. Use spaces to separate multiple modes, e.g. console file |
 | grafana.loginSecret | object | `{"password":"admin","username":"admin"}` | Credentials to login to Grafana. They will be stored in a Secret. |

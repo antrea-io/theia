@@ -53,12 +53,6 @@ subjects:
 ---
 apiVersion: v1
 data:
-  0-3-0_0-2-0.sql: |
-    --Alter table to drop new columns
-    ALTER TABLE flows
-    DROP clusterUUID String;
-    ALTER TABLE flows_local
-    DROP clusterUUID String;
   000001_0-1-0.down.sql: ""
   000001_0-1-0.up.sql: |
     --Create a table to store records
@@ -482,7 +476,7 @@ data:
         engine=Distributed('{cluster}', default, recommendations_local, rand());
     EOSQL
     }
-  init.sh: |+
+  init.sh: |
     #!/usr/bin/env bash
 
     # Copyright 2022 Antrea Authors.
@@ -504,23 +498,8 @@ data:
     THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
     source $THIS_DIR/create_table.sh
-
-    # This function is kept to be compatible with version below v0.3.0
-    function setDataVersion {
-        tables=$(clickhouse client -h 127.0.0.1 -q "SHOW TABLES")
-        if [[ $tables == *"migrate_version"* ]]; then
-            clickhouse client -h 127.0.0.1 -q "ALTER TABLE migrate_version DELETE WHERE version!=''"
-        else
-            clickhouse client -h 127.0.0.1 -q "CREATE TABLE migrate_version (version String) engine=MergeTree ORDER BY version"
-        fi
-        clickhouse client -h 127.0.0.1 -q "INSERT INTO migrate_version (*) VALUES ('0.5.0')"
-        echo "=== Set data schema version to 0.5.0 ==="
-    }
-
     ../clickhouse-schema-management
     createTable
-    setDataVersion
-
 kind: ConfigMap
 metadata:
   name: clickhouse-mounted-configmap
@@ -6386,8 +6365,6 @@ spec:
               path: create_table.sh
             - key: init.sh
               path: init.sh
-            - key: 0-3-0_0-2-0.sql
-              path: migrators/downgrade/0-3-0_0-2-0.sql
             - key: 000001_0-1-0.down.sql
               path: migrators/000001_0-1-0.down.sql
             - key: 000001_0-1-0.up.sql

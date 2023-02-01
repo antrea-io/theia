@@ -239,6 +239,10 @@ you use PersistentVolume for ClickHouse. To downgrade from v0.2 to v0.1, you
 need to uninstall ClickHouse, delete related data if you use PersistenVolume
 and redeploy it.
 
+In v0.3, we add a breaking change to ClickHouse data migration. To downgrade
+from a version after v0.3 to a version before v0.3 without data lossing, please
+first downgrade it to v0.3 and then to the version below v0.3.
+
 A ClickHouse cluster consists of one or more shards. Shards refer to the servers
 that contain different parts of the data. You can deploy multiple shards to scale
 the cluster horizontally. Each shard consists of one or more replica hosts.

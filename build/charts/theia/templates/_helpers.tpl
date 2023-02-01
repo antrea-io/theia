@@ -78,10 +78,6 @@
       - key: {{ regexReplaceAll "(.*)/" $path "" }}
         path: {{ regexReplaceAll "(.*)/" $path "" }}
       {{- end }}
-      {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/downgrade/*" }}
-      - key: {{ regexReplaceAll "(.*)/" $path "" }}
-        path: migrators/downgrade/{{ regexReplaceAll "(.*)/" $path "" }}
-      {{- end }}
       {{- range $path, $_ :=  $Files.Glob  "provisioning/datasources/migrators/*.sql" }}
       - key: {{ regexReplaceAll "(.*)/" $path "" }}
         path: migrators/{{ regexReplaceAll "(.*)/" $path "" }}

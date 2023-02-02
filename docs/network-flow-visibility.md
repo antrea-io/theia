@@ -29,6 +29,7 @@
     - [Pod-to-Service Flows Dashboard](#pod-to-service-flows-dashboard)
     - [Node-to-Node Flows Dashboard](#node-to-node-flows-dashboard)
     - [Network-Policy Flows Dashboard](#network-policy-flows-dashboard)
+    - [Network Topology Dashboard](#network-topology-dashboard)
   - [Dashboard Customization](#dashboard-customization)
 <!-- /toc -->
 
@@ -753,6 +754,31 @@ Mouse over or click on source/destination highlights only the related traffic.
 Mouse out or click on the background will bring all the traffic back.
 
 <img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
+
+#### Network Topology Dashboard
+
+Network Topology Dashboard visualizes Pod-to-Pod and Pod-to-Service traffic,
+including intra-Node traffic as well. Pods labels are visually grouped by Node.
+Each arrow points from the source to the destination, and is labelled by the
+amount of data transmitted.
+
+<img src="" width="900" alt="Network Topology Dashboard">
+
+Users can filter graph results based on the number of flow records, as well as
+the source and destination pod names.
+
+We can filter on desired fields, e.g. for number of flow records:
+
+- 100
+- 1000
+- 2500
+- 5000
+- 7500
+- 10000
+
+Here is an example if we filter to show the last 1000 flows.
+
+<img src="" width="900" alt="Network Topology Dashboard">
 
 ### Dashboard Customization
 

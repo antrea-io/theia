@@ -3010,6 +3010,214 @@ data:
         "version": 6,
         "weekStart": ""
     }
+  network_topology_dashboard.json: |-
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 9,
+      "iteration": 1670439260106,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "gridPos": {
+            "h": 35,
+            "w": 23,
+            "x": 0,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "seriesCountSize": "sm",
+            "showSeriesCount": false,
+            "text": "Default value of text input option"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "format": 1,
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE   ( destinationPodName IS NOT NULL AND destinationPodName != '' AND destinationPodName != 'undefined' )\nAND ( sourcePodName IS NOT NULL AND sourcePodName != '' AND sourcePodName != 'undefined' )\nAND ( octetDeltaCount IS NOT NULL AND octetDeltaCount != 0)\nAND ( sourcePodNamespace IN ${querySourcePodNamespace:raw} )\nAND ( destinationPodNamespace IN ${queryDestinationPodNamespace:raw} )\nAND ( CAST(flowType AS varchar) IN ${queryFlowType:raw} )\nAND $__timeFilter(flowEndSeconds)\nLIMIT ${queryNumFlows}",
+              "refId": "A"
+            }
+          ],
+          "title": "Network Topology",
+          "type": "theia-grafana-dependency-plugin"
+        }
+      ],
+      "refresh": "",
+      "schemaVersion": 34,
+      "style": "dark",
+      "tags": [],
+      "templating": {
+        "list": [
+          {
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "definition": "SELECT distinct concat('''',sourcePodNamespace,'''') FROM flows",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Source Pod Namespace",
+            "multi": true,
+            "name": "querySourcePodNamespace",
+            "options": [],
+            "query": "SELECT distinct concat('''',sourcePodNamespace,'''') FROM flows",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 0,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "definition": "SELECT distinct concat('''',destinationPodNamespace,''') FROM flows",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Destination Pod Namespace",
+            "multi": true,
+            "name": "queryDestinationPodNamespace",
+            "options": [],
+            "query": "SELECT distinct concat('''',destinationPodNamespace,''') FROM flows",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 0,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": true,
+              "text": [
+                "All"
+              ],
+              "value": [
+                "$__all"
+              ]
+            },
+            "definition": "SELECT distinct concat('''',flowType,'''') FROM flows",
+            "hide": 0,
+            "includeAll": true,
+            "label": "Flow Type",
+            "multi": true,
+            "name": "queryFlowType",
+            "options": [],
+            "query": "SELECT distinct concat('''',flowType,'''') FROM flows",
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": false,
+            "sort": 0,
+            "type": "query"
+          },
+          {
+            "current": {
+              "selected": false,
+              "text": "100",
+              "value": "100"
+            },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Number of Flows",
+            "multi": false,
+            "name": "queryNumFlows",
+            "options": [
+              {
+                "selected": true,
+                "text": "100",
+                "value": "100"
+              },
+              {
+                "selected": false,
+                "text": "1000",
+                "value": "1000"
+              },
+              {
+                "selected": false,
+                "text": "2500",
+                "value": "2500"
+              },
+              {
+                "selected": false,
+                "text": "5000",
+                "value": "5000"
+              },
+              {
+                "selected": false,
+                "text": "7500",
+                "value": "7500"
+              },
+              {
+                "selected": false,
+                "text": "10000",
+                "value": "10000"
+              }
+            ],
+            "query": "100, 1000, 2500, 5000, 7500, 10000",
+            "queryValue": "",
+            "skipUrlSync": false,
+            "type": "custom"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-6h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "network_topology_dashboard",
+      "uid": "yRVDEad4k",
+      "version": 2,
+      "weekStart": ""
+    }
   networkpolicy_dashboard.json: |
     {
       "annotations": {
@@ -6211,7 +6419,7 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin,grafana-clickhouse-datasource
+          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/pre2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
             1.0.1
         - name: CLICKHOUSE_USERNAME
           valueFrom:

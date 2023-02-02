@@ -85,23 +85,23 @@ class StaticPolicyRecommendation:
        return
 
     def process(self,
-                jobType,
-                recommendationId,
-                isolationMethod,
-                nsAllowList):
-        self._jobType = jobType
-        self._recommendationId = recommendationId
-        self._nsAllowList = nsAllowList
-        self._isolationMethod = isolationMethod
+                job_type,
+                recommendation_id,
+                isolation_method,
+                ns_allow_list):
+        self._job_type = job_type
+        self._recommendation_id = recommendation_id
+        self._ns_allow_list = ns_allow_list
+        self._isolation_method = isolation_method
         yield None
     
     def end_partition(self):
-        if self._nsAllowList:
-            ns_allow_policies = recommend_policies_for_ns_allow_list(self._nsAllowList.split(','))
+        if self._ns_allow_list:
+            ns_allow_policies = recommend_policies_for_ns_allow_list(self._ns_allow_list.split(','))
             for policy in ns_allow_policies:
-                result = Result(self._jobType, self._recommendationId, policy)
+                result = Result(self._job_type, self._recommendation_id, policy)
                 yield(result.job_type, result.recommendation_id, result.time_created, result.yamls)
-        if self._isolationMethod == 2:
+        if self._isolation_method == 2:
             reject_all_policy = reject_all_acnp()
-            result = Result(self._jobType, self._recommendationId, reject_all_policy)
+            result = Result(self._job_type, self._recommendation_id, reject_all_policy)
             yield(result.job_type, result.recommendation_id, result.time_created, result.yamls)

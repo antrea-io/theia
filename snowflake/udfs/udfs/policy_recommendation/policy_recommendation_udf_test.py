@@ -323,23 +323,23 @@ spec:
 
     def process_flows(self,
                       flows,
-                      jobType="initial",
-                      isolationMethod=3,
-                      nsAllowList="kube-system,flow-aggregator,flow-visibility"
+                      job_type="initial",
+                      isolation_method=3,
+                      ns_allow_list="kube-system,flow-aggregator,flow-visibility"
                       ):
         for flow in flows:
             next(self.policy_recommendation.process(
-                jobType=jobType,
-                recommendationId="",
-                isolationMethod=isolationMethod,
-                nsAllowList=nsAllowList,
-                appliedTo=flow[0],
+                job_type=job_type,
+                recommendation_id="",
+                isolation_method=isolation_method,
+                ns_allow_list=ns_allow_list,
+                applied_to=flow[0],
                 ingress=flow[1],
                 egress=flow[2]
             ))
 
     def test_end_partition(self):
-        for isolationMethod, flows_processed, expected_policies in [
+        for isolation_method, flows_processed, expected_policies in [
             (1, self.flows_processed[0], [self.expected_allow_antrea_policies[0]] + [self.expected_reject_acnp[0]]),
             (1, self.flows_processed[1], [self.expected_allow_antrea_policies[1]] + [self.expected_reject_acnp[1]]),
             (1, self.flows_processed[2], [self.expected_allow_antrea_policies[2]] + [self.expected_reject_acnp[2]]),
@@ -351,7 +351,7 @@ spec:
             (3, self.flows_processed[2], [self.expected_k8s_policies[2]]),
         ]:
             self.setup()
-            self.process_flows(isolationMethod=isolationMethod, flows=flows_processed)
+            self.process_flows(isolation_method=isolation_method, flows=flows_processed)
             # Initialize the random number generator to get predictable generated policy names
             random.seed(0)
             for expected_policy, result in zip(expected_policies, self.policy_recommendation.end_partition()):

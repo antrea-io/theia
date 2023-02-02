@@ -16,6 +16,7 @@
 - [Clean up](#clean-up)
 - [Running applications](#running-applications)
   - [NetworkPolicy Recommendation](#networkpolicy-recommendation)
+  - [Abnormal Traffic Drop Detector](#abnormal-traffic-drop-detector)
 - [Network flow visibility with Grafana](#network-flow-visibility-with-grafana)
   - [Configure datasource](#configure-datasource)
   - [Deployments](#deployments)
@@ -164,6 +165,30 @@ take seconds to minutes depending on the number of flows. We recommend using a
 if you are working on a big dataset. If no warehouse is provided by the
 `--warehouse-name` option, we will create a temporary X-Small size warehouse by
 default. Running NetworkPolicy Recommendation will consume Snowflake credits,
+the amount of which will depend on the size of the warehouse and the contents
+of the database.
+
+### Abnormal Traffic Drop Detector
+
+The Abnormal Traffic Drop Detector scans flow records stored in the database
+and detects any unreasonable amount of flows dropped or blocked by
+NetworkPolicy for each endpoint, then reports alerts to users. It helps
+identify potential issues with NetworkPolicies and potential security threats.
+Also, it could alert admins to take appropriate action to mitigate them.
+
+```bash
+# make sure you have called onboard before running drop-detection
+./bin/theia-sf drop-detection --database-name <SNOWFLAKE DATABASE NAME>
+```
+
+Database name can be found in the output of the [onboard](#getting-started)
+command.
+
+Just like for NetworkPolicy Recommendation, the Abnormal Traffic Drop
+Detector requires a Snowflake warehouse to execute and may take seconds to
+minutes depending on the number of flows. If no warehouse is provided by the
+`--warehouse-name` option, we will create a temporary X-Small size warehouse by
+default. Running Abnormal Traffic Drop Detector will consume Snowflake credits,
 the amount of which will depend on the size of the warehouse and the contents
 of the database.
 

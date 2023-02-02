@@ -1,19 +1,19 @@
 create or replace function preprocessing_%VERSION%(
-	jobType STRING(20),
-	isolationMethod NUMBER(1, 0),
-	nsAllowList STRING(10000),
-	labelIgnoreList STRING(10000),
-	sourcePodNamespace STRING(256),
-	sourcePodLabels STRING(10000),
-	destinationIP STRING(50),
-	destinationPodNamespace STRING(256),
-	destinationPodLabels STRING(10000),
-	destinationServicePortName STRING(256),
-	destinationTransportPort NUMBER(5, 0),
-	protocolIdentifier NUMBER(3, 0),
-	flowType NUMBER(3, 0)
+	job_type STRING(20),
+	isolation_method NUMBER(1, 0),
+	ns_allow_list STRING(10000),
+	label_ignore_list STRING(10000),
+	source_pod_namespace STRING(256),
+	source_pod_labels STRING(10000),
+	destination_ip STRING(50),
+	destination_pod_namespace STRING(256),
+	destination_pod_labels STRING(10000),
+	destination_service_port_name STRING(256),
+	destination_transport_port NUMBER(5, 0),
+	protocol_identifier NUMBER(3, 0),
+	flow_type NUMBER(3, 0)
 )
-returns table ( appliedTo STRING,
+returns table ( applied_to STRING,
                 ingress STRING,
                 egress STRING )
 language python
@@ -22,17 +22,17 @@ imports=('@UDFS/policy_recommendation_%VERSION%.zip')
 handler='policy_recommendation/preprocessing_udf.PreProcessing';
 
 create or replace function policy_recommendation_%VERSION%(
-       jobType STRING(20),
-       recommendationId STRING(40),
-       isolationMethod NUMBER(1, 0),
-       nsAllowList STRING(10000),
-       appliedTo STRING,
+       job_type STRING(20),
+       recommendation_id STRING(40),
+       isolation_method NUMBER(1, 0),
+       ns_allow_list STRING(10000),
+       applied_to STRING,
        ingress STRING,
        egress STRING
 )
-returns table ( jobType STRING(20),
-                recommendationId STRING(40),
-                timeCreated TIMESTAMP_NTZ,
+returns table ( job_type STRING(20),
+                recommendation_id STRING(40),
+                time_created TIMESTAMP_NTZ,
                 yamls STRING )
 language python
 runtime_version=3.8
@@ -41,14 +41,14 @@ imports=('@UDFS/policy_recommendation_%VERSION%.zip', '@UDFS/kubernetes.zip')
 handler='policy_recommendation/policy_recommendation_udf.PolicyRecommendation';
 
 create or replace function static_policy_recommendation_%VERSION%(
-       jobType STRING(20),
-       recommendationId STRING(40),
-       isolationMethod NUMBER(1, 0),
-       nsAllowList STRING(10000)
+       job_type STRING(20),
+       recommendation_id STRING(40),
+       isolation_method NUMBER(1, 0),
+       ns_allow_list STRING(10000)
 )
-returns table ( jobType STRING(20),
-                recommendationId STRING(40),
-                timeCreated TIMESTAMP_NTZ,
+returns table ( job_type STRING(20),
+                recommendation_id STRING(40),
+                time_created TIMESTAMP_NTZ,
                 yamls STRING )
 language python
 runtime_version=3.8

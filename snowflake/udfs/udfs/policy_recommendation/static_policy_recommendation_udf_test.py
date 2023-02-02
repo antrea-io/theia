@@ -95,25 +95,25 @@ spec:
         self.static_policy_recommendation = StaticPolicyRecommendation()
 
     def process(self,
-                jobType="initial",
-                recommendationId="",
-                isolationMethod=1,
-                nsAllowList=""):
+                job_type="initial",
+                recommendation_id="",
+                isolation_method=1,
+                ns_allow_list=""):
         next(self.static_policy_recommendation.process(
-            jobType=jobType,
-            recommendationId=recommendationId,
-            isolationMethod=isolationMethod,
-            nsAllowList=nsAllowList,
+            job_type=job_type,
+            recommendation_id=recommendation_id,
+            isolation_method=isolation_method,
+            ns_allow_list=ns_allow_list,
         ))
     
     def test_end_partition(self):
-        for isolationMethod, nsAllowList, expected_policies in [
+        for isolation_method, ns_allow_list, expected_policies in [
             (1, "kube-system,flow-aggregator,flow-visibility", self.expected_ns_allow_policies),
             (2, "", self.expected_reject_all_acnp),
             (3, "", []),
         ]:
             self.setup()
-            self.process(isolationMethod=isolationMethod, nsAllowList=nsAllowList)
+            self.process(isolation_method=isolation_method, ns_allow_list=ns_allow_list)
             random.seed(0)
             for expected_policy, result in zip(expected_policies, self.static_policy_recommendation.end_partition()):
                 _, _, _, yamls = result

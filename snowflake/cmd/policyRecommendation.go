@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	staticPolicyRecommendationFunctionName = "static_policy_recommendation"
-	preprocessingFunctionName              = "preprocessing"
-	policyRecommendationFunctionName       = "policy_recommendation"
-	defaultFunctionVersion                 = "v0.1.0"
-	defaultWaitTimeout                     = "10m"
+	staticPolicyRecommendationFunctionName     = "static_policy_recommendation"
+	preprocessingFunctionName                  = "preprocessing"
+	policyRecommendationFunctionName           = "policy_recommendation"
+	defaultPolicyRecommendationFunctionVersion = "v0.1.1"
+	defaultPolicyRecommendationWaitTimeout     = "10m"
 	// Limit the number of rows per partition to avoid hitting the 5 minutes end_partition() timeout.
 	partitionSizeLimit = 50000
 )
@@ -55,7 +55,7 @@ func buildPolicyRecommendationUdfQuery(
 	recommendationID := uuid.New().String()
 	functionName := udfs.GetFunctionName(staticPolicyRecommendationFunctionName, functionVersion)
 	var queryBuilder strings.Builder
-	fmt.Fprintf(&queryBuilder, `SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM
+	fmt.Fprintf(&queryBuilder, `SELECT r.job_type, r.recommendation_id, r.time_created, r.yamls FROM
 	TABLE(%s(
 	  '%s',
 	  '%s',
@@ -151,7 +151,7 @@ LIMIT 500000`)
 	// Choose the destinationIP as the partition field for the preprocessing
 	// UDTF because flow rows could be divided into the most subsets
 	functionName = udfs.GetFunctionName(preprocessingFunctionName, functionVersion)
-	fmt.Fprintf(&queryBuilder, `), processed_flows AS (SELECT r.appliedTo, r.ingress, r.egress FROM filtered_flows AS f,
+	fmt.Fprintf(&queryBuilder, `), processed_flows AS (SELECT r.applied_to, r.ingress, r.egress FROM filtered_flows AS f,
 TABLE(%s(
 	'%s',
 	%d,
@@ -169,31 +169,31 @@ TABLE(%s(
 ) over (partition by f.destinationIP)) as r
 `, functionName, jobType, isolationMethod, nsAllowList, labelIgnoreList)
 
-	// Scan the row number for each appliedTo group and divide the partitions
+	// Scan the row number for each applied_to group and divide the partitions
 	// larger than partitionSizeLimit.
 	fmt.Fprintf(&queryBuilder, `), pf_with_index AS (
 SELECT 
-  pf.appliedTo, 
+  pf.applied_to, 
   pf.ingress, 
   pf.egress, 
-  floor((Row_number() over (partition by pf.appliedTo order by egress))/%d) as row_index 
+  floor((Row_number() over (partition by pf.applied_to order by egress))/%d) as row_index 
 FROM processed_flows as pf
 `, partitionSizeLimit)
 
-	// Choose the appliedTo as the partition field for the policyRecommendation
+	// Choose the applied_to as the partition field for the policyRecommendation
 	// UDTF because each network policy is recommended based on all ingress and
-	// egress traffic related to an appliedTo group.
+	// egress traffic related to an applied_to group.
 	functionName = udfs.GetFunctionName(policyRecommendationFunctionName, functionVersion)
-	fmt.Fprintf(&queryBuilder, `) SELECT r.jobType, r.recommendationId, r.timeCreated, r.yamls FROM pf_with_index,
+	fmt.Fprintf(&queryBuilder, `) SELECT r.job_type, r.recommendation_id, r.time_created, r.yamls FROM pf_with_index,
 TABLE(%s(
   '%s',
   '%s',
   %d,
   '%s',
-  pf_with_index.appliedTo,
+  pf_with_index.applied_to,
   pf_with_index.ingress,
   pf_with_index.egress
-) over (partition by pf_with_index.appliedTo, pf_with_index.row_index)) as r
+) over (partition by pf_with_index.applied_to, pf_with_index.row_index)) as r
 `, functionName, jobType, recommendationID, isolationMethod, nsAllowList)
 
 	return queryBuilder.String(), nil
@@ -216,7 +216,7 @@ You can also bring your own by using the "--warehouse-name" parameter.
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		jobType, _ := cmd.Flags().GetString("type")
-		if jobType != "initial" && jobType != "subsequent" {
+		if jobType != "initial" {
 			return fmt.Errorf("invalid --type argument")
 		}
 		limit, _ := cmd.Flags().GetUint("limit")
@@ -296,7 +296,7 @@ If no UUID is provided, all flows will be considered during policy recommendatio
 	policyRecommendationCmd.Flags().String("database-name", "", "Snowflake database name to run policy recommendation, it can be found in the output of the onboard command")
 	policyRecommendationCmd.MarkFlagRequired("database-name")
 	policyRecommendationCmd.Flags().String("warehouse-name", "", "Snowflake Virtual Warehouse to use for running policy recommendation, by default we will use a temporary one")
-	policyRecommendationCmd.Flags().String("udf-version", defaultFunctionVersion, "Version of the UDF function to use")
-	policyRecommendationCmd.Flags().String("wait-timeout", defaultWaitTimeout, "Wait timeout of the recommendation job (e.g., 5m, 100s)")
+	policyRecommendationCmd.Flags().String("udf-version", defaultPolicyRecommendationFunctionVersion, "Version of the UDF function to use")
+	policyRecommendationCmd.Flags().String("wait-timeout", defaultPolicyRecommendationWaitTimeout, "Wait timeout of the recommendation job (e.g., 5m, 100s)")
 
 }

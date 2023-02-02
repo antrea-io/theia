@@ -1245,7 +1245,7 @@ func (data *TestData) waitForClickHousePod() error {
 	if err == wait.ErrWaitTimeout {
 		clickHousePodName := fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 		_, stdout, _, _ := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s describe pod %s", flowVisibilityNamespace, clickHousePodName))
-		return fmt.Errorf("ClickHouse StatefulSet not ready within %v; kubectl describe pod output: %v", defaultTimeout, stdout)
+		return fmt.Errorf("ClickHouse StatefulSet not ready within %v; kubectl describe pod output: %v", defaultTimeout*2, stdout)
 	} else if err != nil {
 		return err
 	}

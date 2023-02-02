@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 
 	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
@@ -75,7 +76,7 @@ func TestREST_Get(t *testing.T) {
 			resultRows := sqlmock.NewRows([]string{"policy"}).AddRow(policy1).AddRow(policy2)
 			mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnRows(resultRows)
 
-			setupClickHouseConnection = func() (connect *sql.DB, err error) {
+			setupClickHouseConnection = func(client kubernetes.Interface) (connect *sql.DB, err error) {
 				return db, nil
 			}
 			r := NewREST(&fakeQuerier{})

@@ -32,10 +32,10 @@ const (
 	usernameKey         = "CLICKHOUSE_USERNAME"
 	passwordKey         = "CLICKHOUSE_PASSWORD"
 	urlKey              = "CLICKHOUSE_URL"
-	serviceName         = "clickhouse-clickhouse"
-	servicePortProtocal = "TCP"
+	ServiceName         = "clickhouse-clickhouse"
+	ServicePortProtocal = "TCP"
 	// #nosec G101: false positive triggered by variable name which includes "secret"
-	secretName = "clickhouse-secret"
+	SecretName = "clickhouse-secret"
 )
 
 var (
@@ -43,8 +43,8 @@ var (
 	createK8sClient = k8s.CreateK8sClient
 )
 
-func SetupConnection() (connect *sql.DB, err error) {
-	url, err := getClickHouseURL()
+func SetupConnection(client kubernetes.Interface) (connect *sql.DB, err error) {
+	url, err := getClickHouseURL(client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ClickHouse URL: %v", err)
 	}
@@ -74,7 +74,7 @@ func Connect(url string) (*sql.DB, error) {
 }
 
 func GetSecret(client kubernetes.Interface, namespace string) (username string, password string, err error) {
-	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := client.CoreV1().Secrets(namespace).Get(context.TODO(), SecretName, metav1.GetOptions{})
 	if err != nil {
 		return username, password, fmt.Errorf("error when finding the ClickHouse secret. Error: %v", err)
 	}
@@ -91,17 +91,19 @@ func GetSecret(client kubernetes.Interface, namespace string) (username string, 
 	return username, password, nil
 }
 
-func getClickHouseURL() (url string, err error) {
+func getClickHouseURL(client kubernetes.Interface) (url string, err error) {
 	baseURL := os.Getenv(urlKey)
 	username := os.Getenv(usernameKey)
 	password := os.Getenv(passwordKey)
 
 	if baseURL == "" || username == "" || password == "" {
-		client, err := createK8sClient()
-		if err != nil {
-			return url, fmt.Errorf("failed to create k8s client: %v", err)
+		if client == nil {
+			client, err = createK8sClient()
+			if err != nil {
+				return url, fmt.Errorf("failed to create k8s client: %v", err)
+			}
 		}
-		serviceIP, servicePort, err := k8s.GetServiceAddr(client, serviceName, env.GetTheiaNamespace(), servicePortProtocal)
+		serviceIP, servicePort, err := k8s.GetServiceAddr(client, ServiceName, env.GetTheiaNamespace(), ServicePortProtocal)
 		if err != nil {
 			return url, fmt.Errorf("error when getting the ClickHouse Service address: %v", err)
 		}

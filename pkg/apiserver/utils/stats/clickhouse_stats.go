@@ -148,7 +148,7 @@ func (c *ClickHouseStatQuerierImpl) GetStackTrace(namespace string, stats *v1alp
 func (c *ClickHouseStatQuerierImpl) getDataFromClickHouse(query int, namespace string, stats *v1alpha1.ClickHouseStats) error {
 	var err error
 	if c.clickhouseConnect == nil {
-		c.clickhouseConnect, err = clickhouse.SetupConnection()
+		c.clickhouseConnect, err = clickhouse.SetupConnection(nil)
 		if err != nil {
 			return err
 		}

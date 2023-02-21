@@ -20,114 +20,12 @@ jobs:
       run: |
         mkdir assets
         VERSION="${TAG:10}" ./hack/release/prepare-assets.sh ./assets
-    - name: Upload flow-visibility.yml
-      uses: actions/upload-release-asset@v1
+    - name: Upload all assets
+      uses: alexellis/upload-assets@0.4.0
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/flow-visibility.yml
-        asset_name: flow-visibility.yml
-        asset_content_type: application/octet-stream
-    - name: Upload theia-darwin-x86_64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-darwin-x86_64
-        asset_name: theia-darwin-x86_64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-linux-arm
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-linux-arm
-        asset_name: theia-linux-arm
-        asset_content_type: application/octet-stream
-    - name: Upload theia-linux-arm64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-linux-arm64
-        asset_name: theia-linux-arm64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-linux-x86_64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-linux-x86_64
-        asset_name: theia-linux-x86_64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-windows-x86_64.exe
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-windows-x86_64.exe
-        asset_name: theia-windows-x86_64.exe
-        asset_content_type: application/octet-stream
-    - name: Upload theia-sf-darwin-x86_64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-sf-darwin-x86_64
-        asset_name: theia-sf-darwin-x86_64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-sf-linux-arm
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-sf-linux-arm
-        asset_name: theia-sf-linux-arm
-        asset_content_type: application/octet-stream
-    - name: Upload theia-sf-linux-arm64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-sf-linux-arm64
-        asset_name: theia-sf-linux-arm64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-sf-linux-x86_64
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-sf-linux-x86_64
-        asset_name: theia-sf-linux-x86_64
-        asset_content_type: application/octet-stream
-    - name: Upload theia-sf-windows-x86_64.exe
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-sf-windows-x86_64.exe
-        asset_name: theia-sf-windows-x86_64.exe
-        asset_content_type: application/octet-stream
-    - name: Upload Theia Helm chart archive
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./assets/theia-chart.tgz
-        asset_name: theia-chart.tgz
-        asset_content_type: application/octet-stream
+        asset_paths: '["./assets/*"]'
 
   update-website:
     name: Trigger website update for release

@@ -1,0 +1,16 @@
+coverage:
+  status:
+    patch:
+      default:
+        target: auto
+        threshold: 5.0
+    project:
+      default:
+        target: auto
+comment:
+  layout: reach, diff, files
+  behavior: default
+ignore:
+- (?s:.*/[^\/]*generate[^\/]*\.go.*)\Z
+- ^pkg/client.*
+- ^third_party.*

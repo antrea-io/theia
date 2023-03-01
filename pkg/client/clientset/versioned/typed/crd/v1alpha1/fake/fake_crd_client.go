@@ -1,4 +1,4 @@
-// Copyright 2022 Antrea Authors
+// Copyright 2023 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,10 @@ type FakeCrdV1alpha1 struct {
 
 func (c *FakeCrdV1alpha1) NetworkPolicyRecommendations(namespace string) v1alpha1.NetworkPolicyRecommendationInterface {
 	return &FakeNetworkPolicyRecommendations{c, namespace}
+}
+
+func (c *FakeCrdV1alpha1) ThroughputAnomalyDetectors(namespace string) v1alpha1.ThroughputAnomalyDetectorInterface {
+	return &FakeThroughputAnomalyDetectors{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

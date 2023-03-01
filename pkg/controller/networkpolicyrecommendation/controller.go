@@ -39,6 +39,7 @@ import (
 	"antrea.io/theia/pkg/client/clientset/versioned"
 	crdv1a1informers "antrea.io/theia/pkg/client/informers/externalversions/crd/v1alpha1"
 	"antrea.io/theia/pkg/client/listers/crd/v1alpha1"
+	controllerutil "antrea.io/theia/pkg/controller"
 	"antrea.io/theia/pkg/util"
 	"antrea.io/theia/pkg/util/clickhouse"
 	"antrea.io/theia/pkg/util/env"
@@ -61,18 +62,18 @@ const (
 	sparkImage           = "projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"
 	sparkImagePullPolicy = "IfNotPresent"
 	sparkAppFile         = "local:///opt/spark/work-dir/policy_recommendation_job.py"
-	sparkServiceAccount  = "policy-recommendation-spark"
+	sparkServiceAccount  = "theia-spark"
 	sparkVersion         = "3.1.1"
 	sparkPort            = 4040
 )
 
 var (
 	// Spark Application CRUD functions, for unit tests
-	CreateSparkApplication   = createSparkApplication
-	DeleteSparkApplication   = deleteSparkApplication
-	ListSparkApplication     = listSparkApplicationWithLabel
-	GetSparkApplication      = getSparkApplication
-	GetSparkMonitoringSvcDNS = getSparkMonitoringSvcDNS
+	CreateSparkApplication   = controllerutil.CreateSparkApplication
+	DeleteSparkApplication   = controllerutil.DeleteSparkApplication
+	ListSparkApplication     = controllerutil.ListSparkApplicationWithLabel
+	GetSparkApplication      = controllerutil.GetSparkApplication
+	GetSparkMonitoringSvcDNS = controllerutil.GetSparkMonitoringSvcDNS
 	// For NPR in scheduled or running state, check its status periodically
 	npRecommendationResyncPeriod = 10 * time.Second
 	sparkAppLabelMap             = map[string]string{"app": "theia-npr"}
@@ -232,7 +233,7 @@ func (c *NPRecommendationController) handleStaleDbEntries() error {
 			return fmt.Errorf("failed to connect ClickHouse: %v", err)
 		}
 	}
-	idList, err := getPolicyRecommendationIds(c.clickhouseConnect)
+	idList, err := controllerutil.GetPolicyRecommendationIds(c.clickhouseConnect)
 	if err != nil {
 		return fmt.Errorf("failed to get recommendation ids from ClickHouse: %v", err)
 	}
@@ -241,7 +242,8 @@ func (c *NPRecommendationController) handleStaleDbEntries() error {
 		_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), "pr-"+id)
 		if err != nil {
 			if apimachineryerrors.IsNotFound(err) {
-				err = deletePolicyRecommendationResult(c.clickhouseConnect, id)
+				query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
+				err = controllerutil.DeleteSparkResult(c.clickhouseConnect, query, id)
 				if err != nil {
 					errorList = append(errorList, err)
 				}
@@ -464,7 +466,8 @@ func (c *NPRecommendationController) cleanupNPRecommendation(namespace string, s
 			return err
 		}
 	}
-	return deletePolicyRecommendationResult(c.clickhouseConnect, sparkApplicationId)
+	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
+	return controllerutil.DeleteSparkResult(c.clickhouseConnect, query, sparkApplicationId)
 }
 
 func (c *NPRecommendationController) finishJob(npReco *crdv1alpha1.NetworkPolicyRecommendation) error {
@@ -500,8 +503,8 @@ func (c *NPRecommendationController) updateProgress(npReco *crdv1alpha1.NetworkP
 	if state != crdv1alpha1.NPRecommendationStateRunning {
 		return nil
 	}
-	endpoint := GetSparkMonitoringSvcDNS(npReco.Status.SparkApplication, npReco.Namespace)
-	completedStages, totalStages, err := getPolicyRecommendationProgress(endpoint)
+	endpoint := GetSparkMonitoringSvcDNS(npReco.Status.SparkApplication, npReco.Namespace, sparkPort)
+	completedStages, totalStages, err := controllerutil.GetSparkAppProgress(endpoint)
 	if err != nil {
 		// The Spark Monitoring Service may not start or closed at this point due to the async
 		// between Spark operator and this controller.
@@ -566,12 +569,12 @@ func (c *NPRecommendationController) checkSparkApplicationStatus(npReco *crdv1al
 
 func (c *NPRecommendationController) startJob(npReco *crdv1alpha1.NetworkPolicyRecommendation) error {
 	// Validate Cluster readiness
-	if err := validateCluster(c.kubeClient, npReco.Namespace); err != nil {
+	if err := controllerutil.ValidateCluster(c.kubeClient, npReco.Namespace); err != nil {
 		return err
 	}
 	err := c.startSparkApplication(npReco)
 	// Mark the NetworkPolicyRecommendation as failed and not retry if it failed due to illegal arguments in request
-	if err != nil && reflect.TypeOf(err) == reflect.TypeOf(IlleagelArguementError{}) {
+	if err != nil && reflect.TypeOf(err) == reflect.TypeOf(illeagelArguementError{}) {
 		return c.updateNPRecommendationStatus(
 			npReco,
 			crdv1alpha1.NetworkPolicyRecommendationStatus{
@@ -593,12 +596,13 @@ func (c *NPRecommendationController) startJob(npReco *crdv1alpha1.NetworkPolicyR
 func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.NetworkPolicyRecommendation) error {
 	var recoJobArgs []string
 	if npReco.Spec.JobType != "initial" && npReco.Spec.JobType != "subsequent" {
-		return IlleagelArguementError{fmt.Errorf("invalid request: recommendation type should be 'initial' or 'subsequent'")}
+		return illeagelArguementError{
+			fmt.Errorf("invalid request: recommendation type should be 'initial' or 'subsequent'")}
 	}
 	recoJobArgs = append(recoJobArgs, "--type", npReco.Spec.JobType)
 
 	if npReco.Spec.Limit < 0 {
-		return IlleagelArguementError{fmt.Errorf("invalid request: limit should be an integer >= 0")}
+		return illeagelArguementError{fmt.Errorf("invalid request: limit should be an integer >= 0")}
 	}
 	recoJobArgs = append(recoJobArgs, "--limit", strconv.Itoa(npReco.Spec.Limit))
 
@@ -610,7 +614,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	} else if npReco.Spec.PolicyType == "k8s-np" {
 		policyTypeArg = 3
 	} else {
-		return IlleagelArguementError{fmt.Errorf("invalid request: type of generated NetworkPolicy should be anp-deny-applied or anp-deny-all or k8s-np")}
+		return illeagelArguementError{fmt.Errorf("invalid request: type of generated NetworkPolicy should be anp-deny-applied or anp-deny-all or k8s-np")}
 	}
 	recoJobArgs = append(recoJobArgs, "--option", strconv.Itoa(policyTypeArg))
 
@@ -620,7 +624,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	if !npReco.Spec.EndInterval.IsZero() {
 		endAfterStart := npReco.Spec.EndInterval.After(npReco.Spec.StartInterval.Time)
 		if !endAfterStart {
-			return IlleagelArguementError{fmt.Errorf("invalid request: EndInterval should be after StartInterval")}
+			return illeagelArguementError{fmt.Errorf("invalid request: EndInterval should be after StartInterval")}
 		}
 		recoJobArgs = append(recoJobArgs, "--end_time", npReco.Spec.EndInterval.Format(inputTimeFormat))
 	}
@@ -643,37 +647,37 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	}{}
 
 	if npReco.Spec.ExecutorInstances < 0 {
-		return IlleagelArguementError{fmt.Errorf("invalid request: ExecutorInstances should be an integer >= 0")}
+		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorInstances should be an integer >= 0")}
 	}
 	sparkResourceArgs.executorInstances = int32(npReco.Spec.ExecutorInstances)
 
 	matchResult, err := regexp.MatchString(k8sQuantitiesReg, npReco.Spec.DriverCoreRequest)
 	if err != nil || !matchResult {
-		return IlleagelArguementError{fmt.Errorf("invalid request: DriverCoreRequest should conform to the Kubernetes resource quantity convention")}
+		return illeagelArguementError{fmt.Errorf("invalid request: DriverCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverCoreRequest = npReco.Spec.DriverCoreRequest
 
 	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.DriverMemory)
 	if err != nil || !matchResult {
-		return IlleagelArguementError{fmt.Errorf("invalid request: DriverMemory should conform to the Kubernetes resource quantity convention")}
+		return illeagelArguementError{fmt.Errorf("invalid request: DriverMemory should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverMemory = npReco.Spec.DriverMemory
 
 	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.ExecutorCoreRequest)
 	if err != nil || !matchResult {
-		return IlleagelArguementError{fmt.Errorf("invalid request: ExecutorCoreRequest should conform to the Kubernetes resource quantity convention")}
+		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.executorCoreRequest = npReco.Spec.ExecutorCoreRequest
 
 	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.ExecutorMemory)
 	if err != nil || !matchResult {
-		return IlleagelArguementError{fmt.Errorf("invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention")}
+		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.executorMemory = npReco.Spec.ExecutorMemory
 
 	err = util.ParseRecommendationName(npReco.Name)
 	if err != nil {
-		return IlleagelArguementError{fmt.Errorf("invalid request: Policy recommendation job name is invalid: %s", err)}
+		return illeagelArguementError{fmt.Errorf("invalid request: Policy recommendation job name is invalid: %s", err)}
 	}
 	recommendationID := npReco.Name[3:]
 	recoJobArgs = append(recoJobArgs, "--id", recommendationID)
@@ -691,9 +695,9 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 			Type:                "Python",
 			SparkVersion:        sparkVersion,
 			Mode:                "cluster",
-			Image:               constStrToPointer(sparkImage),
-			ImagePullPolicy:     constStrToPointer(sparkImagePullPolicy),
-			MainApplicationFile: constStrToPointer(sparkAppFile),
+			Image:               controllerutil.ConstStrToPointer(sparkImage),
+			ImagePullPolicy:     controllerutil.ConstStrToPointer(sparkImagePullPolicy),
+			MainApplicationFile: controllerutil.ConstStrToPointer(sparkAppFile),
 			Arguments:           recoJobArgs,
 			Driver: sparkv1.DriverSpec{
 				CoreRequest: &npReco.Spec.DriverCoreRequest,
@@ -712,7 +716,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 							Key:  "password",
 						},
 					},
-					ServiceAccount: constStrToPointer(sparkServiceAccount),
+					ServiceAccount: controllerutil.ConstStrToPointer(sparkServiceAccount),
 				},
 			},
 			Executor: sparkv1.ExecutorSpec{
@@ -804,4 +808,19 @@ func (c *NPRecommendationController) DeleteNetworkPolicyRecommendation(namespace
 
 func (c *NPRecommendationController) CreateNetworkPolicyRecommendation(namespace string, networkPolicyRecommendation *crdv1alpha1.NetworkPolicyRecommendation) (*crdv1alpha1.NetworkPolicyRecommendation, error) {
 	return c.crdClient.CrdV1alpha1().NetworkPolicyRecommendations(namespace).Create(context.TODO(), networkPolicyRecommendation, metav1.CreateOptions{})
+}
+
+func getPolicyRecommendationStatus(client kubernetes.Interface, id string, namespace string) (state string, errorMessage string, err error) {
+	sparkApplication, err := GetSparkApplication(client, "pr-"+id, namespace)
+	if err != nil {
+		return state, errorMessage, err
+	}
+	state = strings.TrimSpace(string(sparkApplication.Status.AppState.State))
+	errorMessage = strings.TrimSpace(string(sparkApplication.Status.AppState.ErrorMessage))
+
+	return state, errorMessage, nil
+}
+
+type illeagelArguementError struct {
+	error
 }

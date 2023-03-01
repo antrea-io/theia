@@ -20,6 +20,12 @@ NetworkPolicy configuration to secure Kubernetes network and applications.
 Please refer to the [NetworkPolicy Recommendation](docs/networkpolicy-recommendation.md)
 user guide to learn more.
 
+Theia also provides throughput anomaly detection, it can find the anomalies
+in the network, and report them to the user.
+Please refer to the
+[Throughput Anomaly Detection](docs/throughput-anomaly-detection.md) user
+guide to learn more.
+
 ## Contributing
 
 The Antrea community welcomes new contributors. We are waiting for your PRs!

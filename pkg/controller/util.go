@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package networkpolicyrecommendation
+package controller
 
 import (
 	"context"
@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,23 +29,23 @@ import (
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
-func constStrToPointer(constStr string) *string {
+func ConstStrToPointer(constStr string) *string {
 	return &constStr
 }
 
-func validateCluster(client kubernetes.Interface, namespace string) error {
-	err := checkPodByLabel(client, namespace, "app=clickhouse")
+func ValidateCluster(client kubernetes.Interface, namespace string) error {
+	err := CheckPodByLabel(client, namespace, "app=clickhouse")
 	if err != nil {
 		return fmt.Errorf("failed to find the ClickHouse Pod, please check the deployment, error: %v", err)
 	}
-	err = checkPodByLabel(client, namespace, "app.kubernetes.io/name=spark-operator")
+	err = CheckPodByLabel(client, namespace, "app.kubernetes.io/name=spark-operator")
 	if err != nil {
 		return fmt.Errorf("failed to find the Spark Operator Pod, please check the deployment, error: %v", err)
 	}
 	return nil
 }
 
-func checkPodByLabel(client kubernetes.Interface, namespace string, label string) error {
+func CheckPodByLabel(client kubernetes.Interface, namespace string, label string) error {
 	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
 		LabelSelector: label,
 	})
@@ -69,18 +68,7 @@ func checkPodByLabel(client kubernetes.Interface, namespace string, label string
 	return nil
 }
 
-func getPolicyRecommendationStatus(client kubernetes.Interface, id string, namespace string) (state string, errorMessage string, err error) {
-	sparkApplication, err := GetSparkApplication(client, "pr-"+id, namespace)
-	if err != nil {
-		return state, errorMessage, err
-	}
-	state = strings.TrimSpace(string(sparkApplication.Status.AppState.State))
-	errorMessage = strings.TrimSpace(string(sparkApplication.Status.AppState.ErrorMessage))
-
-	return state, errorMessage, nil
-}
-
-func getResponseFromSparkMonitoringSvc(url string) ([]byte, error) {
+func GetResponseFromSparkMonitoringSvc(url string) ([]byte, error) {
 	sparkMonitoringClient := http.Client{}
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -103,10 +91,10 @@ func getResponseFromSparkMonitoringSvc(url string) ([]byte, error) {
 	return body, nil
 }
 
-func getPolicyRecommendationProgress(baseUrl string) (completedStages int, totalStages int, err error) {
+func GetSparkAppProgress(baseUrl string) (completedStages int, totalStages int, err error) {
 	// Get the id of current Spark application
 	url := fmt.Sprintf("%s/api/v1/applications", baseUrl)
-	response, err := getResponseFromSparkMonitoringSvc(url)
+	response, err := GetResponseFromSparkMonitoringSvc(url)
 	if err != nil {
 		return completedStages, totalStages, fmt.Errorf("failed to get response from the Spark Monitoring Service: %v", err)
 	}
@@ -118,7 +106,7 @@ func getPolicyRecommendationProgress(baseUrl string) (completedStages int, total
 	sparkAppID := getAppsResult[0]["id"]
 	// Check the percentage of completed stages
 	url = fmt.Sprintf("%s/api/v1/applications/%s/stages", baseUrl, sparkAppID)
-	response, err = getResponseFromSparkMonitoringSvc(url)
+	response, err = GetResponseFromSparkMonitoringSvc(url)
 	if err != nil {
 		return completedStages, totalStages, fmt.Errorf("failed to get response from the Spark Monitoring Service: %v", err)
 	}
@@ -135,16 +123,15 @@ func getPolicyRecommendationProgress(baseUrl string) (completedStages int, total
 	return completedStages, totalStages, nil
 }
 
-func deletePolicyRecommendationResult(connect *sql.DB, id string) (err error) {
-	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);"
-	_, err = connect.Exec(query, id)
+func DeleteSparkResult(connect *sql.DB, query string, id string) (err error) {
+	_, err = connect.Exec(query)
 	if err != nil {
-		return fmt.Errorf("failed to delete recommendation result with id %s: %v", id, err)
+		return fmt.Errorf("failed to delete throughput anomaly detector result with id %s: %v", id, err)
 	}
 	return nil
 }
 
-func getPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
+func GetPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
 	query := "SELECT DISTINCT id FROM recommendations;"
 	rows, err := connect.Query(query)
 	if err != nil {
@@ -163,7 +150,7 @@ func getPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
 	return idList, nil
 }
 
-func getSparkApplication(client kubernetes.Interface, name string, namespace string) (sparkApp sparkv1.SparkApplication, err error) {
+func GetSparkApplication(client kubernetes.Interface, name string, namespace string) (sparkApp sparkv1.SparkApplication, err error) {
 	err = client.CoreV1().RESTClient().Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
 		Namespace(namespace).
@@ -177,7 +164,7 @@ func getSparkApplication(client kubernetes.Interface, name string, namespace str
 	return sparkApp, nil
 }
 
-func listSparkApplicationWithLabel(client kubernetes.Interface, label string) (*sparkv1.SparkApplicationList, error) {
+func ListSparkApplicationWithLabel(client kubernetes.Interface, label string) (*sparkv1.SparkApplicationList, error) {
 	sparkApplicationList := &sparkv1.SparkApplicationList{}
 	err := client.CoreV1().RESTClient().Get().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
@@ -189,7 +176,17 @@ func listSparkApplicationWithLabel(client kubernetes.Interface, label string) (*
 	return sparkApplicationList, err
 }
 
-func deleteSparkApplication(client kubernetes.Interface, name string, namespace string) {
+func ListSparkApplication(client kubernetes.Interface, namespace string) (*sparkv1.SparkApplicationList, error) {
+	sparkApplicationList := &sparkv1.SparkApplicationList{}
+	err := client.CoreV1().RESTClient().Get().
+		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
+		Namespace(namespace).
+		Resource("sparkapplications").
+		Do(context.TODO()).Into(sparkApplicationList)
+	return sparkApplicationList, err
+}
+
+func DeleteSparkApplication(client kubernetes.Interface, name string, namespace string) {
 	client.CoreV1().RESTClient().Delete().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
 		Namespace(namespace).
@@ -198,22 +195,18 @@ func deleteSparkApplication(client kubernetes.Interface, name string, namespace 
 		Do(context.TODO())
 }
 
-func createSparkApplication(client kubernetes.Interface, namespace string, recommendationApplication *sparkv1.SparkApplication) error {
+func CreateSparkApplication(client kubernetes.Interface, namespace string, sparkApplication *sparkv1.SparkApplication) error {
 	response := &sparkv1.SparkApplication{}
 	return client.CoreV1().RESTClient().
 		Post().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
 		Namespace(namespace).
 		Resource("sparkapplications").
-		Body(recommendationApplication).
+		Body(sparkApplication).
 		Do(context.TODO()).
 		Into(response)
 }
 
-type IlleagelArguementError struct {
-	error
-}
-
-func getSparkMonitoringSvcDNS(id string, namespace string) string {
+func GetSparkMonitoringSvcDNS(id string, namespace string, sparkPort int) string {
 	return fmt.Sprintf("http://pr-%s-ui-svc.%s.svc:%d", id, namespace, sparkPort)
 }

@@ -245,6 +245,8 @@ if $THEIA_MANAGER; then
    mkdir manager
    cp $CRDS_DIR/network-policy-recommendation-crd.yaml manager/network-policy-recommendation-crd.yaml
    $KUSTOMIZE edit add base manager/network-policy-recommendation-crd.yaml
+   cp $CRDS_DIR/anomaly-detector-crd.yaml manager/anomaly-detector-crd.yaml
+   $KUSTOMIZE edit add base manager/anomaly-detector-crd.yaml
 fi
 
 $KUSTOMIZE build

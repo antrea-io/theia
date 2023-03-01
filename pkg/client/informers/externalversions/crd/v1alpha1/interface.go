@@ -1,4 +1,4 @@
-// Copyright 2022 Antrea Authors
+// Copyright 2023 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import (
 type Interface interface {
 	// NetworkPolicyRecommendations returns a NetworkPolicyRecommendationInformer.
 	NetworkPolicyRecommendations() NetworkPolicyRecommendationInformer
+	// ThroughputAnomalyDetectors returns a ThroughputAnomalyDetectorInformer.
+	ThroughputAnomalyDetectors() ThroughputAnomalyDetectorInformer
 }
 
 type version struct {
@@ -40,4 +42,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // NetworkPolicyRecommendations returns a NetworkPolicyRecommendationInformer.
 func (v *version) NetworkPolicyRecommendations() NetworkPolicyRecommendationInformer {
 	return &networkPolicyRecommendationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ThroughputAnomalyDetectors returns a ThroughputAnomalyDetectorInformer.
+func (v *version) ThroughputAnomalyDetectors() ThroughputAnomalyDetectorInformer {
+	return &throughputAnomalyDetectorInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

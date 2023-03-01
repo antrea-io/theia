@@ -36,6 +36,7 @@ import (
 	"antrea.io/theia/pkg/apiserver/utils/stats"
 	crdclientset "antrea.io/theia/pkg/client/clientset/versioned"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
+	"antrea.io/theia/pkg/controller/anomalydetector"
 	"antrea.io/theia/pkg/controller/networkpolicyrecommendation"
 	"antrea.io/theia/pkg/querier"
 )
@@ -54,6 +55,7 @@ func createAPIServerConfig(
 	tlsMinVersion uint16,
 	nprq querier.NPRecommendationQuerier,
 	chq querier.ClickHouseStatQuerier,
+	tadq querier.ThroughputAnomalyDetectorQuerier,
 ) (*apiserver.Config, error) {
 	secureServing := genericoptions.NewSecureServingOptions().WithLoopback()
 	authentication := genericoptions.NewDelegatingAuthenticationOptions()
@@ -96,7 +98,8 @@ func createAPIServerConfig(
 		kubeConfig,
 		caCertController,
 		nprq,
-		chq), nil
+		chq,
+		tadq), nil
 }
 
 func run(o *Options) error {
@@ -128,6 +131,8 @@ func run(o *Options) error {
 	crdInformerFactory := crdinformers.NewSharedInformerFactory(crdClient, informerDefaultResync)
 	npRecommendationInformer := crdInformerFactory.Crd().V1alpha1().NetworkPolicyRecommendations()
 	npRecoController := networkpolicyrecommendation.NewNPRecommendationController(crdClient, kubeClient, npRecommendationInformer)
+	taDetectorInformer := crdInformerFactory.Crd().V1alpha1().ThroughputAnomalyDetectors()
+	taDetectorController := anomalydetector.NewAnomalyDetectorController(crdClient, kubeClient, taDetectorInformer)
 	clickHouseStatQuerierImpl := stats.NewClickHouseStatQuerierImpl(kubeClient)
 
 	cipherSuites, err := cipher.GenerateCipherSuitesList(o.config.APIServer.TLSCipherSuites)
@@ -143,7 +148,8 @@ func run(o *Options) error {
 		cipherSuites,
 		cipher.TLSVersionMap[o.config.APIServer.TLSMinVersion],
 		npRecoController,
-		clickHouseStatQuerierImpl)
+		clickHouseStatQuerierImpl,
+		taDetectorController)
 	if err != nil {
 		return fmt.Errorf("error creating API server config: %v", err)
 	}
@@ -154,6 +160,7 @@ func run(o *Options) error {
 
 	crdInformerFactory.Start(stopCh)
 	go npRecoController.Run(stopCh)
+	go taDetectorController.Run(stopCh)
 	go apiServer.Run(ctx)
 
 	<-stopCh

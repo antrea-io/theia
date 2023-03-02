@@ -1,0 +1,105 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "target": {
+          "limit": 100,
+          "matchAny": false,
+          "tags": [],
+          "type": "dashboard"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 4,
+  "iteration": 1677633025540,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "gridPos": {
+        "h": 35,
+        "w": 23,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "seriesCountSize": "sm",
+        "showSeriesCount": false,
+        "text": "Default value of text input option"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "format": 1,
+          "meta": {
+            "builderOptions": {
+              "fields": [],
+              "limit": 100,
+              "mode": "list"
+            }
+          },
+          "queryType": "sql",
+          "rawSql": "SELECT sourcePodName, sourcePodNamespace, sourceNodeName, destinationPodName, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Network Topology",
+      "type": "theia-grafana-dependency-plugin"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 34,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "PDEE91DDB90597936"
+        },
+        "filters": [],
+        "hide": 0,
+        "name": "Filter",
+        "skipUrlSync": false,
+        "type": "adhoc"
+      },
+      {
+        "hide": 2,
+        "name": "clickhouse_adhoc_query",
+        "query": "default.flows",
+        "skipUrlSync": false,
+        "type": "constant"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "network_topology_dashboard",
+  "uid": "yRVDEad4k",
+  "version": 1,
+  "weekStart": ""
+}

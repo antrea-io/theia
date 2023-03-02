@@ -44,6 +44,7 @@ const (
 	podToExternalDashboardUid          = "K9SPrnJ7k"
 	nodeToNodeDashboardUid             = "1F56RJh7z"
 	networkPolicyDashboardUid          = "KJNMOwQnk"
+	networkTopologyDashboardUid        = "yRVDEad4k"
 )
 
 var (
@@ -316,6 +317,17 @@ var grafanaTestCases = []struct {
 				queryId:      6,
 				panelName:    "Throughput of Egress Deny NetworkPolicy",
 				expectResult: []string{egressRejectANPName, egressDropANPName},
+			},
+		},
+	},
+	{
+		dashboardName: "network_topology_dashboard",
+		dashboardUid:  networkTopologyDashboardUid,
+		queryList: []query{
+			{
+				queryId:      0,
+				panelName:    "Network Topology",
+				expectResult: []string{controlPlaneNodeName(), workerNodeName(1), "perftest-a", "perftest-b", "perftest-c", "perftest-d", "perftest-e", "antrea-test/perftest-b", "antrea-test/perftest-c"},
 			},
 		},
 	},

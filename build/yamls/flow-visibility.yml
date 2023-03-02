@@ -2329,7 +2329,7 @@ data:
                 },
                 "id": 27,
                 "options": {
-                    "content": "The following six dashboards are pre-built and are recommended for network flow\nvisualization.\n\n<span style=\"color:rgb(184, 119, 217)\">Flow Records Dashboard</span> displays the flow records being captured in the selected\ntime range.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Pod Flows Dashboard</span> shows cumulative bytes and throughput of Pod-to-Pod\ntraffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-External Flows Dashboard</span> shows cumulative bytes and throughput of\ntraffic from in-cluster to out-of-cluster. The destination of such a traffic flow\nis represented by the destination IP address.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Service Flows Dashboard</span> shows cumulative bytes and throughput of\nPod-to-Service flows. The destination of such a traffic is represented by the\ndestination Service metadata.\n\n<span style=\"color:rgb(184, 119, 217)\">Node-to-Node Flows Dashboard</span> visualizes the Node-to-Node traffic, including intra-Node\nand inter-Node flows.\n\n<span style=\"color:rgb(184, 119, 217)\">Network-Policy Flows Dashboard</span> visualizes both the traffic with NetworkPolicies enforced,\nand unprotected traffic.",
+                    "content": "The following seven dashboards are pre-built and are recommended for network flow\nvisualization.\n\n<span style=\"color:rgb(184, 119, 217)\">Flow Records Dashboard</span> displays the flow records being captured in the selected\ntime range.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Pod Flows Dashboard</span> shows cumulative bytes and throughput of Pod-to-Pod\ntraffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-External Flows Dashboard</span> shows cumulative bytes and throughput of\ntraffic from in-cluster to out-of-cluster. The destination of such a traffic flow\nis represented by the destination IP address.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Service Flows Dashboard</span> shows cumulative bytes and throughput of\nPod-to-Service flows. The destination of such a traffic is represented by the\ndestination Service metadata.\n\n<span style=\"color:rgb(184, 119, 217)\">Node-to-Node Flows Dashboard</span> visualizes the Node-to-Node traffic, including intra-Node\nand inter-Node flows.\n\n<span style=\"color:rgb(184, 119, 217)\">Network-Policy Flows Dashboard</span> visualizes both the traffic with NetworkPolicies enforced,\nand unprotected traffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Network Topology Dashboard</span> visualizes both Pod-to-Pod and Pod-to-Service traffic via a graph.",
                     "mode": "markdown"
                 },
                 "pluginVersion": "8.3.3",
@@ -3066,6 +3066,112 @@ data:
         "uid": "Yw6zwRkVk",
         "version": 6,
         "weekStart": ""
+    }
+  network_topology_dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": "-- Grafana --",
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 4,
+      "iteration": 1677633025540,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "gridPos": {
+            "h": 35,
+            "w": 23,
+            "x": 0,
+            "y": 0
+          },
+          "id": 2,
+          "options": {
+            "seriesCountSize": "sm",
+            "showSeriesCount": false,
+            "text": "Default value of text input option"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "format": 1,
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT sourcePodName, sourcePodNamespace, sourceNodeName, destinationPodName, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "refId": "A"
+            }
+          ],
+          "title": "Network Topology",
+          "type": "theia-grafana-dependency-plugin"
+        }
+      ],
+      "refresh": "",
+      "schemaVersion": 34,
+      "style": "dark",
+      "tags": [],
+      "templating": {
+        "list": [
+          {
+            "datasource": {
+              "type": "grafana-clickhouse-datasource",
+              "uid": "PDEE91DDB90597936"
+            },
+            "filters": [],
+            "hide": 0,
+            "name": "Filter",
+            "skipUrlSync": false,
+            "type": "adhoc"
+          },
+          {
+            "hide": 2,
+            "name": "clickhouse_adhoc_query",
+            "query": "default.flows",
+            "skipUrlSync": false,
+            "type": "constant"
+          }
+        ]
+      },
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "network_topology_dashboard",
+      "uid": "yRVDEad4k",
+      "version": 1,
+      "weekStart": ""
     }
   networkpolicy_dashboard.json: |
     {
@@ -6268,7 +6374,7 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin,grafana-clickhouse-datasource
+          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.0.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
             1.0.1
         - name: CLICKHOUSE_USERNAME
           valueFrom:

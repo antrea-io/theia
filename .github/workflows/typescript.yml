@@ -34,6 +34,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        node-version: [16.x]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3

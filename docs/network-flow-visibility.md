@@ -29,6 +29,7 @@
     - [Pod-to-Service Flows Dashboard](#pod-to-service-flows-dashboard)
     - [Node-to-Node Flows Dashboard](#node-to-node-flows-dashboard)
     - [Network-Policy Flows Dashboard](#network-policy-flows-dashboard)
+    - [Network Topology Dashboard](#network-topology-dashboard)
   - [Dashboard Customization](#dashboard-customization)
 <!-- /toc -->
 
@@ -754,6 +755,15 @@ Mouse out or click on the background will bring all the traffic back.
 
 <img src="https://downloads.antrea.io/static/08032022/flow-visibility-np-3.png" width="900" alt="Network-Policy Flows Dashboard">
 
+#### Network Topology Dashboard
+
+Network Topology Dashboard visualizes Pod-to-Pod and Pod-to-Service traffic.
+Pods are visually grouped by Node. Each arrow points from the source to the
+destination, and is labelled by the cumulative amount of data transmitted in
+the selected time range.
+
+<img src="https://downloads.antrea.io/static/03012023/flow-visibility-network-topology-0.png" width="400" alt="Network Topology Dashboard service dependency graph">
+
 ### Dashboard Customization
 
 If you would like to make any change to any of the pre-built dashboards, or build
@@ -794,6 +804,7 @@ You can also remove a dashboard by deleting the file in this section.
       - pod_to_external_dashboard.json
       - node_to_node_dashboard.json
       - networkpolicy_dashboard.json
+      - network_topology_dashboard.json
       - [new_dashboard_name].json
     ```
 

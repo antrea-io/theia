@@ -1,0 +1,29 @@
+{
+  "name": "theia-grafana-dependency-plugin",
+  "version": "1.0.0",
+  "description": "service dependency graph",
+  "scripts": {
+    "build": "grafana-toolkit plugin:build",
+    "test": "grafana-toolkit plugin:test",
+    "dev": "grafana-toolkit plugin:dev",
+    "watch": "grafana-toolkit plugin:dev --watch",
+    "sign": "grafana-toolkit plugin:sign",
+    "start": "yarn watch"
+  },
+  "author": "antrea-io",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@grafana/toolkit": "latest",
+    "@types/react-dom": "^18.0.8"
+  },
+  "dependencies": {
+    "@grafana/data": "latest",
+    "@grafana/ui": "latest",
+    "mermaid": "^9.2.1",
+    "react": "17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "engines": {
+    "node": "18.12.1"
+  }
+}

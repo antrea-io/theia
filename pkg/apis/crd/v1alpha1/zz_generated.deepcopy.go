@@ -191,6 +191,11 @@ func (in *ThroughputAnomalyDetectorSpec) DeepCopyInto(out *ThroughputAnomalyDete
 	*out = *in
 	in.StartInterval.DeepCopyInto(&out.StartInterval)
 	in.EndInterval.DeepCopyInto(&out.EndInterval)
+	if in.NSIgnoreList != nil {
+		in, out := &in.NSIgnoreList, &out.NSIgnoreList
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

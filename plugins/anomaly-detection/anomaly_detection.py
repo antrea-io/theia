@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import getopt
+import json
 import logging
 import os
 import sys
@@ -190,7 +191,7 @@ def calculate_arima(diff_secs_throughput):
             predictions_final = train + predictions
             predictions_final = inv_boxcox(predictions_final, revvar)
             predictions_final = predictions_final.tolist()
-            predictions_final = [x for x in predictions_final]
+            predictions_final = [float(x) for x in predictions_final]
             return predictions_final
         except Exception as e:
             logger.critical(
@@ -382,25 +383,31 @@ def plot_anomaly(spark, init_plot_df, algo_type, algo_func, anomaly_func,
     return ret_plotDF
 
 
-def generate_tad_sql_query(start_time, end_time):
+def generate_tad_sql_query(start_time, end_time, ns_ignore_list):
     sql_query = ("SELECT {} FROM {} "
                  .format(", ".join(FLOW_TABLE_COLUMNS), table_name))
+    sql_query_extension = []
+    if ns_ignore_list:
+        sql_query_extension.append(
+            "sourcePodNamespace NOT IN ({0}) AND "
+            "destinationPodNamespace NOT IN ({0})".format(
+                ", ".join("'{}'".format(x) for x in ns_ignore_list)))
     if start_time:
-        sql_query += "WHERE flowStartSeconds >= '{}' ".format(start_time)
+        sql_query_extension.append(
+            "flowStartSeconds >= '{}'".format(start_time))
     if end_time:
-        if start_time:
-            sql_query += "AND flowEndSeconds < '{}' ".format(end_time)
-        else:
-            sql_query += "WHERE flowEndSeconds < '{}' ".format(end_time)
+        sql_query_extension.append("flowEndSeconds < '{}'".format(end_time))
+    if sql_query_extension:
+        sql_query += "WHERE " + " AND ".join(sql_query_extension) + " "
     sql_query += "GROUP BY {} ".format(
         ", ".join(DF_GROUP_COLUMNS + ["flowEndSeconds"]))
     return sql_query
 
 
 def anomaly_detection(algo_type, db_jdbc_address, start_time, end_time,
-                      tad_id_input):
+                      tad_id_input, ns_ignore_list):
     spark = SparkSession.builder.getOrCreate()
-    sql_query = generate_tad_sql_query(start_time, end_time)
+    sql_query = generate_tad_sql_query(start_time, end_time, ns_ignore_list)
     initDF = (
         spark.read.format("jdbc").option(
             'driver', "ru.yandex.clickhouse.ClickHouseDriver").option(
@@ -453,6 +460,7 @@ def main():
     start_time = ""
     end_time = ""
     tad_id_input = None
+    ns_ignore_list = []
     help_message = """
     Start the Throughput Anomaly Detection spark job.
         Options:
@@ -474,13 +482,15 @@ def main():
             of flow records.
         -i, --id=None: Throughput Anomaly Detection job ID in UUID format.
             If not specified, it will be generated automatically.
+        -n, --ns_ignore_list=[]: List of namespaces to ignore in anomaly
+            calculation.
         """
 
     # TODO: change to use argparse instead of getopt for options
     try:
         opts, _ = getopt.getopt(
             sys.argv[1:],
-            "ht:d:s:e:i:",
+            "ht:d:s:e:i:n:",
             [
                 "help",
                 "algo=",
@@ -488,6 +498,7 @@ def main():
                 "start_time=",
                 "end_time=",
                 "id=",
+                "ns_ignore_list="
             ],
         )
     except getopt.GetoptError as e:
@@ -539,6 +550,13 @@ def main():
                 logger.info(help_message)
                 sys.exit(2)
             end_time = arg
+        elif opt in ("-n", "--ns_ignore_list"):
+            arg_list = json.loads(arg)
+            if not isinstance(arg_list, list):
+                logger.error("ns_ignore_list should be a list.")
+                logger.info(help_message)
+                sys.exit(2)
+            ns_ignore_list = arg_list
         elif opt in ("-i", "--id"):
             tad_id_input = arg
 
@@ -550,7 +568,8 @@ def main():
         db_jdbc_address,
         start_time,
         end_time,
-        tad_id_input
+        tad_id_input,
+        ns_ignore_list
     )
     func_end_time = time.time()
     tad_id = write_anomaly_detection_result(

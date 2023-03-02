@@ -61,7 +61,7 @@ func anomalyDetectionDelete(cmd *cobra.Command, args []string) error {
 		defer pf.Stop()
 	}
 	err = theiaClient.Delete().
-		AbsPath("/apis/anomalydetector.theia.antrea.io/v1alpha1/").
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
 		Resource("throughputanomalydetectors").
 		Name(tadName).
 		Do(context.TODO()).

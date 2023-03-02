@@ -29,6 +29,10 @@ spec:
                 endInterval:
                   type: string
                   format: datetime
+                nsIgnoreList:
+                  type: array
+                  items:
+                    type: string
                 executorInstances:
                   type: integer
                 driverCoreRequest:

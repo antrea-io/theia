@@ -28,7 +28,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 
-	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
+	anomalydetector "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/theia/portforwarder"
 )
 
@@ -45,7 +45,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 			name: "Valid case",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/anomalydetector.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
 					tad := &anomalydetector.ThroughputAnomalyDetector{
 						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
 							State:           "RUNNING",
@@ -70,7 +70,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 			name: "total stage is zero ",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/anomalydetector.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
 					tad := &anomalydetector.ThroughputAnomalyDetector{
 						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
 							State:       "RUNNING",
@@ -90,7 +90,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 			name: "Anomaly Detection job  not found",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
-				case fmt.Sprintf("/apis/anomalydetector.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),

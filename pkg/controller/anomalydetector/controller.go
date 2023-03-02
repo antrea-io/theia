@@ -41,6 +41,7 @@ import (
 	controllerutil "antrea.io/theia/pkg/controller"
 	"antrea.io/theia/pkg/util"
 	"antrea.io/theia/pkg/util/clickhouse"
+	"antrea.io/theia/pkg/util/env"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -55,10 +56,13 @@ var (
 	CreateSparkApplication   = controllerutil.CreateSparkApplication
 	DeleteSparkApplication   = controllerutil.DeleteSparkApplication
 	GetSparkApplication      = controllerutil.GetSparkApplication
-	ListSparkApplication     = controllerutil.ListSparkApplication
+	ListSparkApplication     = controllerutil.ListSparkApplicationWithLabel
 	GetSparkMonitoringSvcDNS = controllerutil.GetSparkMonitoringSvcDNS
+	GetSparkJobIds           = controllerutil.GetSparkJobIds
 	// For TAD in scheduled or running state, check its status periodically
 	anomalyDetectorResyncPeriod = 10 * time.Second
+	sparkAppLabelMap            = map[string]string{"app": "theia-tad"}
+	sparkAppLabel               = "app=theia-tad"
 )
 
 type AnomalyDetectorController struct {
@@ -71,6 +75,7 @@ type AnomalyDetectorController struct {
 	// queue maintains the Service objects that need to be synced.
 	queue                  workqueue.RateLimitingInterface
 	deletionQueue          workqueue.RateLimitingInterface
+	gcQueue                workqueue.RateLimitingInterface
 	periodicResyncSetMutex sync.Mutex
 	periodicResyncSet      map[apimachinerytypes.NamespacedName]struct{}
 	clickhouseConnect      *sql.DB
@@ -91,6 +96,7 @@ func NewAnomalyDetectorController(
 		kubeClient:              kubeClient,
 		queue:                   workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "taDetector"),
 		deletionQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "taDetectorCleanup"),
+		gcQueue:                 workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "taDetectorGarbageCollection"),
 		anomalyDetectorInformer: taDetectorInformer.Informer(),
 		anomalyDetectorLister:   taDetectorInformer.Lister(),
 		anomalyDetectorSynced:   taDetectorInformer.Informer().HasSynced,
@@ -171,6 +177,8 @@ func (c *AnomalyDetectorController) deleteTADetector(old interface{}) {
 // workqueue.
 func (c *AnomalyDetectorController) Run(stopCh <-chan struct{}) {
 	defer c.queue.ShutDown()
+	defer c.deletionQueue.ShutDown()
+	defer c.gcQueue.ShutDown()
 
 	klog.InfoS("Starting controller", "name", controllerName)
 	defer klog.InfoS("Shutting down controller", "name", controllerName)
@@ -179,9 +187,14 @@ func (c *AnomalyDetectorController) Run(stopCh <-chan struct{}) {
 		return
 	}
 
-	go func() {
-		wait.Until(c.resyncTADetector, anomalyDetectorResyncPeriod, stopCh)
-	}()
+	c.gcQueue.Add(controllerutil.GcKey{
+		RemoveStaleDbEntries: true,
+		RemoveStaleSparkApp:  true,
+		AddResync:            true,
+	})
+	go c.gcworker(stopCh)
+
+	go wait.Until(c.resyncTADetector, anomalyDetectorResyncPeriod, stopCh)
 
 	go wait.Until(c.deletionworker, time.Second, stopCh)
 
@@ -189,6 +202,134 @@ func (c *AnomalyDetectorController) Run(stopCh <-chan struct{}) {
 		go wait.Until(c.worker, time.Second, stopCh)
 	}
 	<-stopCh
+}
+
+func (c *AnomalyDetectorController) gcworker(stopCh <-chan struct{}) {
+	wait.PollImmediateUntil(time.Second, func() (done bool, err error) {
+		return !c.processNextGcWorkItem(), nil
+	}, stopCh)
+}
+
+func (c *AnomalyDetectorController) processNextGcWorkItem() bool {
+	obj, quit := c.gcQueue.Get()
+	if quit {
+		return false
+	}
+	defer c.gcQueue.Done(obj)
+
+	if key, ok := obj.(controllerutil.GcKey); !ok {
+		c.queue.Forget(obj)
+		klog.ErrorS(nil, "Expected gcKey in work queue", "got", obj)
+		return false
+	} else if updatedKey, err := c.handleStaleResources(key); err == nil {
+		c.gcQueue.Forget(key)
+		return false
+	} else {
+		klog.ErrorS(err, "Error handling stale resources, requeuing it")
+		c.gcQueue.AddRateLimited(updatedKey)
+	}
+	return true
+}
+
+// handleStaleResources handles the stale Spark Applications and database entries.
+func (c *AnomalyDetectorController) handleStaleResources(key controllerutil.GcKey) (updatedKey controllerutil.GcKey, err error) {
+	var errorList []error
+	if key.AddResync {
+		// Add scheduled/running TAD back to resync list
+		tadList, err := c.ListThroughputAnomalyDetector(env.GetTheiaNamespace())
+		if err != nil {
+			errorList = append(errorList, fmt.Errorf("failed to list ThroughputAnomalyDetection: %v", err))
+		} else {
+			for _, tad := range tadList {
+				if tad.Status.State == crdv1alpha1.ThroughputAnomalyDetectorStateScheduled || tad.Status.State == crdv1alpha1.ThroughputAnomalyDetectorStateRunning {
+					c.addPeriodicSync(apimachinerytypes.NamespacedName{
+						Namespace: tad.Namespace,
+						Name:      tad.Name,
+					})
+				}
+			}
+			key.AddResync = false
+		}
+	}
+	if key.RemoveStaleDbEntries {
+		err = c.HandleStaleDbEntries()
+		if err != nil {
+			errorList = append(errorList, err)
+		} else {
+			key.RemoveStaleDbEntries = false
+		}
+	}
+
+	if key.RemoveStaleSparkApp {
+		err = c.handleStaleSparkApp()
+		if err != nil {
+			errorList = append(errorList, err)
+		} else {
+			key.RemoveStaleSparkApp = false
+		}
+	}
+
+	if len(errorList) > 0 {
+		return key, fmt.Errorf("failed during garbage collection: %v", errorList)
+	} else {
+		return key, nil
+	}
+}
+
+func (c *AnomalyDetectorController) HandleStaleDbEntries() error {
+	if c.clickhouseConnect == nil {
+		var err error
+		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
+		if err != nil {
+			return fmt.Errorf("failed to connect ClickHouse: %v", err)
+		}
+	}
+	idList, err := GetSparkJobIds(c.clickhouseConnect, "tadetector")
+	if err != nil {
+		return fmt.Errorf("failed to get anomaly detector ids from ClickHouse: %v", err)
+	}
+	var errorList []error
+	for _, id := range idList {
+		_, err := c.GetThroughputAnomalyDetector(env.GetTheiaNamespace(), "tad-"+id)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				query := "ALTER TABLE tadetector ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
+				err = controllerutil.DeleteSparkResult(c.clickhouseConnect, query, id)
+				if err != nil {
+					errorList = append(errorList, err)
+				}
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
+	}
+	return nil
+}
+
+func (c *AnomalyDetectorController) handleStaleSparkApp() error {
+	saList, err := ListSparkApplication(c.kubeClient, sparkAppLabel)
+	if err != nil {
+		return fmt.Errorf("failed to list Spark Application: %v", err)
+	}
+	// Remove stale Spark Applications
+	var errorList []error
+	for _, sa := range saList.Items {
+		_, err := c.GetThroughputAnomalyDetector(sa.Namespace, sa.Name)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				DeleteSparkApplication(c.kubeClient, sa.Name, sa.Namespace)
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+	}
+	return nil
 }
 
 func (c *AnomalyDetectorController) deletionworker() {
@@ -301,7 +442,7 @@ func (c *AnomalyDetectorController) cleanupTADetector(namespace string, sparkApp
 			return err
 		}
 	}
-	query := "ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
+	query := "ALTER TABLE tadetector ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
 	return controllerutil.DeleteSparkResult(c.clickhouseConnect, query, sparkApplicationId)
 }
 
@@ -448,6 +589,12 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 		newTADJobArgs = append(newTADJobArgs, "--end_time", newTAD.Spec.EndInterval.Format(controllerutil.InputTimeFormat))
 	}
 
+	if len(newTAD.Spec.NSIgnoreList) > 0 {
+		nsIgnoreListStr := strings.Join(newTAD.Spec.NSIgnoreList, "\",\"")
+		nsIgnoreListStr = "[\"" + nsIgnoreListStr + "\"]"
+		newTADJobArgs = append(newTADJobArgs, "--ns_ignore_list", nsIgnoreListStr)
+	}
+
 	sparkResourceArgs := struct {
 		executorInstances   int32
 		driverCoreRequest   string
@@ -499,6 +646,7 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      newTAD.Name,
 			Namespace: newTAD.Namespace,
+			Labels:    sparkAppLabelMap,
 		},
 		Spec: sparkv1.SparkApplicationSpec{
 			Type:                "Python",

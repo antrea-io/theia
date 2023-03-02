@@ -50,6 +50,12 @@ const (
 	SparkPort            = 4040
 )
 
+type GcKey struct {
+	RemoveStaleDbEntries bool
+	RemoveStaleSparkApp  bool
+	AddResync            bool
+}
+
 func ConstStrToPointer(constStr string) *string {
 	return &constStr
 }
@@ -152,8 +158,8 @@ func DeleteSparkResult(connect *sql.DB, query string, id string) (err error) {
 	return nil
 }
 
-func GetPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
-	query := "SELECT DISTINCT id FROM recommendations;"
+func GetSparkJobIds(connect *sql.DB, tableName string) ([]string, error) {
+	query := "SELECT DISTINCT id FROM " + tableName + ";"
 	rows, err := connect.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from ClickHouse: %v", err)
@@ -193,16 +199,6 @@ func ListSparkApplicationWithLabel(client kubernetes.Interface, label string) (*
 		VersionedParams(&metav1.ListOptions{
 			LabelSelector: label,
 		}, scheme.ParameterCodec).
-		Do(context.TODO()).Into(sparkApplicationList)
-	return sparkApplicationList, err
-}
-
-func ListSparkApplication(client kubernetes.Interface, namespace string) (*sparkv1.SparkApplicationList, error) {
-	sparkApplicationList := &sparkv1.SparkApplicationList{}
-	err := client.CoreV1().RESTClient().Get().
-		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(namespace).
-		Resource("sparkapplications").
 		Do(context.TODO()).Into(sparkApplicationList)
 	return sparkApplicationList, err
 }

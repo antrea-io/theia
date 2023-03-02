@@ -20,7 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
+	anomalydetector "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 )
 
 // anomalyDetectionListCmd represents the anomaly-detection list command
@@ -54,7 +54,7 @@ func anomalyDetectionList(cmd *cobra.Command, args []string) error {
 	}
 	tadList := &anomalydetector.ThroughputAnomalyDetectorList{}
 	err = theiaClient.Get().
-		AbsPath("/apis/anomalydetector.theia.antrea.io/v1alpha1/").
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
 		Resource("throughputanomalydetectors").
 		Do(context.TODO()).Into(tadList)
 	if err != nil {

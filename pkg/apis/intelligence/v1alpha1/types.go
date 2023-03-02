@@ -59,3 +59,55 @@ type NetworkPolicyRecommendationList struct {
 
 	Items []NetworkPolicyRecommendation `json:"items"`
 }
+
+// +genclient
+// +genclient:nonNamespaced
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ThroughputAnomalyDetector struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Type                string                           `json:"jobType,omitempty"`
+	StartInterval       metav1.Time                      `json:"startInterval,omitempty"`
+	EndInterval         metav1.Time                      `json:"endInterval,omitempty"`
+	ExecutorInstances   int                              `json:"executorInstances,omitempty"`
+	NSIgnoreList        []string                         `json:"nsIgnoreList,omitempty"`
+	DriverCoreRequest   string                           `json:"driverCoreRequest,omitempty"`
+	DriverMemory        string                           `json:"driverMemory,omitempty"`
+	ExecutorCoreRequest string                           `json:"executorCoreRequest,omitempty"`
+	ExecutorMemory      string                           `json:"executorMemory,omitempty"`
+	Status              ThroughputAnomalyDetectorStatus  `json:"status,omitempty"`
+	Stats               []ThroughputAnomalyDetectorStats `json:"stats,omitempty"`
+}
+
+type ThroughputAnomalyDetectorStatus struct {
+	State            string      `json:"state,omitempty"`
+	SparkApplication string      `json:"sparkApplication,omitempty"`
+	CompletedStages  int         `json:"completedStages,omitempty"`
+	TotalStages      int         `json:"totalStages,omitempty"`
+	ErrorMsg         string      `json:"errorMsg,omitempty"`
+	StartTime        metav1.Time `json:"startTime,omitempty"`
+	EndTime          metav1.Time `json:"endTime,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ThroughputAnomalyDetectorList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ThroughputAnomalyDetector `json:"items"`
+}
+
+type ThroughputAnomalyDetectorStats struct {
+	Id                       string `json:"id,omitempty"`
+	SourceIP                 string `json:"sourceIP,omitempty"`
+	SourceTransportPort      string `json:"sourceTransportPort,omitempty"`
+	DestinationIP            string `json:"destinationIP,omitempty"`
+	DestinationTransportPort string `json:"destinationTransportPort,omitempty"`
+	FlowStartSeconds         string `json:"FlowStartSeconds,omitempty"`
+	FlowEndSeconds           string `json:"FlowEndSeconds,omitempty"`
+	Throughput               string `json:"Throughput,omitempty"`
+	AlgoCalc                 string `json:"AlgoCalc,omitempty"`
+	Anomaly                  string `json:"anomaly,omitempty"`
+}

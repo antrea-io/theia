@@ -31,6 +31,11 @@ var (
 		Group:    SchemeGroupVersion.Group,
 		Version:  SchemeGroupVersion.Version,
 		Resource: "networkpolicyrecommendations"}
+
+	AnomalyDetectorResource = schema.GroupVersionResource{
+		Group:    SchemeGroupVersion.Group,
+		Version:  SchemeGroupVersion.Version,
+		Resource: "throughputanomalydetectors"}
 )
 
 var (
@@ -52,6 +57,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		SchemeGroupVersion,
 		&NetworkPolicyRecommendation{},
 		&NetworkPolicyRecommendationList{},
+		&ThroughputAnomalyDetector{},
+		&ThroughputAnomalyDetectorList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)

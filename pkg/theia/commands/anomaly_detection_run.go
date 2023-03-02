@@ -16,6 +16,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -25,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
+	anomalydetector "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/theia/commands/config"
 	"antrea.io/theia/pkg/util"
 )
@@ -85,6 +86,20 @@ func throughputAnomalyDetectionAlgo(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("end-time should be after start-time")
 		}
 		throughputAnomalyDetection.EndInterval = metav1.NewTime(endTimeObj)
+	}
+
+	nsIgnoreList, err := cmd.Flags().GetString("ns-ignore-list")
+	if err != nil {
+		return err
+	}
+	if nsIgnoreList != "" {
+		var parsednsIgnoreList []string
+		err := json.Unmarshal([]byte(nsIgnoreList), &parsednsIgnoreList)
+		if err != nil {
+			return fmt.Errorf(`parsing ns-ignore-list: %v, ns-ignore-list should 
+be a list of namespace string, for example: '["kube-system","flow-aggregator","flow-visibility"]'`, err)
+		}
+		throughputAnomalyDetection.NSIgnoreList = parsednsIgnoreList
 	}
 
 	executorInstances, err := cmd.Flags().GetInt32("executor-instances")
@@ -152,7 +167,7 @@ func throughputAnomalyDetectionAlgo(cmd *cobra.Command, args []string) error {
 		defer pf.Stop()
 	}
 	err = theiaClient.Post().
-		AbsPath("/apis/anomalydetector.theia.antrea.io/v1alpha1/").
+		AbsPath("/apis/intelligence.theia.antrea.io/v1alpha1/").
 		Resource("throughputanomalydetectors").
 		Body(&throughputAnomalyDetection).
 		Do(context.TODO()).
@@ -188,6 +203,13 @@ Format is YYYY-MM-DD hh:mm:ss in UTC timezone. No limit of the start time of flo
 		"",
 		`The end time of the flow records considered for the anomaly detection.
 Format is YYYY-MM-DD hh:mm:ss in UTC timezone. No limit of the end time of flow records by default.`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().StringP(
+		"ns-ignore-list",
+		"n",
+		"",
+		`List of default drop Namespaces. Use this to ignore traffic from selected namespaces
+If no Namespaces provided, Traffic from all namespaces present in flows table will be allowed by default.`,
 	)
 	throughputAnomalyDetectionAlgoCmd.Flags().Int32(
 		"executor-instances",

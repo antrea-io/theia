@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -509,6 +510,38 @@ func TestGetPolicyRecommendationProgress(t *testing.T) {
 			} else {
 				_, _, err = controllerutil.GetSparkAppProgress("http://127.0.0.1")
 			}
+			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
+		})
+	}
+}
+
+func TestHandleStaleDbEntries(t *testing.T) {
+	nprController, db := newFakeController(t)
+	testCases := []struct {
+		name             string
+		GetSparkJobIds   func(*sql.DB, string) ([]string, error)
+		expectedErrorMsg string
+	}{
+		{
+			name: "Policy Recommendation Ids not found",
+			GetSparkJobIds: func(db *sql.DB, tableName string) ([]string, error) {
+				return []string{}, errors.New("mock_error")
+			},
+			expectedErrorMsg: "failed to get recommendation ids from ClickHouse: mock_error",
+		},
+		{
+			name: "Clickhouse Stale Entries present",
+			GetSparkJobIds: func(db *sql.DB, tableName string) ([]string, error) {
+				return []string{"mock_id"}, nil
+			},
+			expectedErrorMsg: "failed to remove all stale ClickHouse entries",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			nprController.clickhouseConnect = db
+			GetSparkJobIds = tc.GetSparkJobIds
+			err := nprController.HandleStaleDbEntries()
 			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})
 	}

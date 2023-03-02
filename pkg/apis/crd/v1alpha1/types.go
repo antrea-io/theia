@@ -97,6 +97,7 @@ type ThroughputAnomalyDetectorSpec struct {
 	JobType             string      `json:"jobType,omitempty"`
 	StartInterval       metav1.Time `json:"startInterval,omitempty"`
 	EndInterval         metav1.Time `json:"endInterval,omitempty"`
+	NSIgnoreList        []string    `json:"nsIgnoreList,omitempty"`
 	ExecutorInstances   int         `json:"executorInstances,omitempty"`
 	DriverCoreRequest   string      `json:"driverCoreRequest,omitempty"`
 	DriverMemory        string      `json:"driverMemory,omitempty"`

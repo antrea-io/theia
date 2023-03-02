@@ -21,12 +21,32 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
+)
+
+const (
+	// Set resyncPeriod to 0 to disable resyncing.
+	ResyncPeriod time.Duration = 0
+	// How long to wait before retrying the processing of an Service change.
+	MinRetryDelay = 5 * time.Second
+	MaxRetryDelay = 300 * time.Second
+	// Default number of workers processing an Service change.
+	DefaultWorkers = 4
+	// Time format for parsing input time
+	InputTimeFormat  = "2006-01-02 15:04:05"
+	K8sQuantitiesReg = "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
+	// Spark related parameters
+	SparkImage           = "projects.registry.vmware.com/antrea/theia-spark-jobs:latest"
+	SparkImagePullPolicy = "IfNotPresent"
+	SparkServiceAccount  = "theia-spark"
+	SparkVersion         = "3.1.1"
+	SparkPort            = 4040
 )
 
 func ConstStrToPointer(constStr string) *string {

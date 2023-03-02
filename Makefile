@@ -208,21 +208,13 @@ clickhouse-schema-management-plugin:
 	@mkdir -p $(BINDIR)
 	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-schema-management
 
-.PHONY: policy-recommendation
-policy-recommendation:
-	@echo "===> Building antrea/theia-policy-recommendation Docker image <==="
-	docker build --pull -t antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.policy-recommendation.ubuntu .
-	docker tag antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) antrea/theia-policy-recommendation
-	docker tag antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-policy-recommendation
-	docker tag antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-policy-recommendation:$(DOCKER_IMG_VERSION)
-
-.PHONY: anomaly-detection
-anomaly-detection:
-	@echo "===> Building antrea/theia-anomaly-detection Docker image <==="
-	docker build --pull -t antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.anomaly-detection.ubuntu .
-	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) antrea/theia-anomaly-detection
-	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-anomaly-detection
-	docker tag antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-anomaly-detection:$(DOCKER_IMG_VERSION)
+.PHONY: spark-jobs
+spark-jobs:
+	@echo "===> Building antrea/theia-spark-jobs Docker image <==="
+	docker build --pull -t antrea/theia-spark-jobs:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.spark-jobs.ubuntu .
+	docker tag antrea/theia-spark-jobs:$(DOCKER_IMG_VERSION) antrea/theia-spark-jobs
+	docker tag antrea/theia-spark-jobs:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-spark-jobs
+	docker tag antrea/theia-spark-jobs:$(DOCKER_IMG_VERSION) projects.registry.vmware.com/antrea/theia-spark-jobs:$(DOCKER_IMG_VERSION)
 
 THEIA_BINARIES := theia-darwin theia-linux theia-windows
 $(THEIA_BINARIES): theia-%:

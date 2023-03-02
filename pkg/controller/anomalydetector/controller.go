@@ -46,23 +46,8 @@ import (
 
 const (
 	controllerName = "AnomalyDetectorController"
-	// Set resyncPeriod to 0 to disable resyncing.
-	resyncPeriod time.Duration = 0
-	// How long to wait before retrying the processing of an Service change.
-	minRetryDelay = 5 * time.Second
-	maxRetryDelay = 300 * time.Second
-	// Default number of workers processing an Service change.
-	defaultWorkers = 4
-	// Time format for parsing input time
-	inputTimeFormat  = "2006-01-02 15:04:05"
-	k8sQuantitiesReg = "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
 	// Spark related parameters
-	sparkImage           = "projects.registry.vmware.com/antrea/theia-anomaly-detection:latest"
-	sparkImagePullPolicy = "IfNotPresent"
-	sparkAppFile         = "local:///opt/spark/work-dir/AnomalyDetection.py"
-	sparkServiceAccount  = "theia-spark"
-	sparkVersion         = "3.1.1"
-	sparkPort            = 4040
+	sparkAppFile = "local:///opt/spark/work-dir/AnomalyDetection.py"
 )
 
 var (
@@ -104,8 +89,8 @@ func NewAnomalyDetectorController(
 	c := &AnomalyDetectorController{
 		crdClient:               crdClient,
 		kubeClient:              kubeClient,
-		queue:                   workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "taDetector"),
-		deletionQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "taDetectorCleanup"),
+		queue:                   workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "taDetector"),
+		deletionQueue:           workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "taDetectorCleanup"),
 		anomalyDetectorInformer: taDetectorInformer.Informer(),
 		anomalyDetectorLister:   taDetectorInformer.Lister(),
 		anomalyDetectorSynced:   taDetectorInformer.Informer().HasSynced,
@@ -118,7 +103,7 @@ func NewAnomalyDetectorController(
 			UpdateFunc: c.updateTADetector,
 			DeleteFunc: c.deleteTADetector,
 		},
-		resyncPeriod,
+		controllerutil.ResyncPeriod,
 	)
 
 	return c
@@ -200,7 +185,7 @@ func (c *AnomalyDetectorController) Run(stopCh <-chan struct{}) {
 
 	go wait.Until(c.deletionworker, time.Second, stopCh)
 
-	for i := 0; i < defaultWorkers; i++ {
+	for i := 0; i < controllerutil.DefaultWorkers; i++ {
 		go wait.Until(c.worker, time.Second, stopCh)
 	}
 	<-stopCh
@@ -355,7 +340,7 @@ func (c *AnomalyDetectorController) updateProgress(newTAD *crdv1alpha1.Throughpu
 	if state != crdv1alpha1.ThroughputAnomalyDetectorStateRunning {
 		return nil
 	}
-	endpoint := GetSparkMonitoringSvcDNS(newTAD.Status.SparkApplication, newTAD.Namespace, sparkPort)
+	endpoint := GetSparkMonitoringSvcDNS(newTAD.Status.SparkApplication, newTAD.Namespace, controllerutil.SparkPort)
 	completedStages, totalStages, err := controllerutil.GetSparkAppProgress(endpoint)
 	if err != nil {
 		// The Spark Monitoring Service may not start or closed at this point due to the async
@@ -453,14 +438,14 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 	newTADJobArgs = append(newTADJobArgs, "--algo", newTAD.Spec.JobType)
 
 	if !newTAD.Spec.StartInterval.IsZero() {
-		newTADJobArgs = append(newTADJobArgs, "--start_time", newTAD.Spec.StartInterval.Format(inputTimeFormat))
+		newTADJobArgs = append(newTADJobArgs, "--start_time", newTAD.Spec.StartInterval.Format(controllerutil.InputTimeFormat))
 	}
 	if !newTAD.Spec.EndInterval.IsZero() {
 		endAfterStart := newTAD.Spec.EndInterval.After(newTAD.Spec.StartInterval.Time)
 		if !endAfterStart {
 			return illeagelArguementError{fmt.Errorf("invalid request: EndInterval should be after StartInterval")}
 		}
-		newTADJobArgs = append(newTADJobArgs, "--end_time", newTAD.Spec.EndInterval.Format(inputTimeFormat))
+		newTADJobArgs = append(newTADJobArgs, "--end_time", newTAD.Spec.EndInterval.Format(controllerutil.InputTimeFormat))
 	}
 
 	sparkResourceArgs := struct {
@@ -476,25 +461,25 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 	}
 	sparkResourceArgs.executorInstances = int32(newTAD.Spec.ExecutorInstances)
 
-	matchResult, err := regexp.MatchString(k8sQuantitiesReg, newTAD.Spec.DriverCoreRequest)
+	matchResult, err := regexp.MatchString(controllerutil.K8sQuantitiesReg, newTAD.Spec.DriverCoreRequest)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: DriverCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverCoreRequest = newTAD.Spec.DriverCoreRequest
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, newTAD.Spec.DriverMemory)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, newTAD.Spec.DriverMemory)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: DriverMemory should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverMemory = newTAD.Spec.DriverMemory
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, newTAD.Spec.ExecutorCoreRequest)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, newTAD.Spec.ExecutorCoreRequest)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.executorCoreRequest = newTAD.Spec.ExecutorCoreRequest
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, newTAD.Spec.ExecutorMemory)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, newTAD.Spec.ExecutorMemory)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention")}
 	}
@@ -517,10 +502,10 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 		},
 		Spec: sparkv1.SparkApplicationSpec{
 			Type:                "Python",
-			SparkVersion:        sparkVersion,
+			SparkVersion:        controllerutil.SparkVersion,
 			Mode:                "cluster",
-			Image:               controllerutil.ConstStrToPointer(sparkImage),
-			ImagePullPolicy:     controllerutil.ConstStrToPointer(sparkImagePullPolicy),
+			Image:               controllerutil.ConstStrToPointer(controllerutil.SparkImage),
+			ImagePullPolicy:     controllerutil.ConstStrToPointer(controllerutil.SparkImagePullPolicy),
 			MainApplicationFile: controllerutil.ConstStrToPointer(sparkAppFile),
 			Arguments:           newTADJobArgs,
 			Driver: sparkv1.DriverSpec{
@@ -528,7 +513,7 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 				SparkPodSpec: sparkv1.SparkPodSpec{
 					Memory: &newTAD.Spec.DriverMemory,
 					Labels: map[string]string{
-						"version": sparkVersion,
+						"version": controllerutil.SparkVersion,
 					},
 					EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 						"CH_USERNAME": {
@@ -540,7 +525,7 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 							Key:  "password",
 						},
 					},
-					ServiceAccount: controllerutil.ConstStrToPointer(sparkServiceAccount),
+					ServiceAccount: controllerutil.ConstStrToPointer(controllerutil.SparkServiceAccount),
 				},
 			},
 			Executor: sparkv1.ExecutorSpec{
@@ -548,7 +533,7 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 				SparkPodSpec: sparkv1.SparkPodSpec{
 					Memory: &newTAD.Spec.ExecutorMemory,
 					Labels: map[string]string{
-						"version": sparkVersion,
+						"version": controllerutil.SparkVersion,
 					},
 					EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 						"CH_USERNAME": {

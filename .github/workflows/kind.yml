@@ -29,38 +29,21 @@ jobs:
     outputs:
       has_changes: ${{ steps.check_diff.outputs.has_changes }}
 
-  build-policy-recommendation-image:
-    name: Build Policy Recommendation image to be used for Kind e2e tests
+  build-spark-jobs-image:
+    name: Build Spark Jobs image to be used for Kind e2e tests
     needs: check-changes
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
     runs-on: [ ubuntu-latest ]
     steps:
     - uses: actions/checkout@v3
-    - run: make policy-recommendation
-    - name: Save Policy Recommendation image to tarball
-      run: docker save -o policy-recommendation.tar antrea/theia-policy-recommendation
-    - name: Upload Policy Recommendation image for subsequent jobs
+    - run: make spark-jobs
+    - name: Save Spark jobs image to tarball
+      run: docker save -o spark-jobs.tar antrea/theia-spark-jobs
+    - name: Upload Spark jobs image for subsequent jobs
       uses: actions/upload-artifact@v3
       with:
-        name: policy-recommendation
-        path: policy-recommendation.tar
-        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
-
-  build-anomaly-detection-image:
-    name: Build Anomaly Detection image to be used for Kind e2e tests
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
-    runs-on: [ ubuntu-latest ]
-    steps:
-    - uses: actions/checkout@v3
-    - run: make anomaly-detection
-    - name: Save Anomaly Detection image to tarball
-      run: docker save -o anomaly-detection.tar antrea/theia-anomaly-detection
-    - name: Upload Anomaly Detection image for subsequent jobs
-      uses: actions/upload-artifact@v3
-      with:
-        name: anomaly-detection
-        path: anomaly-detection.tar
+        name: spark-jobs
+        path: spark-jobs.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
   
   build-clickhouse-monitor-image:
@@ -116,9 +99,8 @@ jobs:
 
   test-e2e-encap:
     name: E2e tests on a Kind cluster on Linux
-    needs: 
-      - build-policy-recommendation-image
-      - build-anomaly-detection-image
+    needs:
+      - build-spark-jobs-image
       - build-clickhouse-monitor-image
       - build-clickhouse-server-image
       - build-theia-manager-image
@@ -137,14 +119,10 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: 'go.mod'
-      - name: Download Policy Recommendation images from previous jobs
+      - name: Download Spark jobs images from previous jobs
         uses: actions/download-artifact@v3
         with:
-          name: policy-recommendation
-      - name: Download Anomaly Detection images from previous jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: anomaly-detection
+          name: spark-jobs
       - name: Download ClickHouse monitor images from previous jobs
         uses: actions/download-artifact@v3
         with:
@@ -159,10 +137,8 @@ jobs:
           name: theia-manager
       - name: Load Theia image
         run:  |
-          docker load -i policy-recommendation.tar
-          docker tag antrea/theia-policy-recommendation:latest projects.registry.vmware.com/antrea/theia-policy-recommendation:latest
-          docker load -i anomaly-detection.tar
-          docker tag antrea/theia-anomaly-detection:latest projects.registry.vmware.com/antrea/theia-anomaly-detection:latest
+          docker load -i spark-jobs.tar
+          docker tag antrea/theia-spark-jobs:latest projects.registry.vmware.com/antrea/theia-spark-jobs:latest
           docker load -i clickhouse-monitor.tar
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           docker load -i clickhouse-server.tar
@@ -252,8 +228,7 @@ jobs:
   artifact-cleanup:
     name: Delete uploaded images
     needs:
-    - build-policy-recommendation-image
-    - build-anomaly-detection-image
+    - build-spark-jobs-image
     - build-clickhouse-monitor-image
     - build-clickhouse-server-image
     - build-theia-manager-image
@@ -261,16 +236,11 @@ jobs:
     - test-upgrade-from-N-1
     runs-on: [ubuntu-latest]
     steps:
-    - name: Delete policy-recommendation
-      if: ${{ needs.build-policy-recommendation-image.result == 'success' }}
+    - name: Delete spark-jobs
+      if: ${{ needs.build-spark-jobs-image.result == 'success' }}
       uses: geekyeggo/delete-artifact@v1
       with:
-        name: policy-recommendation
-    - name: Delete anomaly-detection
-      if: ${{ needs.build-anomaly-detection-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v1
-      with:
-        name: anomaly-detection
+        name: spark-jobs
     - name: Delete clickhouse-monitor
       if: ${{ needs.build-clickhouse-monitor-image.result == 'success' }}
       uses: geekyeggo/delete-artifact@v1

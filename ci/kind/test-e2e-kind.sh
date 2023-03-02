@@ -122,11 +122,10 @@ for image in "${COMMON_IMAGES_LIST[@]}"; do
     done
 done
 
-COMMON_IMAGES_LIST+=("projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"\
+COMMON_IMAGES_LIST+=("projects.registry.vmware.com/antrea/theia-spark-jobs:latest"\
                      "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest"\
                      "projects.registry.vmware.com/antrea/theia-clickhouse-server:latest"\
-                     "projects.registry.vmware.com/antrea/theia-manager:latest"\
-                     "projects.registry.vmware.com/antrea/theia-anomaly-detection:latest")
+                     "projects.registry.vmware.com/antrea/theia-manager:latest")
 
 printf -v COMMON_IMAGES "%s " "${COMMON_IMAGES_LIST[@]}"
 

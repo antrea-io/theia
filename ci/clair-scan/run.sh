@@ -43,8 +43,8 @@ VERSION=$(git ls-remote --tags --ref https://github.com/antrea-io/theia.git | \
 
 echo "Scanning Theia version $VERSION"
 
-docker pull "antrea/theia-policy-recommendation:$VERSION"
-docker pull "antrea/theia-policy-recommendation:latest"
+docker pull "antrea/theia-spark-jobs:$VERSION"
+docker pull "antrea/theia-spark-jobs:latest"
 
 echo "Downloading clair-scanner"
 curl -Lo ./clair-scanner "https://github.com/arminc/clair-scanner/releases/download/v12/clair-scanner_${ostype}_amd64"
@@ -78,12 +78,13 @@ else
     CLAIR_SCANNER_IP="$EN0_IP"
 fi
 
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "policy-recommendation.clair.$VERSION.json" "antrea/theia-policy-recommendation:$VERSION" || test -f "policy-recommendation.clair.$VERSION.json"
-./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "policy-recommendation.clair.latest.json" "antrea/theia-policy-recommendation:latest" || test -f "policy-recommendation.clair.latest.json"
+./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "spark-jobs.clair.$VERSION.json" "antrea/theia-spark-jobs:$VERSION" || test -f "spark-jobs.clair.$VERSION.json"
+./clair-scanner --clair=http://localhost:6060 --ip "$CLAIR_SCANNER_IP" -r "spark-jobs.clair.latest.json" "antrea/theia-spark-jobs:latest" || test -f "spark-jobs.clair.latest.json"
 
 if [ -n "$REPORTS_OUT_DIR" ]; then
     echo "Copying Clair scan reports to $REPORTS_OUT_DIR"
     cp *.clair.$VERSION.json *.clair.latest.json "$REPORTS_OUT_DIR"
 fi
 
-go run . --report "policy-recommendation.clair.$VERSION.json" --report-cmp "policy-recommendation.clair.latest.json"
+go run . --report "spark-jobs.clair.$VERSION.json" --report-cmp "spark-jobs.clair.latest.json"
+

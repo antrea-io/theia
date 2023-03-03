@@ -7,8 +7,21 @@ coverage:
     project:
       default:
         target: auto
+      theia-unit-tests:
+        target: auto
+        flags:
+          - unit-tests
+      theia-e2e-tests:
+        target: auto
+        flags:
+          - kind-e2e-tests
+codecov:
+  require_ci_to_pass: false
 comment:
-  layout: reach, diff, files
+  layout: reach, diff, flags, files
+  require_changes: no
+  require_base: no
+  require_head: no
   behavior: default
 ignore:
 - (?s:.*/[^\/]*generate[^\/]*\.go.*)\Z

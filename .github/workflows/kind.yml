@@ -178,6 +178,13 @@ jobs:
         run: |
           mkdir log
           ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh
+      - name: Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: .coverage/coverage-kind.txt
+          flags: kind-e2e-tests
+          name: codecov-test-e2e-encap
       - name: Tar log files
         if: ${{ failure() }}
         run: tar -czf log.tar.gz log

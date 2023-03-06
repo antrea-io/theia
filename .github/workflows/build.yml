@@ -75,7 +75,7 @@ jobs:
       run: |
         echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
         make clickhouse-server-multi-arch
-  
+
   check-spark-jobs-changes:
     name: Check whether spark-jobs image needs to be built based on diff
     runs-on: [ubuntu-latest]

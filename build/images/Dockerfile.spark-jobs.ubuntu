@@ -1,7 +1,7 @@
 FROM gcr.io/spark-operator/spark-py:v3.1.1
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
-LABEL description="A docker image to deploy policy recommendation and throughput anomaly detector Spark job."
+LABEL description="A docker image to deploy policy recommendation and throughput anomaly detection Spark job."
 
 WORKDIR /opt/spark/work-dir
 USER root
@@ -13,11 +13,11 @@ RUN apt-get --allow-releaseinfo-change update && \
 COPY plugins/policy-recommendation/policy_recommendation_job.py /opt/spark/work-dir/policy_recommendation_job.py
 COPY plugins/policy-recommendation/policy_recommendation_utils.py /opt/spark/work-dir/policy_recommendation_utils.py
 COPY plugins/policy-recommendation/antrea_crd.py /opt/spark/work-dir/antrea_crd.py
-COPY plugins/anomaly-detection/AnomalyDetection.py /opt/spark/work-dir/AnomalyDetection.py
-COPY plugins/anomaly-detection/requirements.txt /opt/spark/work-dir/requirements.txt
+COPY plugins/anomaly-detection/anomaly_detection.py /opt/spark/work-dir/anomaly_detection.py
+COPY plugins/anomaly-detection/requirements.txt /opt/spark/work-dir/anomaly_detection_requirements.txt
 
 
 RUN pip3 install --upgrade pip && \
     pip3 install pyyaml && \
     pip3 install kubernetes && \
-     pip3 install -r  /opt/spark/work-dir/requirements.txt
+    pip3 install -r /opt/spark/work-dir/anomaly_detection_requirements.txt

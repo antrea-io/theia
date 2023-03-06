@@ -47,7 +47,7 @@ import (
 const (
 	controllerName = "AnomalyDetectorController"
 	// Spark related parameters
-	sparkAppFile = "local:///opt/spark/work-dir/AnomalyDetection.py"
+	sparkAppFile = "local:///opt/spark/work-dir/anomaly_detection.py"
 )
 
 var (

@@ -48,23 +48,8 @@ import (
 
 const (
 	controllerName = "NetworkPolicyRecommendationController"
-	// Set resyncPeriod to 0 to disable resyncing.
-	resyncPeriod time.Duration = 0
-	// How long to wait before retrying the processing of an Service change.
-	minRetryDelay = 5 * time.Second
-	maxRetryDelay = 300 * time.Second
-	// Default number of workers processing an Service change.
-	defaultWorkers = 4
-	// Time format for parsing input time
-	inputTimeFormat  = "2006-01-02 15:04:05"
-	k8sQuantitiesReg = "^([+-]?[0-9.]+)([eEinumkKMGTP]*[-+]?[0-9]*)$"
 	// Spark related parameters
-	sparkImage           = "projects.registry.vmware.com/antrea/theia-policy-recommendation:latest"
-	sparkImagePullPolicy = "IfNotPresent"
-	sparkAppFile         = "local:///opt/spark/work-dir/policy_recommendation_job.py"
-	sparkServiceAccount  = "theia-spark"
-	sparkVersion         = "3.1.1"
-	sparkPort            = 4040
+	sparkAppFile = "local:///opt/spark/work-dir/policy_recommendation_job.py"
 )
 
 var (
@@ -115,9 +100,9 @@ func NewNPRecommendationController(
 	c := &NPRecommendationController{
 		crdClient:                crdClient,
 		kubeClient:               kubeClient,
-		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendation"),
-		deletionQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendationCleanup"),
-		gcQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(minRetryDelay, maxRetryDelay), "npRecommendationGarbageCollection"),
+		queue:                    workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "npRecommendation"),
+		deletionQueue:            workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "npRecommendationCleanup"),
+		gcQueue:                  workqueue.NewNamedRateLimitingQueue(workqueue.NewItemExponentialFailureRateLimiter(controllerutil.MinRetryDelay, controllerutil.MaxRetryDelay), "npRecommendationGarbageCollection"),
 		npRecommendationInformer: npRecommendationInformer.Informer(),
 		npRecommendationLister:   npRecommendationInformer.Lister(),
 		npRecommendationSynced:   npRecommendationInformer.Informer().HasSynced,
@@ -130,7 +115,7 @@ func NewNPRecommendationController(
 			UpdateFunc: c.updateNPRecommendation,
 			DeleteFunc: c.deleteNPRecommendation,
 		},
-		resyncPeriod,
+		controllerutil.ResyncPeriod,
 	)
 
 	return c
@@ -219,7 +204,7 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 
 	go wait.Until(c.deletionworker, time.Second, stopCh)
 
-	for i := 0; i < defaultWorkers; i++ {
+	for i := 0; i < controllerutil.DefaultWorkers; i++ {
 		go wait.Until(c.worker, time.Second, stopCh)
 	}
 	<-stopCh
@@ -503,7 +488,7 @@ func (c *NPRecommendationController) updateProgress(npReco *crdv1alpha1.NetworkP
 	if state != crdv1alpha1.NPRecommendationStateRunning {
 		return nil
 	}
-	endpoint := GetSparkMonitoringSvcDNS(npReco.Status.SparkApplication, npReco.Namespace, sparkPort)
+	endpoint := GetSparkMonitoringSvcDNS(npReco.Status.SparkApplication, npReco.Namespace, controllerutil.SparkPort)
 	completedStages, totalStages, err := controllerutil.GetSparkAppProgress(endpoint)
 	if err != nil {
 		// The Spark Monitoring Service may not start or closed at this point due to the async
@@ -619,14 +604,14 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	recoJobArgs = append(recoJobArgs, "--option", strconv.Itoa(policyTypeArg))
 
 	if !npReco.Spec.StartInterval.IsZero() {
-		recoJobArgs = append(recoJobArgs, "--start_time", npReco.Spec.StartInterval.Format(inputTimeFormat))
+		recoJobArgs = append(recoJobArgs, "--start_time", npReco.Spec.StartInterval.Format(controllerutil.InputTimeFormat))
 	}
 	if !npReco.Spec.EndInterval.IsZero() {
 		endAfterStart := npReco.Spec.EndInterval.After(npReco.Spec.StartInterval.Time)
 		if !endAfterStart {
 			return illeagelArguementError{fmt.Errorf("invalid request: EndInterval should be after StartInterval")}
 		}
-		recoJobArgs = append(recoJobArgs, "--end_time", npReco.Spec.EndInterval.Format(inputTimeFormat))
+		recoJobArgs = append(recoJobArgs, "--end_time", npReco.Spec.EndInterval.Format(controllerutil.InputTimeFormat))
 	}
 
 	if len(npReco.Spec.NSAllowList) > 0 {
@@ -651,25 +636,25 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 	}
 	sparkResourceArgs.executorInstances = int32(npReco.Spec.ExecutorInstances)
 
-	matchResult, err := regexp.MatchString(k8sQuantitiesReg, npReco.Spec.DriverCoreRequest)
+	matchResult, err := regexp.MatchString(controllerutil.K8sQuantitiesReg, npReco.Spec.DriverCoreRequest)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: DriverCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverCoreRequest = npReco.Spec.DriverCoreRequest
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.DriverMemory)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, npReco.Spec.DriverMemory)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: DriverMemory should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.driverMemory = npReco.Spec.DriverMemory
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.ExecutorCoreRequest)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, npReco.Spec.ExecutorCoreRequest)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorCoreRequest should conform to the Kubernetes resource quantity convention")}
 	}
 	sparkResourceArgs.executorCoreRequest = npReco.Spec.ExecutorCoreRequest
 
-	matchResult, err = regexp.MatchString(k8sQuantitiesReg, npReco.Spec.ExecutorMemory)
+	matchResult, err = regexp.MatchString(controllerutil.K8sQuantitiesReg, npReco.Spec.ExecutorMemory)
 	if err != nil || !matchResult {
 		return illeagelArguementError{fmt.Errorf("invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention")}
 	}
@@ -693,10 +678,10 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 		},
 		Spec: sparkv1.SparkApplicationSpec{
 			Type:                "Python",
-			SparkVersion:        sparkVersion,
+			SparkVersion:        controllerutil.SparkVersion,
 			Mode:                "cluster",
-			Image:               controllerutil.ConstStrToPointer(sparkImage),
-			ImagePullPolicy:     controllerutil.ConstStrToPointer(sparkImagePullPolicy),
+			Image:               controllerutil.ConstStrToPointer(controllerutil.SparkImage),
+			ImagePullPolicy:     controllerutil.ConstStrToPointer(controllerutil.SparkImagePullPolicy),
 			MainApplicationFile: controllerutil.ConstStrToPointer(sparkAppFile),
 			Arguments:           recoJobArgs,
 			Driver: sparkv1.DriverSpec{
@@ -704,7 +689,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 				SparkPodSpec: sparkv1.SparkPodSpec{
 					Memory: &npReco.Spec.DriverMemory,
 					Labels: map[string]string{
-						"version": sparkVersion,
+						"version": controllerutil.SparkVersion,
 					},
 					EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 						"CH_USERNAME": {
@@ -716,7 +701,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 							Key:  "password",
 						},
 					},
-					ServiceAccount: controllerutil.ConstStrToPointer(sparkServiceAccount),
+					ServiceAccount: controllerutil.ConstStrToPointer(controllerutil.SparkServiceAccount),
 				},
 			},
 			Executor: sparkv1.ExecutorSpec{
@@ -724,7 +709,7 @@ func (c *NPRecommendationController) startSparkApplication(npReco *crdv1alpha1.N
 				SparkPodSpec: sparkv1.SparkPodSpec{
 					Memory: &npReco.Spec.ExecutorMemory,
 					Labels: map[string]string{
-						"version": sparkVersion,
+						"version": controllerutil.SparkVersion,
 					},
 					EnvSecretKeyRefs: map[string]sparkv1.NameKey{
 						"CH_USERNAME": {

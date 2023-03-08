@@ -16,7 +16,7 @@ import pytest
 
 from pyspark.sql import SparkSession
 
-import AnomalyDetection as ad
+import anomaly_detection as ad
 
 
 @pytest.fixture(scope="session")

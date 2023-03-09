@@ -356,6 +356,10 @@ function deliver_antrea {
     # copy images
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
 
+    # Clean up dangling images generated in previous builds. Recent ones must be excluded
+    # because they might be being used in other builds running simultaneously.
+    docker image prune -f --filter "until=1h" || true > /dev/null
+
     docker pull antrea/antrea-ubuntu:latest
     docker pull antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1

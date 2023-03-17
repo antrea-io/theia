@@ -150,7 +150,7 @@ else
     CLICKHOUSE_FROM_TAG=$THEIA_FROM_TAG
 fi
 
-DOCKER_IMAGES=("k8s.gcr.io/e2e-test-images/agnhost:2.29" \
+DOCKER_IMAGES=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/busybox"  \
                 "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
                 "projects.registry.vmware.com/antrea/perftool" \

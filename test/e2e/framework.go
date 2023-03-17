@@ -98,7 +98,7 @@ const (
 	clickHouseLocalPvLabel     string = "antrea.io/clickhouse-data-node"
 	clickHouseLocalPvPath      string = "/data/clickhouse"
 
-	agnhostImage  = "k8s.gcr.io/e2e-test-images/agnhost:2.29"
+	agnhostImage  = "registry.k8s.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
 	perftoolImage = "projects.registry.vmware.com/antrea/perftool"
 

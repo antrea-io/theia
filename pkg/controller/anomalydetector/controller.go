@@ -56,9 +56,7 @@ var (
 	CreateSparkApplication   = controllerutil.CreateSparkApplication
 	DeleteSparkApplication   = controllerutil.DeleteSparkApplication
 	GetSparkApplication      = controllerutil.GetSparkApplication
-	ListSparkApplication     = controllerutil.ListSparkApplicationWithLabel
 	GetSparkMonitoringSvcDNS = controllerutil.GetSparkMonitoringSvcDNS
-	GetSparkJobIds           = controllerutil.GetSparkJobIds
 	// For TAD in scheduled or running state, check its status periodically
 	anomalyDetectorResyncPeriod = 10 * time.Second
 	sparkAppLabelMap            = map[string]string{"app": "theia-tad"}
@@ -252,7 +250,8 @@ func (c *AnomalyDetectorController) handleStaleResources(key controllerutil.GcKe
 		}
 	}
 	if key.RemoveStaleDbEntries {
-		err = c.HandleStaleDbEntries()
+		err = controllerutil.HandleStaleDbEntries(
+			c.clickhouseConnect, c.kubeClient, "tadetector", "tadetector_local", c.IfTADexists, "tad-")
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
@@ -261,7 +260,7 @@ func (c *AnomalyDetectorController) handleStaleResources(key controllerutil.GcKe
 	}
 
 	if key.RemoveStaleSparkApp {
-		err = c.handleStaleSparkApp()
+		err = controllerutil.HandleStaleSparkApp(c.kubeClient, sparkAppLabel, c.IfTADexists)
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
@@ -276,58 +275,10 @@ func (c *AnomalyDetectorController) handleStaleResources(key controllerutil.GcKe
 	}
 }
 
-func (c *AnomalyDetectorController) HandleStaleDbEntries() error {
-	if c.clickhouseConnect == nil {
-		var err error
-		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
-		if err != nil {
-			return fmt.Errorf("failed to connect ClickHouse: %v", err)
-		}
-	}
-	idList, err := GetSparkJobIds(c.clickhouseConnect, "tadetector")
+func (c *AnomalyDetectorController) IfTADexists(namespace, id string) error {
+	_, err := c.GetThroughputAnomalyDetector(env.GetTheiaNamespace(), id)
 	if err != nil {
-		return fmt.Errorf("failed to get anomaly detector ids from ClickHouse: %v", err)
-	}
-	var errorList []error
-	for _, id := range idList {
-		_, err := c.GetThroughputAnomalyDetector(env.GetTheiaNamespace(), "tad-"+id)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				query := "ALTER TABLE tadetector ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
-				err = controllerutil.DeleteSparkResult(c.clickhouseConnect, query, id)
-				if err != nil {
-					errorList = append(errorList, err)
-				}
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
-	}
-	return nil
-}
-
-func (c *AnomalyDetectorController) handleStaleSparkApp() error {
-	saList, err := ListSparkApplication(c.kubeClient, sparkAppLabel)
-	if err != nil {
-		return fmt.Errorf("failed to list Spark Application: %v", err)
-	}
-	// Remove stale Spark Applications
-	var errorList []error
-	for _, sa := range saList.Items {
-		_, err := c.GetThroughputAnomalyDetector(sa.Namespace, sa.Name)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				DeleteSparkApplication(c.kubeClient, sa.Name, sa.Namespace)
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+		return err
 	}
 	return nil
 }
@@ -443,7 +394,7 @@ func (c *AnomalyDetectorController) cleanupTADetector(namespace string, sparkApp
 		}
 	}
 	query := "ALTER TABLE tadetector ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
-	return controllerutil.DeleteSparkResult(c.clickhouseConnect, query, sparkApplicationId)
+	return controllerutil.RunClickHouseQuery(c.clickhouseConnect, query, sparkApplicationId)
 }
 
 func (c *AnomalyDetectorController) finishJob(newTAD *crdv1alpha1.ThroughputAnomalyDetector) error {

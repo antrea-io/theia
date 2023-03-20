@@ -59,7 +59,6 @@ var (
 	ListSparkApplication     = controllerutil.ListSparkApplicationWithLabel
 	GetSparkApplication      = controllerutil.GetSparkApplication
 	GetSparkMonitoringSvcDNS = controllerutil.GetSparkMonitoringSvcDNS
-	GetSparkJobIds           = controllerutil.GetSparkJobIds
 	// For NPR in scheduled or running state, check its status periodically
 	npRecommendationResyncPeriod = 10 * time.Second
 	sparkAppLabelMap             = map[string]string{"app": "theia-npr"}
@@ -205,58 +204,10 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 	<-stopCh
 }
 
-func (c *NPRecommendationController) HandleStaleDbEntries() error {
-	if c.clickhouseConnect == nil {
-		var err error
-		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
-		if err != nil {
-			return fmt.Errorf("failed to connect ClickHouse: %v", err)
-		}
-	}
-	idList, err := GetSparkJobIds(c.clickhouseConnect, "recommendations")
+func (c *NPRecommendationController) IfNPRexists(namespace, id string) error {
+	_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), id)
 	if err != nil {
-		return fmt.Errorf("failed to get recommendation ids from ClickHouse: %v", err)
-	}
-	var errorList []error
-	for _, id := range idList {
-		_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), "pr-"+id)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
-				err = controllerutil.DeleteSparkResult(c.clickhouseConnect, query, id)
-				if err != nil {
-					errorList = append(errorList, err)
-				}
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
-	}
-	return nil
-}
-
-func (c *NPRecommendationController) handleStaleSparkApp() error {
-	saList, err := ListSparkApplication(c.kubeClient, sparkAppLabel)
-	if err != nil {
-		return fmt.Errorf("failed to list Spark Application: %v", err)
-	}
-	// Remove stale Spark Applications
-	var errorList []error
-	for _, sa := range saList.Items {
-		_, err := c.GetNetworkPolicyRecommendation(sa.Namespace, sa.Name)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				DeleteSparkApplication(c.kubeClient, sa.Name, sa.Namespace)
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+		return err
 	}
 	return nil
 }
@@ -284,7 +235,8 @@ func (c *NPRecommendationController) handleStaleResources(key controllerutil.GcK
 		}
 	}
 	if key.RemoveStaleDbEntries {
-		err = c.HandleStaleDbEntries()
+		err = controllerutil.HandleStaleDbEntries(
+			c.clickhouseConnect, c.kubeClient, "recommendations", "recommendations_local", c.IfNPRexists, "pr-")
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
@@ -293,7 +245,7 @@ func (c *NPRecommendationController) handleStaleResources(key controllerutil.GcK
 	}
 
 	if key.RemoveStaleSparkApp {
-		err = c.handleStaleSparkApp()
+		err = controllerutil.HandleStaleSparkApp(c.kubeClient, sparkAppLabel, c.IfNPRexists)
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
@@ -447,7 +399,7 @@ func (c *NPRecommendationController) cleanupNPRecommendation(namespace string, s
 		}
 	}
 	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
-	return controllerutil.DeleteSparkResult(c.clickhouseConnect, query, sparkApplicationId)
+	return controllerutil.RunClickHouseQuery(c.clickhouseConnect, query, sparkApplicationId)
 }
 
 func (c *NPRecommendationController) finishJob(npReco *crdv1alpha1.NetworkPolicyRecommendation) error {

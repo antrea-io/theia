@@ -18,7 +18,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -73,7 +72,7 @@ func newFakeController(t *testing.T) (*fakeController, *sql.DB) {
 	tadController := NewAnomalyDetectorController(crdClient, kubeClient, taDetectorInformer)
 
 	mock.ExpectQuery("SELECT DISTINCT id FROM tadetector;").WillReturnRows(sqlmock.NewRows([]string{}))
-	mock.ExpectExec("ALTER TABLE tadetector ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
 	return &fakeController{
 		tadController,
 		crdClient,
@@ -209,7 +208,7 @@ func TestTADetection(t *testing.T) {
 	}
 	CreateSparkApplication = fakeSAClient.create
 	DeleteSparkApplication = fakeSAClient.delete
-	ListSparkApplication = fakeSAClient.list
+	controllerUtil.ListSparkApplication = fakeSAClient.list
 	GetSparkApplication = fakeSAClient.get
 	os.Setenv("POD_NAMESPACE", testNamespace)
 	defer os.Unsetenv("POD_NAMESPACE")
@@ -403,111 +402,6 @@ func TestTADetection(t *testing.T) {
 				}
 				return false, nil
 			})
-		})
-	}
-}
-
-func TestValidateCluster(t *testing.T) {
-	testCases := []struct {
-		name             string
-		setupClient      func(kubernetes.Interface)
-		expectedErrorMsg string
-	}{
-		{
-			name:             "clickhouse pod not found",
-			setupClient:      func(i kubernetes.Interface) {},
-			expectedErrorMsg: "failed to find the ClickHouse Pod, please check the deployment",
-		},
-		{
-			name: "spark operator pod not found",
-			setupClient: func(client kubernetes.Interface) {
-				db, _ := clickhouse.CreateFakeClickHouse(t, client, testNamespace)
-				db.Close()
-			},
-			expectedErrorMsg: "failed to find the Spark Operator Pod, please check the deployment",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			kubeClient := fake.NewSimpleClientset()
-			tc.setupClient(kubeClient)
-			err := controllerUtil.ValidateCluster(kubeClient, testNamespace)
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-		})
-	}
-}
-
-func TestGetTADetectorProgress(t *testing.T) {
-	sparkAppID := "spark-application-id"
-	testCases := []struct {
-		name             string
-		testServer       *httptest.Server
-		expectedErrorMsg string
-	}{
-		{
-			name: "more than one spark application",
-			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
-						{"id": sparkAppID},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
-				}
-			})),
-			expectedErrorMsg: "wrong Spark Application number, expected 1, got 2",
-		},
-		{
-			name:             "no spark monitor service",
-			testServer:       nil,
-			expectedErrorMsg: "failed to get response from the Spark Monitoring Service",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var err error
-			if tc.testServer != nil {
-				defer tc.testServer.Close()
-				_, _, err = controllerUtil.GetSparkAppProgress(tc.testServer.URL)
-			} else {
-				_, _, err = controllerUtil.GetSparkAppProgress("http://127.0.0.1")
-			}
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-		})
-	}
-}
-
-func TestHandleStaleDbEntries(t *testing.T) {
-	tadController, db := newFakeController(t)
-	testCases := []struct {
-		name             string
-		GetSparkJobIds   func(*sql.DB, string) ([]string, error)
-		expectedErrorMsg string
-	}{
-		{
-			name: "Anomaly Detector Ids not found",
-			GetSparkJobIds: func(db *sql.DB, tableName string) ([]string, error) {
-				return []string{}, errors.New("mock_error")
-			},
-			expectedErrorMsg: "failed to get anomaly detector ids from ClickHouse: mock_error",
-		},
-		{
-			name: "Clickhouse Stale Entries present",
-			GetSparkJobIds: func(db *sql.DB, tableName string) ([]string, error) {
-				return []string{"mock_id"}, nil
-			},
-			expectedErrorMsg: "failed to remove all stale ClickHouse entries",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			tadController.clickhouseConnect = db
-			GetSparkJobIds = tc.GetSparkJobIds
-			err := tadController.HandleStaleDbEntries()
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})
 	}
 }

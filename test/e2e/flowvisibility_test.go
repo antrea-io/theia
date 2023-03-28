@@ -128,7 +128,6 @@ var (
 	expectedNumDataRecords = 3
 	grafanaPorts           = fmt.Sprintf("%s:%s", grafanaLocalPort, grafanaSvcPort)
 	portForwardCmd         = exec.Command("kubectl", "port-forward", "service/grafana", "-n", "flow-visibility", grafanaPorts)
-	clickHousePodName      = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 )
 
 type testFlow struct {

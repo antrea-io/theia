@@ -21,6 +21,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -467,4 +471,77 @@ func RetrieveJobResult(t *testing.T, data *TestData, cmd string) (stdout string,
 		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	return strings.TrimSuffix(stdout, "\n"), nil
+}
+
+func TheiaManagerRestart(t *testing.T, data *TestData, jobName1 string, job string) error {
+	// Simulate the Theia Manager downtime
+	cmd := "kubectl delete deployment theia-manager -n flow-visibility"
+	_, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+	if err != nil {
+		return fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+
+	// Delete the first job during the Theia Manager downtime
+	cmd = fmt.Sprintf("kubectl delete %s %s -n flow-visibility", job, jobName1)
+	// Sometimes the deletion will fail with 'error: the server doesn't have a resource type "npr" or "tad"'
+	// Retry under this condition
+	err = wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		_, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		if err == nil && stderr == "" {
+			return true, nil
+		}
+		// Keep trying
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+	}
+
+	// Redeploy the Theia Manager
+	err = data.deployFlowVisibilityCommon(flowVisibilityWithSparkYML)
+	if err != nil {
+		return err
+	}
+	// Sleep for a short period to make sure the previous deletion of the theia management ends
+	time.Sleep(3 * time.Second)
+	theiaManagerPodName, err := data.getPodByLabel(theiaManagerPodLabel, flowVisibilityNamespace)
+	if err != nil {
+		return err
+	}
+	err = data.podWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace)
+	if err != nil {
+		return fmt.Errorf("error when waiting for Theia Manager %s", theiaManagerPodName)
+	}
+	return nil
+}
+
+func VerifyJobCleaned(t *testing.T, data *TestData, jobName string, tablename string, prefixlen int) error {
+	// Check the SparkApplication and database entries of jobName do not exist
+	// Allow some time for Theia Manager to delete the stale resources
+	var (
+		queryOutput string
+		stderr      string
+		stdout      string
+		err         error
+	)
+	err = wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		cmd := fmt.Sprintf("kubectl get sparkapplication %s -n flow-visibility", jobName)
+		_, stdout, stderr, _ = data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		if !strings.Contains(stderr, fmt.Sprintf("sparkapplications.sparkoperator.k8s.io \"%s\" not found", jobName)) {
+			// Keep trying
+			return false, nil
+		}
+		cmd = fmt.Sprintf("clickhouse client -q \"SELECT COUNT() FROM %s WHERE id='%s'\"", tablename, jobName[prefixlen:])
+		queryOutput, stderr, err = data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", cmd})
+		require.NoErrorf(t, err, "fail to get %v from ClickHouse, stderr: %v", tablename, stderr)
+		if queryOutput != "0\n" {
+			// Keep trying
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		return fmt.Errorf("stale resources expected to be deleted, but got stdout: %s, stderr: %s, ClickHouse query result expected to be 0, got: %s", stdout, stderr, queryOutput)
+	}
+	return nil
 }

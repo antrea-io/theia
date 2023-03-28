@@ -65,12 +65,6 @@ var (
 	sparkAppLabel                = "app=theia-npr"
 )
 
-type gcKey struct {
-	removeStaleDbEntries bool
-	removeStaleSparkApp  bool
-	addResync            bool
-}
-
 type NPRecommendationController struct {
 	crdClient  versioned.Interface
 	kubeClient kubernetes.Interface
@@ -193,10 +187,10 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 		return
 	}
 
-	c.gcQueue.Add(gcKey{
-		removeStaleDbEntries: true,
-		removeStaleSparkApp:  true,
-		addResync:            true,
+	c.gcQueue.Add(controllerutil.GcKey{
+		RemoveStaleDbEntries: true,
+		RemoveStaleSparkApp:  true,
+		AddResync:            true,
 	})
 	go c.gcworker(stopCh)
 
@@ -210,58 +204,10 @@ func (c *NPRecommendationController) Run(stopCh <-chan struct{}) {
 	<-stopCh
 }
 
-func (c *NPRecommendationController) handleStaleDbEntries() error {
-	if c.clickhouseConnect == nil {
-		var err error
-		c.clickhouseConnect, err = clickhouse.SetupConnection(c.kubeClient)
-		if err != nil {
-			return fmt.Errorf("failed to connect ClickHouse: %v", err)
-		}
-	}
-	idList, err := controllerutil.GetPolicyRecommendationIds(c.clickhouseConnect)
+func (c *NPRecommendationController) IfNPRexists(namespace, id string) error {
+	_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), id)
 	if err != nil {
-		return fmt.Errorf("failed to get recommendation ids from ClickHouse: %v", err)
-	}
-	var errorList []error
-	for _, id := range idList {
-		_, err := c.GetNetworkPolicyRecommendation(env.GetTheiaNamespace(), "pr-"+id)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
-				err = controllerutil.DeleteSparkResult(c.clickhouseConnect, query, id)
-				if err != nil {
-					errorList = append(errorList, err)
-				}
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
-	}
-	return nil
-}
-
-func (c *NPRecommendationController) handleStaleSparkApp() error {
-	saList, err := ListSparkApplication(c.kubeClient, sparkAppLabel)
-	if err != nil {
-		return fmt.Errorf("failed to list Spark Application: %v", err)
-	}
-	// Remove stale Spark Applications
-	var errorList []error
-	for _, sa := range saList.Items {
-		_, err := c.GetNetworkPolicyRecommendation(sa.Namespace, sa.Name)
-		if err != nil {
-			if apimachineryerrors.IsNotFound(err) {
-				DeleteSparkApplication(c.kubeClient, sa.Name, sa.Namespace)
-			} else {
-				errorList = append(errorList, err)
-			}
-		}
-	}
-	if len(errorList) > 0 {
-		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+		return err
 	}
 	return nil
 }
@@ -269,9 +215,9 @@ func (c *NPRecommendationController) handleStaleSparkApp() error {
 // handleStaleResources handles the stale Spark Applications and database entries.
 // It will delete the dangling resources without a matching NetworkPolicyRecommendation
 // and add the running NetworkPolicyRecommendation back to the periodical watch list.
-func (c *NPRecommendationController) handleStaleResources(key gcKey) (updatedKey gcKey, err error) {
+func (c *NPRecommendationController) handleStaleResources(key controllerutil.GcKey) (updatedKey controllerutil.GcKey, err error) {
 	var errorList []error
-	if key.addResync {
+	if key.AddResync {
 		// Add scheduled/running NPR back to resycn list
 		nprList, err := c.ListNetworkPolicyRecommendation(env.GetTheiaNamespace())
 		if err != nil {
@@ -285,24 +231,25 @@ func (c *NPRecommendationController) handleStaleResources(key gcKey) (updatedKey
 					})
 				}
 			}
-			key.addResync = false
+			key.AddResync = false
 		}
 	}
-	if key.removeStaleDbEntries {
-		err = c.handleStaleDbEntries()
+	if key.RemoveStaleDbEntries {
+		err = controllerutil.HandleStaleDbEntries(
+			c.clickhouseConnect, c.kubeClient, "recommendations", "recommendations_local", c.IfNPRexists, "pr-")
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
-			key.removeStaleDbEntries = false
+			key.RemoveStaleDbEntries = false
 		}
 	}
 
-	if key.removeStaleSparkApp {
-		err = c.handleStaleSparkApp()
+	if key.RemoveStaleSparkApp {
+		err = controllerutil.HandleStaleSparkApp(c.kubeClient, sparkAppLabel, c.IfNPRexists)
 		if err != nil {
 			errorList = append(errorList, err)
 		} else {
-			key.removeStaleSparkApp = false
+			key.RemoveStaleSparkApp = false
 		}
 	}
 
@@ -326,7 +273,7 @@ func (c *NPRecommendationController) processNextGcWorkItem() bool {
 	}
 	defer c.gcQueue.Done(obj)
 
-	if key, ok := obj.(gcKey); !ok {
+	if key, ok := obj.(controllerutil.GcKey); !ok {
 		c.queue.Forget(obj)
 		klog.ErrorS(nil, "Expected gcKey in work queue", "got", obj)
 		return false
@@ -452,7 +399,7 @@ func (c *NPRecommendationController) cleanupNPRecommendation(namespace string, s
 		}
 	}
 	query := "ALTER TABLE recommendations_local ON CLUSTER '{cluster}' DELETE WHERE id = (" + sparkApplicationId + ");"
-	return controllerutil.DeleteSparkResult(c.clickhouseConnect, query, sparkApplicationId)
+	return controllerutil.RunClickHouseQuery(c.clickhouseConnect, query, sparkApplicationId)
 }
 
 func (c *NPRecommendationController) finishJob(npReco *crdv1alpha1.NetworkPolicyRecommendation) error {

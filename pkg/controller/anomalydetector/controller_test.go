@@ -16,15 +16,18 @@ package anomalydetector
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +42,7 @@ import (
 	fakecrd "antrea.io/theia/pkg/client/clientset/versioned/fake"
 	crdinformers "antrea.io/theia/pkg/client/informers/externalversions"
 	controllerUtil "antrea.io/theia/pkg/controller"
+	"antrea.io/theia/pkg/util/clickhouse"
 	"antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -46,6 +50,7 @@ const informerDefaultResync = 30 * time.Second
 
 var (
 	testNamespace = "controller-test"
+	tadName       = "tad-1234abcd-1234-abcd-12ab-12345678abcd"
 )
 
 type fakeController struct {
@@ -55,9 +60,9 @@ type fakeController struct {
 	crdInformerFactory crdinformers.SharedInformerFactory
 }
 
-func newFakeController() *fakeController {
+func newFakeController(t *testing.T) (*fakeController, *sql.DB) {
 	kubeClient := fake.NewSimpleClientset()
-	createClickHousePod(kubeClient)
+	db, mock := clickhouse.CreateFakeClickHouse(t, kubeClient, testNamespace)
 	createSparkOperatorPod(kubeClient)
 	crdClient := fakecrd.NewSimpleClientset()
 
@@ -66,26 +71,14 @@ func newFakeController() *fakeController {
 
 	tadController := NewAnomalyDetectorController(crdClient, kubeClient, taDetectorInformer)
 
+	mock.ExpectQuery("SELECT DISTINCT id FROM tadetector;").WillReturnRows(sqlmock.NewRows([]string{}))
+	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
 	return &fakeController{
 		tadController,
 		crdClient,
 		kubeClient,
 		crdInformerFactory,
-	}
-}
-
-func createClickHousePod(kubeClient kubernetes.Interface) {
-	clickHousePod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "clickhouse",
-			Namespace: testNamespace,
-			Labels:    map[string]string{"app": "clickhouse"},
-		},
-		Status: v1.PodStatus{
-			Phase: v1.PodRunning,
-		},
-	}
-	kubeClient.CoreV1().Pods(testNamespace).Create(context.TODO(), clickHousePod, metav1.CreateOptions{})
+	}, db
 }
 
 func createSparkOperatorPod(kubeClient kubernetes.Interface) {
@@ -215,13 +208,18 @@ func TestTADetection(t *testing.T) {
 	}
 	CreateSparkApplication = fakeSAClient.create
 	DeleteSparkApplication = fakeSAClient.delete
-	ListSparkApplication = fakeSAClient.list
+	controllerUtil.ListSparkApplication = fakeSAClient.list
 	GetSparkApplication = fakeSAClient.get
+	os.Setenv("POD_NAMESPACE", testNamespace)
+	defer os.Unsetenv("POD_NAMESPACE")
 
 	// Use a shorter resync period
 	anomalyDetectorResyncPeriod = 100 * time.Millisecond
 
-	tadController := newFakeController()
+	tadController, db := newFakeController(t)
+	if db != nil {
+		defer db.Close()
+	}
 	stopCh := make(chan struct{})
 
 	tadController.crdInformerFactory.Start(stopCh)
@@ -231,7 +229,7 @@ func TestTADetection(t *testing.T) {
 
 	t.Run("NormalAnomalyDetector", func(t *testing.T) {
 		tad := &crdv1alpha1.ThroughputAnomalyDetector{
-			ObjectMeta: metav1.ObjectMeta{Name: "tad-1234abcd-1234-abcd-12ab-12345678abcd", Namespace: testNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: tadName, Namespace: testNamespace},
 			Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
 				JobType:             "ARIMA",
 				ExecutorInstances:   1,
@@ -241,6 +239,7 @@ func TestTADetection(t *testing.T) {
 				ExecutorMemory:      "512M",
 				StartInterval:       metav1.NewTime(time.Now()),
 				EndInterval:         metav1.NewTime(time.Now().Add(time.Second * 100)),
+				NSIgnoreList:        []string{"kube-system", "flow-visibility"},
 			},
 			Status: crdv1alpha1.ThroughputAnomalyDetectorStatus{},
 		}
@@ -254,7 +253,7 @@ func TestTADetection(t *testing.T) {
 		timeout := 30 * time.Second
 
 		wait.PollImmediate(stepInterval, timeout, func() (done bool, err error) {
-			tad, err = tadController.GetThroughputAnomalyDetector(testNamespace, "tad-1234abcd-1234-abcd-12ab-12345678abcd")
+			tad, err = tadController.GetThroughputAnomalyDetector(testNamespace, tadName)
 			if err != nil {
 				return false, nil
 			}
@@ -281,7 +280,7 @@ func TestTADetection(t *testing.T) {
 		assert.Equal(t, 1, len(tadList), "Expected exactly one ThroughputAnomalyDetector, got %d", len(tadList))
 		assert.Equal(t, tad, tadList[0])
 
-		err = tadController.DeleteThroughputAnomalyDetector(testNamespace, "tad-1234abcd-1234-abcd-12ab-12345678abcd")
+		err = tadController.DeleteThroughputAnomalyDetector(testNamespace, tadName)
 		assert.NoError(t, err)
 	})
 
@@ -403,78 +402,6 @@ func TestTADetection(t *testing.T) {
 				}
 				return false, nil
 			})
-		})
-	}
-}
-
-func TestValidateCluster(t *testing.T) {
-	testCases := []struct {
-		name             string
-		setupClient      func(kubernetes.Interface)
-		expectedErrorMsg string
-	}{
-		{
-			name:             "clickhouse pod not found",
-			setupClient:      func(i kubernetes.Interface) {},
-			expectedErrorMsg: "failed to find the ClickHouse Pod, please check the deployment",
-		},
-		{
-			name: "spark operator pod not found",
-			setupClient: func(client kubernetes.Interface) {
-				createClickHousePod(client)
-			},
-			expectedErrorMsg: "failed to find the Spark Operator Pod, please check the deployment",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			kubeClient := fake.NewSimpleClientset()
-			tc.setupClient(kubeClient)
-			err := controllerUtil.ValidateCluster(kubeClient, testNamespace)
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-		})
-	}
-}
-
-func TestGetTADetectorProgress(t *testing.T) {
-	sparkAppID := "spark-application-id"
-	testCases := []struct {
-		name             string
-		testServer       *httptest.Server
-		expectedErrorMsg string
-	}{
-		{
-			name: "more than one spark application",
-			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
-						{"id": sparkAppID},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
-				}
-			})),
-			expectedErrorMsg: "wrong Spark Application number, expected 1, got 2",
-		},
-		{
-			name:             "no spark monitor service",
-			testServer:       nil,
-			expectedErrorMsg: "failed to get response from the Spark Monitoring Service",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var err error
-			if tc.testServer != nil {
-				defer tc.testServer.Close()
-				_, _, err = controllerUtil.GetSparkAppProgress(tc.testServer.URL)
-			} else {
-				_, _, err = controllerUtil.GetSparkAppProgress("http://127.0.0.1")
-			}
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})
 	}
 }

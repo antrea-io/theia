@@ -28,8 +28,6 @@ import (
 	clientrest "k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
 
-	anomalydetectorinstall "antrea.io/theia/pkg/apis/anomalydetector/install"
-	anomalydetectorrun "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
 	intelligenceinstall "antrea.io/theia/pkg/apis/intelligence/install"
 	intelligence "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	statsinstall "antrea.io/theia/pkg/apis/stats/install"
@@ -37,8 +35,8 @@ import (
 	systeminstall "antrea.io/theia/pkg/apis/system/install"
 	system "antrea.io/theia/pkg/apis/system/v1alpha1"
 	"antrea.io/theia/pkg/apiserver/certificate"
-	throughputanomalydetector "antrea.io/theia/pkg/apiserver/registry/anomalydetector/throughputanomalydetector"
 	"antrea.io/theia/pkg/apiserver/registry/intelligence/networkpolicyrecommendation"
+	throughputanomalydetector "antrea.io/theia/pkg/apiserver/registry/intelligence/throughputanomalydetector"
 	clickhouseStatus "antrea.io/theia/pkg/apiserver/registry/stats/clickhouse"
 	"antrea.io/theia/pkg/apiserver/registry/system/supportbundle"
 	"antrea.io/theia/pkg/querier"
@@ -71,7 +69,6 @@ var (
 func init() {
 	intelligenceinstall.Install(scheme)
 	statsinstall.Install(scheme)
-	anomalydetectorinstall.Install(scheme)
 	systeminstall.Install(scheme)
 	metav1.AddToGroupVersion(scheme, schema.GroupVersion{Version: "v1"})
 }
@@ -139,17 +136,13 @@ func installAPIGroup(s *TheiaManagerAPIServer, c Config) error {
 	intelligenceGroup := genericapiserver.NewDefaultAPIGroupInfo(intelligence.GroupName, scheme, parameterCodec, Codecs)
 	v1alpha1Storage := map[string]rest.Storage{}
 	v1alpha1Storage["networkpolicyrecommendations"] = npRecommendationStorage
+	v1alpha1Storage["throughputanomalydetectors"] = throughputAnomalyDetectorStorage
 	intelligenceGroup.VersionedResourcesStorageMap["v1alpha1"] = v1alpha1Storage
 
 	statsGroup := genericapiserver.NewDefaultAPIGroupInfo(apistats.GroupName, scheme, parameterCodec, Codecs)
 	statsStorage := map[string]rest.Storage{}
 	statsStorage["clickhouse"] = clickhouseStatusStorage
 	statsGroup.VersionedResourcesStorageMap["v1alpha1"] = statsStorage
-
-	anomalyDetectorGroup := genericapiserver.NewDefaultAPIGroupInfo(anomalydetectorrun.GroupName, scheme, parameterCodec, Codecs)
-	anomalyDetectorStorage := map[string]rest.Storage{}
-	anomalyDetectorStorage["throughputanomalydetectors"] = throughputAnomalyDetectorStorage
-	anomalyDetectorGroup.VersionedResourcesStorageMap["v1alpha1"] = anomalyDetectorStorage
 
 	systemGroup := genericapiserver.NewDefaultAPIGroupInfo(system.GroupName, scheme, parameterCodec, Codecs)
 	systemStorage := map[string]rest.Storage{}
@@ -158,7 +151,7 @@ func installAPIGroup(s *TheiaManagerAPIServer, c Config) error {
 	systemStorage["supportbundles/download"] = bundleStorage.Download
 	systemGroup.VersionedResourcesStorageMap["v1alpha1"] = systemStorage
 
-	groups := []*genericapiserver.APIGroupInfo{&intelligenceGroup, &statsGroup, &anomalyDetectorGroup, &systemGroup}
+	groups := []*genericapiserver.APIGroupInfo{&intelligenceGroup, &statsGroup, &systemGroup}
 
 	for _, apiGroupInfo := range groups {
 		if err := s.GenericAPIServer.InstallAPIGroup(apiGroupInfo); err != nil {

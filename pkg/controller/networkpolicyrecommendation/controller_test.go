@@ -209,7 +209,7 @@ func TestNPRecommendation(t *testing.T) {
 	}
 	CreateSparkApplication = fakeSAClient.create
 	DeleteSparkApplication = fakeSAClient.delete
-	ListSparkApplication = fakeSAClient.list
+	controllerutil.ListSparkApplication = fakeSAClient.list
 	GetSparkApplication = fakeSAClient.get
 	os.Setenv("POD_NAMESPACE", testNamespace)
 	defer os.Unsetenv("POD_NAMESPACE")
@@ -437,79 +437,6 @@ func TestNPRecommendation(t *testing.T) {
 				}
 				return false, nil
 			})
-		})
-	}
-}
-
-func TestValidateCluster(t *testing.T) {
-	testCases := []struct {
-		name             string
-		setupClient      func(kubernetes.Interface)
-		expectedErrorMsg string
-	}{
-		{
-			name:             "clickhouse pod not found",
-			setupClient:      func(i kubernetes.Interface) {},
-			expectedErrorMsg: "failed to find the ClickHouse Pod, please check the deployment",
-		},
-		{
-			name: "spark operator pod not found",
-			setupClient: func(client kubernetes.Interface) {
-				db, _ := clickhouse.CreateFakeClickHouse(t, client, testNamespace)
-				db.Close()
-			},
-			expectedErrorMsg: "failed to find the Spark Operator Pod, please check the deployment",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			kubeClient := fake.NewSimpleClientset()
-			tc.setupClient(kubeClient)
-			err := controllerutil.ValidateCluster(kubeClient, testNamespace)
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
-		})
-	}
-}
-
-func TestGetPolicyRecommendationProgress(t *testing.T) {
-	sparkAppID := "spark-application-id"
-	testCases := []struct {
-		name             string
-		testServer       *httptest.Server
-		expectedErrorMsg string
-	}{
-		{
-			name: "more than one spark application",
-			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				switch strings.TrimSpace(r.URL.Path) {
-				case "/api/v1/applications":
-					responses := []map[string]interface{}{
-						{"id": sparkAppID},
-						{"id": sparkAppID},
-					}
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(responses)
-				}
-			})),
-			expectedErrorMsg: "wrong Spark Application number, expected 1, got 2",
-		},
-		{
-			name:             "no spark monitor service",
-			testServer:       nil,
-			expectedErrorMsg: "failed to get response from the Spark Monitoring Service",
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var err error
-			if tc.testServer != nil {
-				defer tc.testServer.Close()
-				_, _, err = controllerutil.GetSparkAppProgress(tc.testServer.URL)
-			} else {
-				_, _, err = controllerutil.GetSparkAppProgress("http://127.0.0.1")
-			}
-			assert.Contains(t, err.Error(), tc.expectedErrorMsg)
 		})
 	}
 }

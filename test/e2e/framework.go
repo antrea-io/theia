@@ -62,10 +62,6 @@ import (
 	"antrea.io/theia/test/e2e/providers"
 )
 
-var (
-	errConnectionLost = fmt.Errorf("http2: client connection lost")
-)
-
 const (
 	defaultTimeout  = 90 * time.Second
 	defaultInterval = 1 * time.Second
@@ -160,6 +156,11 @@ const (
 				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 				?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 				?, ?, ?, ?, ?, ?, ?, ?)`
+)
+
+var (
+	errConnectionLost = fmt.Errorf("http2: client connection lost")
+	clickHousePodName = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 )
 
 type FlowVisibiltiySetUpConfig struct {

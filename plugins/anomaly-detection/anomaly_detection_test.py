@@ -37,7 +37,7 @@ table_name = "default.flows"
     "test_input, expected_sql_query",
     [
         (
-                ("", ""),
+                ("", "", []),
                 "SELECT {} FROM {} GROUP BY {} ".format(
                     ", ".join(ad.FLOW_TABLE_COLUMNS),
                     table_name,
@@ -45,7 +45,7 @@ table_name = "default.flows"
                 ),
         ),
         (
-                ("2022-01-01 00:00:00", ""),
+                ("2022-01-01 00:00:00", "", []),
                 "SELECT {} FROM {} WHERE "
                 "flowStartSeconds >= '2022-01-01 00:00:00' "
                 "GROUP BY {} ".format(
@@ -55,7 +55,7 @@ table_name = "default.flows"
                 ),
         ),
         (
-                ("", "2022-01-01 23:59:59"),
+                ("", "2022-01-01 23:59:59", []),
                 "SELECT {} FROM {} WHERE "
                 "flowEndSeconds < '2022-01-01 23:59:59' GROUP BY {} ".format(
                     ", ".join(ad.FLOW_TABLE_COLUMNS),
@@ -64,7 +64,7 @@ table_name = "default.flows"
                 ),
         ),
         (
-                ("2022-01-01 00:00:00", "2022-01-01 23:59:59"),
+                ("2022-01-01 00:00:00", "2022-01-01 23:59:59", []),
                 "SELECT {} FROM {} WHERE "
                 "flowStartSeconds >= '2022-01-01 00:00:00' AND "
                 "flowEndSeconds < '2022-01-01 23:59:59' "
@@ -74,11 +74,22 @@ table_name = "default.flows"
                     ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
                 ),
         ),
+        (
+                ("", "", ["mock_ns", "mock_ns2"]),
+                "SELECT {} FROM {} WHERE "
+                "sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND "
+                "destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2') "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
+        ),
     ],
 )
 def test_generate_sql_query(test_input, expected_sql_query):
-    start_time, end_time = test_input
-    sql_query = ad.generate_tad_sql_query(start_time, end_time)
+    start_time, end_time, ns_ignore_list = test_input
+    sql_query = ad.generate_tad_sql_query(start_time, end_time, ns_ignore_list)
     assert sql_query == expected_sql_query
 
 

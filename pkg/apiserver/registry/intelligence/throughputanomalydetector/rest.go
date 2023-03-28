@@ -25,8 +25,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 
-	"antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
 	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
+	"antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 	"antrea.io/theia/pkg/querier"
 	"antrea.io/theia/pkg/util/clickhouse"
 )
@@ -101,6 +101,7 @@ func (r *REST) copyThroughputAnomalyDetector(tad *v1alpha1.ThroughputAnomalyDete
 	tad.StartInterval = crd.Spec.StartInterval
 	tad.EndInterval = crd.Spec.EndInterval
 	tad.ExecutorInstances = crd.Spec.ExecutorInstances
+	tad.NSIgnoreList = crd.Spec.NSIgnoreList
 	tad.DriverCoreRequest = crd.Spec.DriverCoreRequest
 	tad.DriverMemory = crd.Spec.DriverMemory
 	tad.ExecutorCoreRequest = crd.Spec.ExecutorCoreRequest
@@ -163,6 +164,7 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 	job.Spec.JobType = newTAD.Type
 	job.Spec.StartInterval = newTAD.StartInterval
 	job.Spec.EndInterval = newTAD.EndInterval
+	job.Spec.NSIgnoreList = newTAD.NSIgnoreList
 	job.Spec.ExecutorInstances = newTAD.ExecutorInstances
 	job.Spec.DriverCoreRequest = newTAD.DriverCoreRequest
 	job.Spec.DriverMemory = newTAD.DriverMemory

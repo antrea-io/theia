@@ -28,8 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 
-	anomalydetector "antrea.io/theia/pkg/apis/anomalydetector/v1alpha1"
 	crdv1alpha1 "antrea.io/theia/pkg/apis/crd/v1alpha1"
+	anomalydetector "antrea.io/theia/pkg/apis/intelligence/v1alpha1"
 )
 
 type fakeQuerier struct{}

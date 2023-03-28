@@ -23,10 +23,13 @@ import (
 	"net/http"
 	"time"
 
+	apimachineryerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 
+	"antrea.io/theia/pkg/util/clickhouse"
+	"antrea.io/theia/pkg/util/env"
 	sparkv1 "antrea.io/theia/third_party/sparkoperator/v1beta2"
 )
 
@@ -48,6 +51,17 @@ const (
 	SparkServiceAccount  = "theia-spark"
 	SparkVersion         = "3.1.1"
 	SparkPort            = 4040
+)
+
+type GcKey struct {
+	RemoveStaleDbEntries bool
+	RemoveStaleSparkApp  bool
+	AddResync            bool
+}
+
+var (
+	ListSparkApplication = ListSparkApplicationWithLabel
+	getSparkJobIds       = GetSparkJobIds
 )
 
 func ConstStrToPointer(constStr string) *string {
@@ -144,16 +158,16 @@ func GetSparkAppProgress(baseUrl string) (completedStages int, totalStages int, 
 	return completedStages, totalStages, nil
 }
 
-func DeleteSparkResult(connect *sql.DB, query string, id string) (err error) {
+func RunClickHouseQuery(connect *sql.DB, query string, id string) (err error) {
 	_, err = connect.Exec(query)
 	if err != nil {
-		return fmt.Errorf("failed to delete throughput anomaly detector result with id %s: %v", id, err)
+		return fmt.Errorf("query failed for Spark Application id %s, error: %v", id, err)
 	}
 	return nil
 }
 
-func GetPolicyRecommendationIds(connect *sql.DB) ([]string, error) {
-	query := "SELECT DISTINCT id FROM recommendations;"
+func GetSparkJobIds(connect *sql.DB, tableName string) ([]string, error) {
+	query := "SELECT DISTINCT id FROM " + tableName + ";"
 	rows, err := connect.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from ClickHouse: %v", err)
@@ -197,16 +211,6 @@ func ListSparkApplicationWithLabel(client kubernetes.Interface, label string) (*
 	return sparkApplicationList, err
 }
 
-func ListSparkApplication(client kubernetes.Interface, namespace string) (*sparkv1.SparkApplicationList, error) {
-	sparkApplicationList := &sparkv1.SparkApplicationList{}
-	err := client.CoreV1().RESTClient().Get().
-		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
-		Namespace(namespace).
-		Resource("sparkapplications").
-		Do(context.TODO()).Into(sparkApplicationList)
-	return sparkApplicationList, err
-}
-
 func DeleteSparkApplication(client kubernetes.Interface, name string, namespace string) {
 	client.CoreV1().RESTClient().Delete().
 		AbsPath("/apis/sparkoperator.k8s.io/v1beta2").
@@ -230,4 +234,60 @@ func CreateSparkApplication(client kubernetes.Interface, namespace string, spark
 
 func GetSparkMonitoringSvcDNS(id string, namespace string, sparkPort int) string {
 	return fmt.Sprintf("http://pr-%s-ui-svc.%s.svc:%d", id, namespace, sparkPort)
+}
+
+func HandleStaleDbEntries(clickhouseConnect *sql.DB, client kubernetes.Interface, job, tableName string, ifResourceExists func(string, string) error, idPrefix string) error {
+	if clickhouseConnect == nil {
+		var err error
+		clickhouseConnect, err = clickhouse.SetupConnection(client)
+		if err != nil {
+			return fmt.Errorf("failed to connect ClickHouse: %v", err)
+		}
+	}
+	idList, err := getSparkJobIds(clickhouseConnect, job)
+	if err != nil {
+		return fmt.Errorf("failed to get %v ids from ClickHouse: %v", job, err)
+	}
+	var errorList []error
+	for _, id := range idList {
+		err := ifResourceExists(env.GetTheiaNamespace(), idPrefix+id)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				query := "ALTER TABLE " + tableName + " ON CLUSTER '{cluster}' DELETE WHERE id = (" + id + ");"
+				err = RunClickHouseQuery(clickhouseConnect, query, id)
+				if err != nil {
+					errorList = append(errorList, err)
+				}
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove all stale ClickHouse entries: %v", errorList)
+	}
+	return nil
+}
+
+func HandleStaleSparkApp(client kubernetes.Interface, sparkAppLabel string, ifResourceExists func(string, string) error) error {
+	saList, err := ListSparkApplication(client, sparkAppLabel)
+	if err != nil {
+		return fmt.Errorf("failed to list Spark Application: %v", err)
+	}
+	// Remove stale Spark Applications
+	var errorList []error
+	for _, sa := range saList.Items {
+		err := ifResourceExists(sa.Namespace, sa.Name)
+		if err != nil {
+			if apimachineryerrors.IsNotFound(err) {
+				DeleteSparkApplication(client, sa.Name, sa.Namespace)
+			} else {
+				errorList = append(errorList, err)
+			}
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("failed to remove stale Spark Applications and database entries: %v", errorList)
+	}
+	return nil
 }

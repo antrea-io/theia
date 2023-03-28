@@ -82,6 +82,10 @@ func TestAnomalyDetection(t *testing.T) {
 	t.Run("TestAnomalyDetectionRetrieve", func(t *testing.T) {
 		testAnomalyDetectionRetrieve(t, data, connect)
 	})
+
+	t.Run("testTADCleanAfterTheiaMgrResync", func(t *testing.T) {
+		testTADCleanAfterTheiaMgrResync(t, data)
+	})
 }
 
 func prepareFlowTable(t *testing.T, connect *sql.DB) {
@@ -162,10 +166,10 @@ func testAnomalyDetectionDelete(t *testing.T, data *TestData, connect *sql.DB) {
 }
 
 // Example Output
-// id                                      sourceIP        sourceTransportPort     destinationIP   destinationTransportPort        flowStartSeconds        flowEndSeconds          throughput                         algoCalc                anomaly
-// eec9d1be-7204-4d50-8f57-d9c8757a2668    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:24:54     10004969097.000000000000000000      4.0063773860532994E9    true
-// eec9d1be-7204-4d50-8f57-d9c8757a2668    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:06:54     4005703059.000000000000000000       1.0001208294655691E10   true
-// eec9d1be-7204-4d50-8f57-d9c8757a2668    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:34:54     50007861276.000000000000000000      3.9735065921281104E9    true
+// id                                      sourceIP        sourceTransportPort     destinationIP   destinationTransportPort        flowStartSeconds        flowEndSeconds          throughput              algoCalc   anomaly
+// 4196479b-6e90-462c-b44f-e326baa52686    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:24:54Z    1.0004969097e+10        4.006432886406564e+09       true
+// 4196479b-6e90-462c-b44f-e326baa52686    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:06:54Z    4.005703059e+09         1.0001208441920074e+10      true
+// 4196479b-6e90-462c-b44f-e326baa52686    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:34:54Z    5.0007861276e+10        3.9735067954945493e+09      true
 func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB) {
 	prepareFlowTable(t, connect)
 	algoNames := []string{"ARIMA", "EWMA", "DBSCAN"}
@@ -410,4 +414,30 @@ func populateFlowTable(t *testing.T, connect *sql.DB) {
 	go writeTADRecords(t, connect, &wg)
 	time.Sleep(time.Duration(insertInterval) * time.Second)
 	wg.Wait()
+}
+
+func testTADCleanAfterTheiaMgrResync(t *testing.T, data *TestData) {
+	_, jobName1, err := tadrunJob(t, data, "ARIMA")
+	require.NoError(t, err)
+	_, jobName2, err := tadrunJob(t, data, "ARIMA")
+	require.NoError(t, err)
+
+	err = TheiaManagerRestart(t, data, jobName1, "tad")
+	require.NoError(t, err)
+
+	// Check the status of jobName2
+	stdout, err := tadgetJobStatus(t, data, jobName2)
+	require.NoError(t, err)
+	assert := assert.New(t)
+	assert.Containsf(stdout, "Status of this anomaly detection job is", "stdout: %s", stdout)
+	err = data.podWaitForReady(defaultTimeout, jobName2+"-driver", flowVisibilityNamespace)
+	require.NoError(t, err)
+	_, err = taddeleteJob(t, data, jobName2)
+	require.NoError(t, err)
+
+	// Check the SparkApplication and database entries of jobName1 do not exist
+	// Allow some time for Theia Manager to delete the stale resources
+
+	err = VerifyJobCleaned(t, data, jobName1, "tadetector", 4)
+	require.NoError(t, err)
 }

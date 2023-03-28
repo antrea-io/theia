@@ -151,6 +151,25 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 	}
 	throughputAnomalyDetection.ExecutorMemory = executorMemory
 
+	aggregatedFlow, err := cmd.Flags().GetString("agg-flow")
+	if err != nil {
+		return err
+	}
+	if aggregatedFlow != "" {
+		throughputAnomalyDetection.AggregatedFlow = aggregatedFlow
+	}
+
+	pod2podlabel, err := cmd.Flags().GetString("p2p-label")
+	if err != nil {
+		return err
+	}
+	if pod2podlabel != "" {
+		if aggregatedFlow != "pod2pod" {
+			return fmt.Errorf("pop2podlabel can only be mentioned with aggregatedFlow as pod2pod, instead found %v", aggregatedFlow)
+		}
+		throughputAnomalyDetection.Pod2PodLabel = pod2podlabel
+	}
+
 	tadID := uuid.New().String()
 	throughputAnomalyDetection.Name = "tad-" + tadID
 	throughputAnomalyDetection.Namespace = config.FlowVisibilityNS
@@ -240,5 +259,14 @@ Example values include 0.1, 500m, 1.5, 5, etc.`,
 		`Specify the memory request for the executor Pod. Values conform to the Kubernetes resource quantity convention.
 Example values include 512M, 1G, 8G, etc.`,
 	)
-
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"agg-flow",
+		"",
+		`Specifies which aggregated flow to perform anomaly detection on, options are pods/pod2pod/pod2svc`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"p2p-label",
+		"",
+		`On choosing agg-flow as pod2pod, user need to mention labels for inbound/outbound throughput`,
+	)
 }

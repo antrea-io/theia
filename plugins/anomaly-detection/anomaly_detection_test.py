@@ -23,7 +23,7 @@ import anomaly_detection as ad
 def spark_session(request):
     spark_session = (
         SparkSession.builder.master("local")
-        .appName("anomlay_detection_job_test")
+        .appName("anomaly_detection_job_test")
         .getOrCreate()
     )
     request.addfinalizer(lambda: spark_session.sparkContext.stop())
@@ -37,75 +37,117 @@ table_name = "default.flows"
     "test_input, expected_sql_query",
     [
         (
-                ("", "", []),
-                "SELECT {} FROM {} GROUP BY {} ".format(
-                    ", ".join(ad.FLOW_TABLE_COLUMNS),
-                    table_name,
-                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-                ),
+            ("", "", [], "", ""),
+            "SELECT {} FROM {} GROUP BY {} ".format(
+                ", ".join(ad.FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+            ),
         ),
         (
-                ("2022-01-01 00:00:00", "", []),
-                "SELECT {} FROM {} WHERE "
-                "flowStartSeconds >= '2022-01-01 00:00:00' "
-                "GROUP BY {} ".format(
-                    ", ".join(ad.FLOW_TABLE_COLUMNS),
-                    table_name,
-                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-                ),
+            ("2022-01-01 00:00:00", "", [], "", ""),
+            "SELECT {} FROM {} WHERE "
+            "flowStartSeconds >= '2022-01-01 00:00:00' "
+            "GROUP BY {} ".format(
+                ", ".join(ad.FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+            ),
         ),
         (
-                ("", "2022-01-01 23:59:59", []),
-                "SELECT {} FROM {} WHERE "
-                "flowEndSeconds < '2022-01-01 23:59:59' GROUP BY {} ".format(
-                    ", ".join(ad.FLOW_TABLE_COLUMNS),
-                    table_name,
-                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-                ),
+            ("", "2022-01-01 23:59:59", [], "", ""),
+            "SELECT {} FROM {} WHERE "
+            "flowEndSeconds < '2022-01-01 23:59:59' GROUP BY {} ".format(
+                ", ".join(ad.FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+            ),
         ),
         (
-                ("2022-01-01 00:00:00", "2022-01-01 23:59:59", []),
-                "SELECT {} FROM {} WHERE "
-                "flowStartSeconds >= '2022-01-01 00:00:00' AND "
-                "flowEndSeconds < '2022-01-01 23:59:59' "
-                "GROUP BY {} ".format(
-                    ", ".join(ad.FLOW_TABLE_COLUMNS),
-                    table_name,
-                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-                ),
+            ("2022-01-01 00:00:00", "2022-01-01 23:59:59", [], "", ""),
+            "SELECT {} FROM {} WHERE "
+            "flowStartSeconds >= '2022-01-01 00:00:00' AND "
+            "flowEndSeconds < '2022-01-01 23:59:59' "
+            "GROUP BY {} ".format(
+                ", ".join(ad.FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+            ),
         ),
         (
-                ("", "", ["mock_ns", "mock_ns2"]),
-                "SELECT {} FROM {} WHERE "
-                "sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND "
-                "destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2') "
-                "GROUP BY {} ".format(
-                    ", ".join(ad.FLOW_TABLE_COLUMNS),
-                    table_name,
-                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-                ),
+            ("", "", ["mock_ns", "mock_ns2"], "", ""),
+            "SELECT {} FROM {} WHERE "
+            "sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND "
+            "destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2') "
+            "GROUP BY {} ".format(
+                ", ".join(ad.FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+            ),
+        ),
+        (
+            ("", "", [], "pod", ""),
+            "SELECT {} FROM {} WHERE "
+            "flowType = 3 "
+            "GROUP BY {} ".format(
+                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
+            )
+        ),
+        (
+            ("", "", [], "pod2pod", ""),
+            "SELECT {} FROM {} WHERE "
+            "destinationPodLabels <> '' AND sourcePodLabels <> '' "
+            "GROUP BY {} ".format(
+                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
+            )
+        ),
+        (
+            ("", "", [], "pod2pod", "app:label"),
+            "SELECT {} FROM {} WHERE "
+            "ilike(destinationPodLabels, '%app:label%') "
+            "AND ilike(sourcePodLabels, '%app:label%') "
+            "GROUP BY {} ".format(
+                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
+            )
+        ),
+        (
+            ("", "", [], "pod2svc", ""),
+            "SELECT {} FROM {} WHERE "
+            "destinationServicePortName <> '' "
+            "GROUP BY {} ".format(
+                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
+                table_name,
+                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
+            )
         ),
     ],
 )
 def test_generate_sql_query(test_input, expected_sql_query):
-    start_time, end_time, ns_ignore_list = test_input
-    sql_query = ad.generate_tad_sql_query(start_time, end_time, ns_ignore_list)
+    start_time, end_time, ns_ignore_list, agg_flow, pod2podlabel = test_input
+    sql_query = ad.generate_tad_sql_query(
+        start_time, end_time, ns_ignore_list, agg_flow, pod2podlabel)
     assert sql_query == expected_sql_query
 
 
 diff_secs_throughput_list = [
-    [5220, 4004471308], [4860, 4006917952], [6720, 4006373555],
-    [7080, 10004969097], [6000, 4005703059], [7140, 4005517222],
-    [3600, 4007380032], [3780, 4005277827], [4800, 4005435632],
-    [8580, 4004723289], [6300, 4005760579], [4740, 4005486294],
-    [8640, 4006172825], [5640, 4005486294], [8700, 4005561235],
-    [7200, 1005533779], [5340, 4005486294], [6600, 4004706899],
-    [6660, 4006355667], [5280, 4005277827], [4380, 4005277827],
-    [7920, 4005355097], [7560, 4005615814], [7500, 4004496934],
-    [8100, 4004839744], [4440, 4005486294], [7260, 4005370905],
-    [5580, 4005277827], [4680, 4005277827], [6360, 4006503308],
-    [8520, 4006191046], [6180, 4004834307], [5880, 4006201196],
-    [5760, 4004465468], [7860, 4006448435], [6780, 4005542681]]
+    [4004471308], [4006917952], [4006373555],
+    [10004969097], [4005703059], [4005517222],
+    [4007380032], [4005277827], [4005435632],
+    [4004723289], [4005760579], [4005486294],
+    [4006172825], [4005486294], [4005561235],
+    [1005533779], [4005486294], [4004706899],
+    [4006355667], [4005277827], [4005277827],
+    [4005355097], [4005615814], [4004496934],
+    [4004839744], [4005486294], [4005370905],
+    [4005277827], [4005277827], [4006503308],
+    [4006191046], [4004834307], [4006201196],
+    [4004465468], [4006448435], [4005542681]]
 
 expected_ewma_row_list = [
     2002235654.0, 3004576803.0, 3505475179.0,
@@ -196,7 +238,7 @@ expected_anomaly_list = [
 
 @pytest.mark.parametrize(
     "test_input, expected_arima_anomaly",
-    [(["", "", "", "", "", "", "", stddev, "", expanded_arima_row_list,
+    [(["", "", "", "", "", "", "", stddev, "", "", expanded_arima_row_list,
        throughput_list], expected_anomaly_list), ],
 )
 def test_calculate_arima_anomaly(test_input, expected_arima_anomaly):
@@ -206,7 +248,7 @@ def test_calculate_arima_anomaly(test_input, expected_arima_anomaly):
 
 @pytest.mark.parametrize(
     "test_input, expected_ewma_anomaly",
-    [(["", "", "", "", "", "", "", stddev, "", expected_ewma_row_list,
+    [(["", "", "", "", "", "", "", stddev, "", "", expected_ewma_row_list,
        throughput_list], expected_anomaly_list), ],
 )
 def test_calculate_ewma_anomaly(test_input, expected_ewma_anomaly):
@@ -226,7 +268,7 @@ expected_dbscan_anomaly_list = [
 
 @pytest.mark.parametrize(
     "test_input, expected_dbscan_anomaly",
-    [(["", "", "", "", "", "", "", "", "", "", throughput_list],
+    [(["", "", "", "", "", "", "", "", "", "", "", throughput_list],
       expected_dbscan_anomaly_list), ],
 )
 def test_calculate_dbscan_anomaly(test_input, expected_dbscan_anomaly):

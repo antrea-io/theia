@@ -129,6 +129,8 @@ func TestAnomalyDetectionRun(t *testing.T) {
 			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
 			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
 			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().String("agg-flow", "pod2pod", "")
+			cmd.Flags().String("p2p-label", "app:label1", "")
 			cmd.Flags().Int32("executor-instances", 1, "")
 			cmd.Flags().String("driver-core-request", "1", "")
 			cmd.Flags().String("driver-memory", "1m", "")

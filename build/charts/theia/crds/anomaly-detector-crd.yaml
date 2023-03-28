@@ -33,6 +33,10 @@ spec:
                   type: array
                   items:
                     type: string
+                aggflow:
+                  type: string
+                pod2podlabel:
+                  type: string 
                 executorInstances:
                   type: integer
                 driverCoreRequest:

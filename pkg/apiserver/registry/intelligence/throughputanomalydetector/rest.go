@@ -34,6 +34,9 @@ import (
 const (
 	defaultNameSpace     = "flow-visibility"
 	tadQuery         int = iota
+	aggtadpodQuery
+	aggtadpod2podQuery
+	aggtadpod2svcQuery
 )
 
 // REST implements rest.Storage for anomalydetector.
@@ -63,8 +66,49 @@ var queryMap = map[int]string{
 		flowStartSeconds,
 		flowEndSeconds,
 		throughput,
+		aggType,
+		algoType,
 		algoCalc,
 		anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggtadpodQuery: `
+	SELECT
+	    id,
+	    sourcePodNamespace,
+        sourcePodLabels,
+        flowEndSeconds,
+        throughput,
+		aggType,
+        algoType,
+        algoCalc,
+        anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggtadpod2podQuery: `
+	SELECT
+	    id,
+	    sourcePodNamespace,
+        sourcePodLabels,
+        destinationPodNamespace,
+        destinationPodLabels,
+        flowEndSeconds,
+        throughput,
+		aggType,
+        algoType,
+        algoCalc,
+        anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggtadpod2svcQuery: `
+	SELECT
+	    id,
+	    sourcePodNamespace,
+        sourcePodLabels,
+        destinationServicePortName,
+        flowEndSeconds,
+        throughput,
+		aggType,
+        algoType,
+        algoCalc,
+        anomaly
 	FROM tadetector WHERE id = (?);`,
 }
 
@@ -102,6 +146,8 @@ func (r *REST) copyThroughputAnomalyDetector(tad *v1alpha1.ThroughputAnomalyDete
 	tad.EndInterval = crd.Spec.EndInterval
 	tad.ExecutorInstances = crd.Spec.ExecutorInstances
 	tad.NSIgnoreList = crd.Spec.NSIgnoreList
+	tad.AggregatedFlow = crd.Spec.AggregatedFlow
+	tad.Pod2PodLabel = crd.Spec.Pod2PodLabel
 	tad.DriverCoreRequest = crd.Spec.DriverCoreRequest
 	tad.DriverMemory = crd.Spec.DriverMemory
 	tad.ExecutorCoreRequest = crd.Spec.ExecutorCoreRequest
@@ -170,6 +216,8 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 	job.Spec.DriverMemory = newTAD.DriverMemory
 	job.Spec.ExecutorCoreRequest = newTAD.ExecutorCoreRequest
 	job.Spec.ExecutorMemory = newTAD.ExecutorMemory
+	job.Spec.AggregatedFlow = newTAD.AggregatedFlow
+	job.Spec.Pod2PodLabel = newTAD.Pod2PodLabel
 	_, err := r.ThroughputAnomalyDetectorQuerier.CreateThroughputAnomalyDetector(defaultNameSpace, job)
 	if err != nil {
 		return nil, errors.NewBadRequest(fmt.Sprintf("error when creating ThroughputAnomalyDetection job: %+v, err: %v", job, err))
@@ -179,24 +227,57 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 
 func (r *REST) getTADetectorResult(id string, tad *v1alpha1.ThroughputAnomalyDetector) error {
 	var err error
+	query := tadQuery
+	switch tad.AggregatedFlow {
+	case "pod":
+		query = aggtadpodQuery
+	case "pod2pod":
+		query = aggtadpod2podQuery
+	case "pod2svc":
+		query = aggtadpod2svcQuery
+	}
 	if r.clickhouseConnect == nil {
 		r.clickhouseConnect, err = setupClickHouseConnection(nil)
 		if err != nil {
 			return err
 		}
 	}
-	rows, err := r.clickhouseConnect.Query(queryMap[tadQuery], id)
+	rows, err := r.clickhouseConnect.Query(queryMap[query], id)
 	if err != nil {
 		return fmt.Errorf("failed to get Throughput Anomaly Detector results with id %s: %v", id, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		res := v1alpha1.ThroughputAnomalyDetectorStats{}
-		err := rows.Scan(&res.Id, &res.SourceIP, &res.SourceTransportPort, &res.DestinationIP, &res.DestinationTransportPort, &res.FlowStartSeconds, &res.FlowEndSeconds, &res.Throughput, &res.AlgoCalc, &res.Anomaly)
-		if err != nil {
-			return fmt.Errorf("failed to scan Throughput Anomaly Detector results: %v", err)
+		switch query {
+		case tadQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.SourceIP, &res.SourceTransportPort, &res.DestinationIP, &res.DestinationTransportPort, &res.FlowStartSeconds, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggtadpodQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.SourcePodNamespace, &res.SourcePodLabels, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector pod Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggtadpod2podQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.SourcePodNamespace, &res.SourcePodLabels, &res.DestinationPodNamespace, &res.DestinationPodLabels, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector pod to pod Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggtadpod2svcQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.SourcePodNamespace, &res.SourcePodLabels, &res.DestinationServicePortName, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector pod to svc Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
 		}
-		tad.Stats = append(tad.Stats, res)
 	}
 	return nil
 }

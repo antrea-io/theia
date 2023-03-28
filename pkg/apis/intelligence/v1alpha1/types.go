@@ -73,6 +73,8 @@ type ThroughputAnomalyDetector struct {
 	EndInterval         metav1.Time                      `json:"endInterval,omitempty"`
 	ExecutorInstances   int                              `json:"executorInstances,omitempty"`
 	NSIgnoreList        []string                         `json:"nsIgnoreList,omitempty"`
+	AggregatedFlow      string                           `json:"aggflow,omitempty"`
+	Pod2PodLabel        string                           `json:"pod2podlabel,omitempty"`
 	DriverCoreRequest   string                           `json:"driverCoreRequest,omitempty"`
 	DriverMemory        string                           `json:"driverMemory,omitempty"`
 	ExecutorCoreRequest string                           `json:"executorCoreRequest,omitempty"`
@@ -100,14 +102,21 @@ type ThroughputAnomalyDetectorList struct {
 }
 
 type ThroughputAnomalyDetectorStats struct {
-	Id                       string `json:"id,omitempty"`
-	SourceIP                 string `json:"sourceIP,omitempty"`
-	SourceTransportPort      string `json:"sourceTransportPort,omitempty"`
-	DestinationIP            string `json:"destinationIP,omitempty"`
-	DestinationTransportPort string `json:"destinationTransportPort,omitempty"`
-	FlowStartSeconds         string `json:"FlowStartSeconds,omitempty"`
-	FlowEndSeconds           string `json:"FlowEndSeconds,omitempty"`
-	Throughput               string `json:"Throughput,omitempty"`
-	AlgoCalc                 string `json:"AlgoCalc,omitempty"`
-	Anomaly                  string `json:"anomaly,omitempty"`
+	Id                         string `json:"id,omitempty"`
+	SourceIP                   string `json:"sourceIP,omitempty"`
+	SourceTransportPort        string `json:"sourceTransportPort,omitempty"`
+	DestinationIP              string `json:"destinationIP,omitempty"`
+	DestinationTransportPort   string `json:"destinationTransportPort,omitempty"`
+	FlowStartSeconds           string `json:"FlowStartSeconds,omitempty"`
+	SourcePodNamespace         string `json:"sourcePodNamespace,omitempty"`
+	SourcePodLabels            string `json:"sourcePodLabels,omitempty"`
+	DestinationPodNamespace    string `json:"destinationPodNamespace,omitempty"`
+	DestinationPodLabels       string `json:"destinationPodLabels,omitempty"`
+	DestinationServicePortName string `json:"destinationServicePortName,omitempty"`
+	FlowEndSeconds             string `json:"FlowEndSeconds,omitempty"`
+	Throughput                 string `json:"throughput,omitempty"`
+	AggType                    string `json:"aggType,omitempty"`
+	AlgoType                   string `json:"algoType,omitempty"`
+	AlgoCalc                   string `json:"AlgoCalc,omitempty"`
+	Anomaly                    string `json:"anomaly,omitempty"`
 }

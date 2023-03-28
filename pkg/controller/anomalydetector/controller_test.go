@@ -72,7 +72,7 @@ func newFakeController(t *testing.T) (*fakeController, *sql.DB) {
 	tadController := NewAnomalyDetectorController(crdClient, kubeClient, taDetectorInformer)
 
 	mock.ExpectQuery("SELECT DISTINCT id FROM tadetector;").WillReturnRows(sqlmock.NewRows([]string{}))
-	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[4:]).WillReturnResult(sqlmock.NewResult(0, 1))
 	return &fakeController{
 		tadController,
 		crdClient,
@@ -240,6 +240,8 @@ func TestTADetection(t *testing.T) {
 				StartInterval:       metav1.NewTime(time.Now()),
 				EndInterval:         metav1.NewTime(time.Now().Add(time.Second * 100)),
 				NSIgnoreList:        []string{"kube-system", "flow-visibility"},
+				AggregatedFlow:      "pod2pod",
+				Pod2PodLabel:        "app:label",
 			},
 			Status: crdv1alpha1.ThroughputAnomalyDetectorStatus{},
 		}
@@ -299,7 +301,7 @@ func TestTADetection(t *testing.T) {
 					JobType: "nonexistent-job-type",
 				},
 			},
-			expectedErrorMsg: "invalid request: Throughput Anomaly DetectorQuerier type should be 'EWMA' or 'ARIMA' or 'DBSCAN'",
+			expectedErrorMsg: "invalid request: Throughput Anomaly Detector algorithm type should be 'EWMA' or 'ARIMA' or 'DBSCAN'",
 		},
 		{
 			name:    "invalid EndInterval",
@@ -383,6 +385,31 @@ func TestTADetection(t *testing.T) {
 				},
 			},
 			expectedErrorMsg: "invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention",
+		},
+		{
+			name:    "invalid Aggregatedflow",
+			tadName: "tad-invalid-agg-flow",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: "tad-invalid-agg-flow", Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:        "ARIMA",
+					AggregatedFlow: "nonexistent-agg-flow",
+				},
+			},
+			expectedErrorMsg: "invalid request: Throughput Anomaly Detector aggregated flow type should be 'pod' or 'pod2pod' or 'pod2svc'",
+		},
+		{
+			name:    "invalid Aggregatedflow pod2podlabel combo",
+			tadName: "tad-invalid-agg-flow-pod2podlabel-combo",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: "tad-invalid-agg-flow-pod2podlabel-combo", Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:        "ARIMA",
+					AggregatedFlow: "pod",
+					Pod2PodLabel:   "app:label",
+				},
+			},
+			expectedErrorMsg: "invalid request: Throughput Anomaly Detector Pod2PodLabel requires aggregated flow type to be 'pod2pod'",
 		},
 	}
 	for _, tc := range testCases {

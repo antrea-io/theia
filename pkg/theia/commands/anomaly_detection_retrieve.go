@@ -106,9 +106,27 @@ func throughputAnomalyDetectionRetrieve(cmd *cobra.Command, args []string) error
 		return nil
 	} else {
 		w := tabwriter.NewWriter(os.Stdout, 15, 8, 1, '\t', tabwriter.AlignRight)
-		fmt.Fprintf(w, "id\tsourceIP\tsourceTransportPort\tdestinationIP\tdestinationTransportPort\tflowStartSeconds\tflowEndSeconds\tthroughput\talgoCalc\tanomaly\n")
-		for _, p := range tad.Stats {
-			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourceIP, p.SourceTransportPort, p.DestinationIP, p.DestinationTransportPort, p.FlowStartSeconds, p.FlowEndSeconds, p.Throughput, p.AlgoCalc, p.Anomaly)
+		switch tad.Stats[0].AggType {
+		case "e2e":
+			fmt.Fprintf(w, "id\tsourceIP\tsourceTransportPort\tdestinationIP\tdestinationTransportPort\tflowStartSeconds\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+			for _, p := range tad.Stats {
+				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourceIP, p.SourceTransportPort, p.DestinationIP, p.DestinationTransportPort, p.FlowStartSeconds, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+			}
+		case "pod_to_external":
+			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+			for _, p := range tad.Stats {
+				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+			}
+		case "pod_to_pod":
+			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tdestinationPodNamespace\tdestinationPodLabels\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+			for _, p := range tad.Stats {
+				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.DestinationPodNamespace, p.DestinationPodLabels, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+			}
+		case "pod_to_svc":
+			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tdestinationServicePortName\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+			for _, p := range tad.Stats {
+				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.DestinationServicePortName, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+			}
 		}
 		w.Flush()
 		fmt.Printf("\n")

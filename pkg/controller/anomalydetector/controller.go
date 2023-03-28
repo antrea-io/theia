@@ -525,7 +525,7 @@ func (c *AnomalyDetectorController) startJob(newTAD *crdv1alpha1.ThroughputAnoma
 func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.ThroughputAnomalyDetector) error {
 	var newTADJobArgs []string
 	if newTAD.Spec.JobType != "EWMA" && newTAD.Spec.JobType != "ARIMA" && newTAD.Spec.JobType != "DBSCAN" {
-		return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly DetectorQuerier type should be 'EWMA' or 'ARIMA' or 'DBSCAN'")}
+		return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector algorithm type should be 'EWMA' or 'ARIMA' or 'DBSCAN'")}
 	}
 	newTADJobArgs = append(newTADJobArgs, "--algo", newTAD.Spec.JobType)
 
@@ -544,6 +544,21 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 		nsIgnoreListStr := strings.Join(newTAD.Spec.NSIgnoreList, "\",\"")
 		nsIgnoreListStr = "[\"" + nsIgnoreListStr + "\"]"
 		newTADJobArgs = append(newTADJobArgs, "--ns_ignore_list", nsIgnoreListStr)
+	}
+
+	if newTAD.Spec.AggregatedFlow != "" {
+		if newTAD.Spec.AggregatedFlow == "pod" || newTAD.Spec.AggregatedFlow == "pod2pod" || newTAD.Spec.AggregatedFlow == "pod2svc" {
+			newTADJobArgs = append(newTADJobArgs, "--agg_flow", newTAD.Spec.AggregatedFlow)
+		} else {
+			return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector aggregated flow type should be 'pod' or 'pod2pod' or 'pod2svc'")}
+		}
+	}
+
+	if newTAD.Spec.Pod2PodLabel != "" {
+		if newTAD.Spec.AggregatedFlow != "pod2pod" {
+			return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector Pod2PodLabel requires aggregated flow type to be 'pod2pod'")}
+		}
+		newTADJobArgs = append(newTADJobArgs, "--pod2pod_label", newTAD.Spec.Pod2PodLabel)
 	}
 
 	sparkResourceArgs := struct {

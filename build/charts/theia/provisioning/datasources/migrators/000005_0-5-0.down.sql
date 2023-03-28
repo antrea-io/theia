@@ -1,13 +1,13 @@
 --Drop aggregated TAD columns
-ALTER TABLE tadetector DROP COLUMN sourcePodNamespace String;
-ALTER TABLE tadetector_local DROP COLUMN sourcePodNamespace String;
-ALTER TABLE tadetector DROP COLUMN sourcePodLabels String;
-ALTER TABLE tadetector_local DROP COLUMN sourcePodLabels String;
-ALTER TABLE tadetector DROP COLUMN destinationPodNamespace String;
-ALTER TABLE tadetector_local DROP COLUMN destinationPodNamespace String;
-ALTER TABLE tadetector DROP COLUMN destinationPodLabels String;
-ALTER TABLE tadetector_local DROP COLUMN destinationPodLabels String;
+ALTER TABLE tadetector DROP COLUMN podNamespace String;
+ALTER TABLE tadetector_local DROP COLUMN podNamespace String;
+ALTER TABLE tadetector DROP COLUMN podLabels String;
+ALTER TABLE tadetector_local DROP COLUMN podLabels String;
 ALTER TABLE tadetector DROP COLUMN destinationServicePortName String;
 ALTER TABLE tadetector_local DROP COLUMN destinationServicePortName String;
 ALTER TABLE tadetector DROP COLUMN aggType String;
 ALTER TABLE tadetector_local DROP COLUMN aggType String;
+ALTER TABLE tadetector DROP COLUMN direction String;
+ALTER TABLE tadetector_local DROP COLUMN direction String;
+ALTER TABLE tadetector DROP COLUMN podName String;
+ALTER TABLE tadetector_local DROP COLUMN podName String;

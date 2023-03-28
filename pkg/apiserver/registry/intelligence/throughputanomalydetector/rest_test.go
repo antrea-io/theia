@@ -94,7 +94,7 @@ func TestREST_Get(t *testing.T) {
 				Type: "TAD",
 				Status: v1alpha1.ThroughputAnomalyDetectorStatus{
 					State:    crdv1alpha1.ThroughputAnomalyDetectorStateCompleted,
-					ErrorMsg: "Failed to get the result for completed Throughput Anomaly Detector with id , error: failed to scan Throughput Anomaly Detector results: sql: expected 1 destination arguments in Scan, not 10",
+					ErrorMsg: "Failed to get the result for completed Throughput Anomaly Detector with id , error: failed to scan Throughput Anomaly Detector results: sql: expected 1 destination arguments in Scan, not 12",
 				},
 			},
 		},
@@ -107,8 +107,8 @@ func TestREST_Get(t *testing.T) {
 			}
 			defer db.Close()
 			resultRows := sqlmock.NewRows([]string{
-				"Id", "SourceIP", "SourceTransportPort", "DestinationIP", "DestinationTransportPort", "FlowStartSeconds", "FlowEndSeconds", "Throughput", "AlgoCalc", "Anomaly"}).
-				AddRow("mock_Id", "mock_SourceIP", "mock_SourceTransportPort", "mock_DestinationIP", "mock_DestinationTransportPort", "mock_FlowStartSeconds", "mock_FlowEndSeconds", "mock_Throughput", "mock_AlgoCalc", "mock_Anomaly")
+				"Id", "SourceIP", "SourceTransportPort", "DestinationIP", "DestinationTransportPort", "FlowStartSeconds", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
+				AddRow("mock_Id", "mock_SourceIP", "mock_SourceTransportPort", "mock_DestinationIP", "mock_DestinationTransportPort", "mock_FlowStartSeconds", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly")
 			if tt.name == "Unsuccessful Get case query error" {
 				mock.ExpectQuery(queryMap[tadQuery]).WillReturnError(fmt.Errorf("error in database, please retry"))
 			} else if tt.name == "Unsuccessful Get case rows error" {
@@ -261,63 +261,82 @@ func Test_getTadetectorResult(t *testing.T) {
 			expecterr: nil,
 		},
 		{
-			name:  "Get aggtadquery pod2external result",
+			name:  "Get aggtadquery external result",
 			id:    "tad-2",
-			query: aggtadpodQuery,
+			query: aggTadExternalQuery,
 			returnedRow: sqlmock.NewRows([]string{
-				"Id", "SourcePodNamespace", "SourcePodLabels", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
-				AddRow("mock_Id", "mock_SourcePodNamespace", "mock_SourcePodLabels", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
+				"Id", "destinationIP", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
+				AddRow("mock_Id", "mock_destinationIP", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
 			expectedResult: &v1alpha1.ThroughputAnomalyDetector{
 				Stats: []v1alpha1.ThroughputAnomalyDetectorStats{{
-					Id:                 "mock_Id",
-					SourcePodNamespace: "mock_SourcePodNamespace",
-					SourcePodLabels:    "mock_SourcePodLabels",
-					FlowEndSeconds:     "mock_FlowEndSeconds",
-					Throughput:         "mock_Throughput",
-					AggType:            "mock_AggType",
-					AlgoType:           "mock_AlgoType",
-					AlgoCalc:           "mock_AlgoCalc",
-					Anomaly:            "mock_Anomaly",
+					Id:             "mock_Id",
+					DestinationIP:  "mock_destinationIP",
+					FlowEndSeconds: "mock_FlowEndSeconds",
+					Throughput:     "mock_Throughput",
+					AggType:        "mock_AggType",
+					AlgoType:       "mock_AlgoType",
+					AlgoCalc:       "mock_AlgoCalc",
+					Anomaly:        "mock_Anomaly",
 				}},
 			},
 			expecterr: nil,
 		},
 		{
-			name:  "Get aggtadquery pod2pod result",
+			name:  "Get aggtadquery pod podLabel result",
 			id:    "tad-3",
-			query: aggtadpod2podQuery,
+			query: aggTadPodLabelQuery,
 			returnedRow: sqlmock.NewRows([]string{
-				"Id", "SourcePodNamespace", "SourcePodLabels", "DestinationPodNamespace", "DestinationPodLabels", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
-				AddRow("mock_Id", "mock_SourcePodNamespace", "mock_SourcePodLabels", "mock_DestinationPodNamespace", "mock_DestinationPodLabels", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
+				"Id", "PodNamespace", "PodLabels", "Direction", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
+				AddRow("mock_Id", "mock_PodNamespace", "mock_PodLabels", "mock_Direction", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
 			expectedResult: &v1alpha1.ThroughputAnomalyDetector{
 				Stats: []v1alpha1.ThroughputAnomalyDetectorStats{{
-					Id:                      "mock_Id",
-					SourcePodNamespace:      "mock_SourcePodNamespace",
-					SourcePodLabels:         "mock_SourcePodLabels",
-					DestinationPodNamespace: "mock_DestinationPodNamespace",
-					DestinationPodLabels:    "mock_DestinationPodLabels",
-					FlowEndSeconds:          "mock_FlowEndSeconds",
-					Throughput:              "mock_Throughput",
-					AggType:                 "mock_AggType",
-					AlgoType:                "mock_AlgoType",
-					AlgoCalc:                "mock_AlgoCalc",
-					Anomaly:                 "mock_Anomaly",
+					Id:             "mock_Id",
+					PodNamespace:   "mock_PodNamespace",
+					PodLabels:      "mock_PodLabels",
+					Direction:      "mock_Direction",
+					FlowEndSeconds: "mock_FlowEndSeconds",
+					Throughput:     "mock_Throughput",
+					AggType:        "mock_AggType",
+					AlgoType:       "mock_AlgoType",
+					AlgoCalc:       "mock_AlgoCalc",
+					Anomaly:        "mock_Anomaly",
 				}},
 			},
 			expecterr: nil,
 		},
 		{
-			name:  "Get aggtadquery pod2svc result",
-			id:    "tad-2",
-			query: aggtadpod2svcQuery,
+			name:  "Get aggtadquery pod podName result",
+			id:    "tad-4",
+			query: aggTadPodNameQuery,
 			returnedRow: sqlmock.NewRows([]string{
-				"Id", "SourcePodNamespace", "SourcePodLabels", "DestinationServicePortName", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
-				AddRow("mock_Id", "mock_SourcePodNamespace", "mock_SourcePodLabels", "mock_DestinationServicePortName", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
+				"Id", "PodNamespace", "PodName", "Direction", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
+				AddRow("mock_Id", "mock_PodNamespace", "mock_PodName", "mock_Direction", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
+			expectedResult: &v1alpha1.ThroughputAnomalyDetector{
+				Stats: []v1alpha1.ThroughputAnomalyDetectorStats{{
+					Id:             "mock_Id",
+					PodNamespace:   "mock_PodNamespace",
+					PodName:        "mock_PodName",
+					Direction:      "mock_Direction",
+					FlowEndSeconds: "mock_FlowEndSeconds",
+					Throughput:     "mock_Throughput",
+					AggType:        "mock_AggType",
+					AlgoType:       "mock_AlgoType",
+					AlgoCalc:       "mock_AlgoCalc",
+					Anomaly:        "mock_Anomaly",
+				}},
+			},
+			expecterr: nil,
+		},
+		{
+			name:  "Get aggtadquery svc result",
+			id:    "tad-5",
+			query: aggTadSvcQuery,
+			returnedRow: sqlmock.NewRows([]string{
+				"Id", "DestinationServicePortName", "FlowEndSeconds", "Throughput", "AggType", "AlgoType", "AlgoCalc", "Anomaly"}).
+				AddRow("mock_Id", "mock_DestinationServicePortName", "mock_FlowEndSeconds", "mock_Throughput", "mock_AggType", "mock_AlgoType", "mock_AlgoCalc", "mock_Anomaly"),
 			expectedResult: &v1alpha1.ThroughputAnomalyDetector{
 				Stats: []v1alpha1.ThroughputAnomalyDetectorStats{{
 					Id:                         "mock_Id",
-					SourcePodNamespace:         "mock_SourcePodNamespace",
-					SourcePodLabels:            "mock_SourcePodLabels",
 					DestinationServicePortName: "mock_DestinationServicePortName",
 					FlowEndSeconds:             "mock_FlowEndSeconds",
 					Throughput:                 "mock_Throughput",
@@ -341,12 +360,16 @@ func Test_getTadetectorResult(t *testing.T) {
 			r := NewREST(&fakeQuerier{})
 			var tad v1alpha1.ThroughputAnomalyDetector
 			switch tt.query {
-			case aggtadpod2podQuery:
-				tad.AggregatedFlow = "pod2pod"
-			case aggtadpodQuery:
+			case aggTadExternalQuery:
+				tad.AggregatedFlow = "external"
+			case aggTadPodLabelQuery:
 				tad.AggregatedFlow = "pod"
-			case aggtadpod2svcQuery:
-				tad.AggregatedFlow = "pod2svc"
+				tad.PodLabel = "mock_PodLabels"
+			case aggTadPodNameQuery:
+				tad.AggregatedFlow = "pod"
+				tad.PodName = "mock_PodName"
+			case aggTadSvcQuery:
+				tad.AggregatedFlow = "svc"
 			}
 			err = r.getTADetectorResult(tt.id, &tad)
 			assert.Equal(t, tt.expecterr, err)

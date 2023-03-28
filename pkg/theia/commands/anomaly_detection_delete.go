@@ -50,7 +50,7 @@ func anomalyDetectionDelete(cmd *cobra.Command, args []string) error {
 	}
 	tadNameList := strings.Fields(tadName)
 	for _, tadName := range tadNameList {
-		err = deleteTADid(cmd, tadName)
+		err = deleteTADId(cmd, tadName)
 		if err != nil {
 			return err
 		}
@@ -68,7 +68,7 @@ func init() {
 	)
 }
 
-func deleteTADid(cmd *cobra.Command, tadName string) error {
+func deleteTADId(cmd *cobra.Command, tadName string) error {
 	err := util.ParseADAlgorithmID(tadName)
 	if err != nil {
 		return err

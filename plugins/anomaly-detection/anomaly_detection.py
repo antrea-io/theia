@@ -60,16 +60,49 @@ FLOW_TABLE_COLUMNS = [
     'max(throughput)'
 ]
 
-AGG_FLOW_TABLE_COLUMNS = [
-    'sourcePodNamespace',
-    'sourcePodLabels',
-    'destinationPodNamespace',
-    'destinationPodLabels',
-    'destinationServicePortName',
-    'protocolIdentifier',
+AGG_FLOW_TABLE_COLUMNS_EXTERNAL = [
+    'destinationIP',
     'flowType',
     'flowEndSeconds',
-    'max(throughput)'
+    'sum(throughput)'
+]
+
+AGG_FLOW_TABLE_COLUMNS_POD_INBOUND = [
+    "destinationPodNamespace AS podNamespace",
+    "destinationPodLabels AS podLabels",
+    "'inbound' AS direction",
+    "flowEndSeconds",
+    "sum(throughput)"
+]
+
+AGG_FLOW_TABLE_COLUMNS_POD_OUTBOUND = [
+    "sourcePodNamespace AS podNamespace",
+    "sourcePodLabels AS podLabels",
+    "'outbound' AS direction",
+    "flowEndSeconds",
+    "sum(throughput)"
+]
+
+AGG_FLOW_TABLE_COLUMNS_PODNAME_INBOUND = [
+    "destinationPodNamespace AS podNamespace",
+    "destinationPodName AS podName",
+    "'inbound' AS direction",
+    "flowEndSeconds",
+    "sum(throughput)"
+]
+
+AGG_FLOW_TABLE_COLUMNS_PODNAME_OUTBOUND = [
+    "sourcePodNamespace AS podNamespace",
+    "sourcePodName AS podName",
+    "'outbound' AS direction",
+    "flowEndSeconds",
+    "sum(throughput)"
+]
+
+AGG_FLOW_TABLE_COLUMNS_SVC = [
+    'destinationServicePortName',
+    'flowEndSeconds',
+    'sum(throughput)'
 ]
 
 # Column names to be used to group and identify a connection uniquely
@@ -82,14 +115,25 @@ DF_GROUP_COLUMNS = [
     'flowStartSeconds'
 ]
 
-DF_AGG_GRP_COLUMNS = [
-    'sourcePodNamespace',
-    'sourcePodLabels',
-    'destinationPodNamespace',
-    'destinationPodLabels',
-    'destinationServicePortName',
-    'protocolIdentifier',
+DF_AGG_GRP_COLUMNS_POD = [
+    'podNamespace',
+    'podLabels',
+    'direction',
+]
+
+DF_AGG_GRP_COLUMNS_PODNAME = [
+    'podNamespace',
+    'podName',
+    'direction',
+]
+
+DF_AGG_GRP_COLUMNS_EXTERNAL = [
+    'destinationIP',
     'flowType',
+]
+
+DF_AGG_GRP_COLUMNS_SVC = [
+    'destinationServicePortName',
 ]
 
 MEANINGLESS_LABELS = [
@@ -114,15 +158,14 @@ def calculate_ewma(throughput_list):
     prev_ewma_val = 0.0
     ewma_row = []
     for ele in throughput_list:
-        ele_float = float(ele[0])
+        ele_float = float(ele)
         curr_ewma_val = (1 - alpha) * prev_ewma_val + alpha * ele_float
         prev_ewma_val = curr_ewma_val
         ewma_row.append(float(curr_ewma_val))
-
     return ewma_row
 
 
-def calculate_ewma_anomaly(dataframe):
+def calculate_ewma_anomaly(throughput_row, stddev):
     """
     The function categorizes whether a network flow is Anomalous or not
     based on the calculated EWMA value.
@@ -131,22 +174,20 @@ def calculate_ewma_anomaly(dataframe):
     True - Anomalous Traffic, False - Not Anomalous
 
     Args:
-        dataframe : The row of a dataframe containing all data related to
-        this network connection.
+        throughput_row : The row of a dataframe containing all throughput data.
+        stddev : The row of a dataframe containing standard Deviation
     Returns:
         A list of boolean values which signifies if a network flow record
         of that connection is anomalous or not.
     """
-    stddev = dataframe[7]
-    ewma_arr = dataframe[10]
-    throughput_arr = dataframe[11]
+    ewma_arr = calculate_ewma(throughput_row)
     anomaly_result = []
 
     if ewma_arr is None:
         logger.error("Error: EWMA values not calculated for this flow record")
         result = False
         anomaly_result.append(result)
-    elif throughput_arr is None:
+    elif throughput_row is None:
         logger.error("Error: Throughput values not in ideal format for this "
                      "flow record")
         result = False
@@ -158,13 +199,13 @@ def calculate_ewma_anomaly(dataframe):
                 logger.error("Error: Too Few Throughput Values for Standard "
                              "Deviation to be calculated.")
                 result = False
-            elif throughput_arr[i] is None:
+            elif throughput_row[i] is None:
                 logger.error("Error: Throughput values not in ideal format "
                              "for this flow record")
                 result = False
             else:
                 float(stddev)
-                result = True if (abs(float(throughput_arr[i]) - float(
+                result = True if (abs(float(throughput_row[i]) - float(
                     ewma_arr[i])) >
                                   float(stddev)) else False
             anomaly_result.append(result)
@@ -187,7 +228,7 @@ def calculate_arima(throughputs):
 
     throughput_list = []
     for ele in throughputs:
-        throughput_list.append(float(ele[0]))
+        throughput_list.append(float(ele))
     if len(throughput_list) <= 3:
         logger.error("Error: Too Few throughput values for ARIMA to work with")
         return None
@@ -223,7 +264,7 @@ def calculate_arima(throughputs):
             return None
 
 
-def calculate_arima_anomaly(dataframe):
+def calculate_arima_anomaly(throughput_row, stddev):
     """
     The function categorizes whether a network flow is Anomalous or not based
     on the calculated ARIMA value. A traffic is anomalous if abs(throughput
@@ -231,23 +272,21 @@ def calculate_arima_anomaly(dataframe):
     Anomalous
 
     Args:
-        dataframe : The row of a dataframe containing all data related to
-        this network connection.
+        Throughput_list : The row of a dataframe containing all throughput
+        data.
+        stddev : The row of a dataframe containing standard Deviation
     Returns:
         A list of boolean values which signifies if a network flow record
         of that connection is anomalous or not.
     """
-
-    stddev = dataframe[7]
-    arima_arr = dataframe[10]
-    throughput_arr = dataframe[11]
+    arima_arr = calculate_arima(throughput_row)
     anomaly_result = []
 
     if arima_arr is None:
         logger.error("Error: ARIMA values not calculated for this flow record")
         result = False
         anomaly_result.append(result)
-    elif throughput_arr is None:
+    elif throughput_row is None:
         logger.error("Error: Throughput values not in ideal format for this "
                      "flow record")
         result = False
@@ -259,12 +298,12 @@ def calculate_arima_anomaly(dataframe):
                 logger.error("Error: Too Few Throughput Values for Standard "
                              "Deviation to be calculated.")
                 result = False
-            elif throughput_arr[i] is None:
+            elif throughput_row[i] is None:
                 logger.error("Error: Throughput values not in ideal format "
                              "for this flow record")
                 result = False
             else:
-                result = True if (abs(float(throughput_arr[i]) - float(
+                result = True if (abs(float(throughput_row[i]) - float(
                     arima_arr[i])) > float(stddev)) else False
             anomaly_result.append(result)
     return anomaly_result
@@ -283,13 +322,13 @@ def calculate_dbscan(throughput_list):
     return placeholder_throughput_list
 
 
-def calculate_dbscan_anomaly(dataframe):
+def calculate_dbscan_anomaly(throughput_row, stddev=None):
     """
     The function calculates Density-based spatial clustering of applications
     with Noise (DBSCAN) for a given list of throughput values of a connection
     Args:
-        dataframe: The row of a dataframe containing all data related to this
-        network connection.
+        throughput_row : The row of a dataframe containing all throughput data.
+        stddev : The row of a dataframe containing standard Deviation
         Assumption: Since DBSCAN needs only numeric value to train and start
         prediction, any connection with null values will not be taken
         into account for calculation. We return empty value in that case.
@@ -297,10 +336,8 @@ def calculate_dbscan_anomaly(dataframe):
         A list of boolean values which signifies if a network flow records
         of the connection is anomalous or not based on DBSCAN
     """
-
-    throughput_list = dataframe[11]
     anomaly_result = []
-    np_throughput_list = np.array(throughput_list)
+    np_throughput_list = np.array(throughput_row)
     np_throughput_list = np_throughput_list.reshape(-1, 1)
     outlier_detection = DBSCAN(min_samples=4, eps=250000000)
     clusters = outlier_detection.fit_predict(np_throughput_list)
@@ -312,27 +349,40 @@ def calculate_dbscan_anomaly(dataframe):
     return anomaly_result
 
 
-def filter_df_with_true_anomalies(spark, plotDF, algo_type, agg_flow=None):
-    if agg_flow:
-        plotDF = plotDF.withColumn(
-            "new", f.arrays_zip(
-                "flowEndSeconds", "algoCalc", "throughputs",
-                "anomaly")).withColumn(
-            "new", f.explode("new")).select(
-            "sourcePodNamespace", "sourcePodLabels", "destinationPodNamespace",
-            "destinationPodLabels",
-            "destinationServicePortName", "protocolIdentifier", "aggType",
+def filter_df_with_true_anomalies(
+        spark, plotDF, algo_type, agg_flow=None, pod_label=None):
+    newDF = plotDF.withColumn(
+        "new", f.arrays_zip(
+            "flowEndSeconds", "algoCalc", "throughputs",
+            "anomaly")).withColumn(
+        "new", f.explode("new"))
+    if agg_flow == "pod":
+        plotDF = newDF.select(
+            "podNamespace", "podLabels" if pod_label else "podName",
+            "direction", "aggType",
+            f.col("new.flowEndSeconds").alias("flowEndSeconds"),
+            "throughputStandardDeviation", "algoType",
+            f.col("new.algoCalc").alias("algoCalc"),
+            f.col("new.throughputs").alias("throughput"),
+            f.col("new.anomaly").alias("anomaly"))
+    elif agg_flow == "external":
+        plotDF = newDF.select(
+            "destinationIP", "aggType",
+            f.col("new.flowEndSeconds").alias("flowEndSeconds"),
+            "throughputStandardDeviation", "algoType",
+            f.col("new.algoCalc").alias("algoCalc"),
+            f.col("new.throughputs").alias("throughput"),
+            f.col("new.anomaly").alias("anomaly"))
+    elif agg_flow == "svc":
+        plotDF = newDF.select(
+            "destinationServicePortName", "aggType",
             f.col("new.flowEndSeconds").alias("flowEndSeconds"),
             "throughputStandardDeviation", "algoType",
             f.col("new.algoCalc").alias("algoCalc"),
             f.col("new.throughputs").alias("throughput"),
             f.col("new.anomaly").alias("anomaly"))
     else:
-        plotDF = plotDF.withColumn(
-            "new", f.arrays_zip(
-                "flowEndSeconds", "algoCalc", "throughputs",
-                "anomaly")).withColumn(
-            "new", f.explode("new")).select(
+        plotDF = newDF.select(
             "sourceIP", "sourceTransportPort", "destinationIP",
             "destinationTransportPort",
             "protocolIdentifier", "flowStartSeconds", "aggType",
@@ -344,13 +394,10 @@ def filter_df_with_true_anomalies(spark, plotDF, algo_type, agg_flow=None):
     ret_plot = plotDF.where(~plotDF.anomaly.isin([False]))
     if ret_plot.count() == 0:
         ret_plot = ret_plot.collect()
-        agg_type = "e2e"
-        if agg_flow == "pod":
-            agg_type = "pod_to_external"
-        elif agg_flow == "pod2pod":
-            agg_type = "pod_to_pod"
-        elif agg_flow == "pod2svc":
-            agg_type = "pod_to_svc"
+        if agg_flow == "":
+            agg_type = "e2e"
+        else:
+            agg_type = agg_flow
         ret_plot.append({
             "sourceIP": 'None',
             "sourceTransportPort": 0,
@@ -358,11 +405,11 @@ def filter_df_with_true_anomalies(spark, plotDF, algo_type, agg_flow=None):
             "destinationTransportPort": 0,
             "protocolIdentifier": 0,
             "flowStartSeconds": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "sourcePodNamespace": 'None',
-            "sourcePodLabels": 'None',
-            "destinationPodNamespace": 'None',
-            "destinationPodLabels": 'None',
+            "podNamespace": 'None',
+            "podLabels": 'None',
+            "podName": 'None',
             "destinationServicePortName": 'None',
+            "direction": 'None',
             "flowEndSeconds": 0,
             "throughputStandardDeviation": 0,
             "aggType": agg_type,
@@ -375,11 +422,11 @@ def filter_df_with_true_anomalies(spark, plotDF, algo_type, agg_flow=None):
 
 
 def plot_anomaly(spark, init_plot_df, algo_type, algo_func, anomaly_func,
-                 tad_id_input, agg_flow=None):
+                 tad_id_input, agg_flow=None, pod_label=None):
     # Insert the Algo currently in use
     init_plot_df = init_plot_df.withColumn('algoType', f.lit(algo_type))
-    # Endpoint to Endpoint schema List
-    common_schema_list = [
+    # Schema List
+    schema_list = [
         StructField('sourceIP', StringType(), True),
         StructField('sourceTransportPort', LongType(), True),
         StructField('destinationIP', StringType(), True),
@@ -389,56 +436,65 @@ def plot_anomaly(spark, init_plot_df, algo_type, algo_func, anomaly_func,
         StructField('flowEndSeconds', ArrayType(TimestampType(), True)),
         StructField('throughputStandardDeviation', DoubleType(), True)
     ]
-
-    # Aggregated Schema List
-    agg_schema_list = [
-        StructField('sourcePodNamespace', StringType(), True),
-        StructField('sourcePodLabels', StringType(), True),
-        StructField('destinationPodNamespace', StringType(), True),
-        StructField('destinationPodLabels', StringType(), True),
-        StructField('destinationServicePortName', StringType(), True),
-        StructField('protocolIdentifier', LongType(), True),
-        StructField('flowEndSeconds', ArrayType(TimestampType(), True)),
-        StructField('throughputStandardDeviation', DoubleType(), True)
-    ]
-    schema_list = agg_schema_list if agg_flow else common_schema_list
-
     # Calculate anomaly Values on the DF
     algo_func_rdd = init_plot_df.rdd.map(
         lambda x: (x[0], x[1], x[2], x[3], x[4], x[5],
-                   x[6], x[7], x[8], x[9], x[10], algo_func(x[8])))
+                   x[6], x[7], x[8], x[9], x[10], algo_func(x[8]),
+                   anomaly_func(x[8], x[7])))
+    if agg_flow == "pod":
+        if pod_label:
+            schema_list = [
+                StructField('podNamespace', StringType(), True),
+                StructField('podLabels', StringType(), True),
+                StructField('direction', StringType(), True),
+                StructField('flowEndSeconds', ArrayType(TimestampType(),
+                                                        True)),
+                StructField('throughputStandardDeviation', DoubleType(), True)
+            ]
+        else:
+            schema_list = [
+                StructField('podNamespace', StringType(), True),
+                StructField('podName', StringType(), True),
+                StructField('direction', StringType(), True),
+                StructField('flowEndSeconds', ArrayType(TimestampType(),
+                                                        True)),
+                StructField('throughputStandardDeviation', DoubleType(), True)
+            ]
+        algo_func_rdd = init_plot_df.rdd.map(
+            lambda x: (x[0], x[1], x[2], x[3], x[4], x[5],
+                       x[6], x[7], algo_func(x[5]),
+                       anomaly_func(x[5], x[4])))
+    elif agg_flow == "svc":
+        schema_list = [
+            StructField('destinationServicePortName', StringType(), True),
+            StructField('flowEndSeconds', ArrayType(TimestampType(), True)),
+            StructField('throughputStandardDeviation', DoubleType(), True)
+        ]
+        algo_func_rdd = init_plot_df.rdd.map(
+            lambda x: (x[0], x[1], x[2], x[3], x[4], x[5], algo_func(x[3]),
+                       anomaly_func(x[3], x[2])))
+    elif agg_flow == "external":
+        schema_list = [
+            StructField('destinationIP', StringType(), True),
+            StructField('flowEndSeconds', ArrayType(TimestampType(), True)),
+            StructField('throughputStandardDeviation', DoubleType(), True)
+        ]
+        algo_func_rdd = init_plot_df.rdd.map(
+            lambda x: (x[0], x[1], x[2], x[3], x[4], x[5], algo_func(x[3]),
+                       anomaly_func(x[3], x[2])))
 
     # Schema for the Dataframe to be created from the RDD
-    algo_func_rdd_Schema = StructType(schema_list + [StructField(
-        'Throughput', ArrayType(StructType(
-            [StructField("max(throughput)", DecimalType(38, 18), True)]))),
-        StructField('aggType', StringType(), True),
-        StructField('algoType', StringType(), True),
-        StructField('algoCalc', ArrayType(DoubleType(), True))])
-
-    algo_DF = spark.createDataFrame(algo_func_rdd, algo_func_rdd_Schema)
-    algo_DF = algo_DF.withColumn("throughputs", f.col(
-        "Throughput.max(throughput)").cast(
-        ArrayType(DecimalType(38, 18)))).drop("Throughput")
-
-    # DF to RDD to calculate anomaly using EWMA, ARIMA and DBSCAN
-    anomaly_func_rdd = algo_DF.rdd.map(
-        lambda x: (x[0], x[1], x[2], x[3], x[4], x[5],
-                   x[6], x[7], x[8], x[9], x[10], x[11],
-                   anomaly_func(x)))
-
-    # Schema for the Dataframe to be created from the RDD
-    anomaly_func_rdd_Schema = StructType(schema_list + [
+    algo_func_rdd_Schema = StructType(schema_list + [
+        StructField('throughputs', ArrayType(DecimalType(38, 18), True)),
         StructField('aggType', StringType(), True),
         StructField('algoType', StringType(), True),
         StructField('algoCalc', ArrayType(DoubleType(), True)),
-        StructField('throughputs', ArrayType(DecimalType(38, 18), True)),
         StructField('anomaly', ArrayType(BooleanType(), True))
     ])
-    anomalyDF = spark.createDataFrame(anomaly_func_rdd,
-                                      anomaly_func_rdd_Schema)
+
+    anomalyDF = spark.createDataFrame(algo_func_rdd, algo_func_rdd_Schema)
     ret_plotDF = filter_df_with_true_anomalies(spark, anomalyDF, algo_type,
-                                               agg_flow)
+                                               agg_flow, pod_label)
     # Write anomalous records to DB/CSV - Module WIP
     # Module to write to CSV. Optional.
     ret_plotDF = ret_plotDF.withColumn(
@@ -449,55 +505,124 @@ def plot_anomaly(spark, init_plot_df, algo_type, algo_func, anomaly_func,
 
 
 def generate_tad_sql_query(start_time, end_time, ns_ignore_list,
-                           agg_flow=None, pod2pod_label=None):
-    sql_query = ("SELECT {} FROM {} ".format(
-        ", ".join(AGG_FLOW_TABLE_COLUMNS if agg_flow else FLOW_TABLE_COLUMNS),
-        table_name))
-    sql_query_extension = []
-    if ns_ignore_list:
-        sql_query_extension.append(
-            "sourcePodNamespace NOT IN ({0}) AND "
-            "destinationPodNamespace NOT IN ({0})".format(
-                ", ".join("'{}'".format(x) for x in ns_ignore_list)))
-    if start_time:
-        sql_query_extension.append(
-            "flowStartSeconds >= '{}'".format(start_time))
-    if end_time:
-        sql_query_extension.append("flowEndSeconds < '{}'".format(end_time))
-    if agg_flow:
-        if agg_flow == "pod":
-            sql_query_extension.append("flowType = 3")
-        elif agg_flow == "pod2pod":
-            if pod2pod_label:
-                sql_query_extension.append(
-                    "ilike(destinationPodLabels, '%{0}%') AND ilike("
-                    "sourcePodLabels, '%{0}%')".format(pod2pod_label))
-            else:
-                sql_query_extension.append("destinationPodLabels <> '' AND "
-                                           "sourcePodLabels <> ''")
-        elif agg_flow == "pod2svc":
-            sql_query_extension.append("destinationServicePortName <> ''")
+                           agg_flow=None, pod_label=None, external_ip=None,
+                           svc_port_name=None, pod_name=None,
+                           pod_namespace=None):
+    if agg_flow == "pod":
+        agg_flow_table_columns_pod_inbound = (
+            AGG_FLOW_TABLE_COLUMNS_POD_INBOUND)
+        agg_flow_table_columns_pod_outbound = (
+            AGG_FLOW_TABLE_COLUMNS_POD_OUTBOUND)
+        df_agg_grp_columns_pod = DF_AGG_GRP_COLUMNS_POD
+        if pod_label:
+            inbound_condition = (
+                "ilike(destinationPodLabels, '%{}%') ".format(pod_label))
+            outbound_condition = (
+                "ilike(sourcePodLabels, '%{}%')".format(pod_label))
+            if pod_namespace:
+                inbound_condition += (
+                    " AND destinationPodNamespace = '{}'".format(
+                        pod_namespace))
+                outbound_condition += (
+                    " AND sourcePodNamespace = '{}'".format(pod_namespace))
+        elif pod_name:
+            inbound_condition = (
+                "destinationPodName = '{}'".format(pod_name))
+            outbound_condition = (
+                "sourcePodName = '{}'".format(pod_name))
+            if pod_namespace:
+                inbound_condition += (
+                    " AND destinationPodNamespace = '{}'".format(
+                        pod_namespace))
+                outbound_condition += (
+                    " AND sourcePodNamespace = '{}'".format(pod_namespace))
+            agg_flow_table_columns_pod_inbound = (
+                AGG_FLOW_TABLE_COLUMNS_PODNAME_INBOUND)
+            agg_flow_table_columns_pod_outbound = (
+                AGG_FLOW_TABLE_COLUMNS_PODNAME_OUTBOUND)
+            df_agg_grp_columns_pod = DF_AGG_GRP_COLUMNS_PODNAME
+        else:
+            inbound_condition = (
+                "destinationPodLabels <> '' ")
+            outbound_condition = (
+                "sourcePodLabels <> ''")
+        if ns_ignore_list:
+            sql_query_extension = (
+                "AND sourcePodNamespace NOT IN ({0}) AND "
+                "destinationPodNamespace NOT IN ({0})".format(
+                    ", ".join("'{}'".format(x) for x in ns_ignore_list)))
+        else:
+            sql_query_extension = ""
+        sql_query = (
+            "SELECT * FROM "
+            "(SELECT {0} FROM {1} WHERE {2} {6} GROUP BY {3}) "
+            "UNION ALL "
+            "(SELECT {4} FROM {1} WHERE {5} {6} GROUP BY {3}) ".format(
+                ", ".join(agg_flow_table_columns_pod_inbound),
+                table_name, inbound_condition, ", ".join(
+                    df_agg_grp_columns_pod + ['flowEndSeconds']),
+                ", ".join(agg_flow_table_columns_pod_outbound),
+                outbound_condition, sql_query_extension))
+    else:
+        common_flow_table_columns = FLOW_TABLE_COLUMNS
+        if agg_flow == "external":
+            common_flow_table_columns = AGG_FLOW_TABLE_COLUMNS_EXTERNAL
+        elif agg_flow == "svc":
+            common_flow_table_columns = AGG_FLOW_TABLE_COLUMNS_SVC
 
-    if sql_query_extension:
-        sql_query += "WHERE " + " AND ".join(sql_query_extension) + " "
-    sql_query += "GROUP BY {} ".format(
-        ", ".join(DF_AGG_GRP_COLUMNS + [
-            "flowEndSeconds"] if agg_flow else DF_GROUP_COLUMNS + [
-            "flowEndSeconds"]))
+        sql_query = ("SELECT {} FROM {} ".format(
+            ", ".join(common_flow_table_columns), table_name))
+        sql_query_extension = []
+        if ns_ignore_list:
+            sql_query_extension.append(
+                "sourcePodNamespace NOT IN ({0}) AND "
+                "destinationPodNamespace NOT IN ({0})".format(
+                    ", ".join("'{}'".format(x) for x in ns_ignore_list)))
+        if start_time:
+            sql_query_extension.append(
+                "flowStartSeconds >= '{}'".format(start_time))
+        if end_time:
+            sql_query_extension.append(
+                "flowEndSeconds < '{}'".format(end_time))
+        if agg_flow:
+            if agg_flow == "external":
+                # TODO agg=destination IP, change the name to external
+                sql_query_extension.append("flowType = 3")
+                if external_ip:
+                    sql_query_extension.append("destinationIP = '{}'".format(
+                        external_ip))
+            elif agg_flow == "svc":
+                if svc_port_name:
+                    sql_query_extension.append(
+                        "destinationServicePortName = '{}'".format(
+                            svc_port_name))
+                else:
+                    sql_query_extension.append(
+                        "destinationServicePortName <> ''")
+
+        if sql_query_extension:
+            sql_query += "WHERE " + " AND ".join(sql_query_extension) + " "
+        df_group_columns = DF_GROUP_COLUMNS
+        if agg_flow == "external":
+            df_group_columns = DF_AGG_GRP_COLUMNS_EXTERNAL
+        elif agg_flow == "svc":
+            df_group_columns = DF_AGG_GRP_COLUMNS_SVC
+
+        sql_query += "GROUP BY {} ".format(
+            ", ".join(df_group_columns + [
+                "flowEndSeconds"]))
     return sql_query
 
 
-def assign_flow_type(prepared_DF, agg_flow=None):
-    if agg_flow == "pod":
+def assign_flow_type(prepared_DF, agg_flow=None, direction=None):
+    if agg_flow == "external":
         prepared_DF = prepared_DF.withColumn('aggType', f.lit(
-            "pod_to_external"))
+            "external"))
         prepared_DF = prepared_DF.drop('flowType')
-    elif agg_flow == "pod2svc":
-        prepared_DF = prepared_DF.withColumn('aggType', f.lit("pod_to_svc"))
-        prepared_DF = prepared_DF.drop('flowType')
-    elif agg_flow == "pod2pod":
-        prepared_DF = prepared_DF.withColumn('aggType', f.lit("pod_to_pod"))
-        prepared_DF = prepared_DF.drop('flowType')
+    elif agg_flow == "svc":
+        prepared_DF = prepared_DF.withColumn('aggType', f.lit("svc"))
+    elif agg_flow == "pod":
+        prepared_DF = prepared_DF.withColumn('aggType', f.lit("pod"))
     else:
         prepared_DF = prepared_DF.withColumn('aggType', f.lit("e2e"))
     return prepared_DF
@@ -521,10 +646,12 @@ def remove_meaningless_labels(podLabels):
 
 def anomaly_detection(algo_type, db_jdbc_address, start_time, end_time,
                       tad_id_input, ns_ignore_list, agg_flow=None,
-                      pod2pod_label=None):
+                      pod_label=None, external_ip=None, svc_port_name=None,
+                      pod_name=None, pod_namespace=None):
     spark = SparkSession.builder.getOrCreate()
-    sql_query = generate_tad_sql_query(start_time, end_time, ns_ignore_list,
-                                       agg_flow, pod2pod_label)
+    sql_query = generate_tad_sql_query(
+        start_time, end_time, ns_ignore_list, agg_flow, pod_label,
+        external_ip, svc_port_name, pod_name, pod_namespace)
     initDF = (
         spark.read.format("jdbc").option(
             'driver', "ru.yandex.clickhouse.ClickHouseDriver").option(
@@ -533,43 +660,53 @@ def anomaly_detection(algo_type, db_jdbc_address, start_time, end_time,
             "password", os.getenv("CH_PASSWORD")).option(
             "query", sql_query).load()
     )
-    group_columns = DF_AGG_GRP_COLUMNS if agg_flow else DF_GROUP_COLUMNS
 
-    prepared_DF = initDF.groupby(group_columns).agg(
-        f.collect_list("flowEndSeconds").alias("flowEndSeconds"),
-        f.stddev_samp("max(throughput)").alias("throughputStandardDeviation"),
-        f.collect_list(f.struct(["max(throughput)"])).alias("Throughput"))
+    if agg_flow:
+        if agg_flow == "pod":
+            if pod_name:
+                df_agg_grp_columns = DF_AGG_GRP_COLUMNS_PODNAME
+            else:
+                df_agg_grp_columns = DF_AGG_GRP_COLUMNS_POD
+        elif agg_flow == "external":
+            df_agg_grp_columns = DF_AGG_GRP_COLUMNS_EXTERNAL
+        elif agg_flow == "svc":
+            df_agg_grp_columns = DF_AGG_GRP_COLUMNS_SVC
+        prepared_DF = initDF.groupby(df_agg_grp_columns).agg(
+            f.collect_list("flowEndSeconds").alias("flowEndSeconds"),
+            f.stddev_samp("sum(throughput)").alias(
+                "throughputStandardDeviation"),
+            f.collect_list("sum(throughput)").alias("throughputs"))
+    else:
+        prepared_DF = initDF.groupby(DF_GROUP_COLUMNS).agg(
+            f.collect_list("flowEndSeconds").alias("flowEndSeconds"),
+            f.stddev_samp("max(throughput)").alias(
+                "throughputStandardDeviation"),
+            f.collect_list("max(throughput)").alias("throughputs"))
 
     prepared_DF = assign_flow_type(prepared_DF, agg_flow)
-    if agg_flow:
+    if agg_flow == "pod" and not pod_name:
         prepared_DF = (
             prepared_DF.withColumn(
-                "sourcePodLabels",
+                "PodLabels",
                 f.udf(remove_meaningless_labels, StringType())(
-                    "sourcePodLabels"
+                    "PodLabels"
                 ),
             )
-            .withColumn(
-                "destinationPodLabels",
-                f.udf(remove_meaningless_labels, StringType())(
-                    "destinationPodLabels"
-                ),
-            )
-            .dropDuplicates(["sourcePodLabels", "destinationPodLabels"])
         )
 
     if algo_type == "EWMA":
         ret_plot = plot_anomaly(spark, prepared_DF, algo_type, calculate_ewma,
-                                calculate_ewma_anomaly, tad_id_input, agg_flow)
+                                calculate_ewma_anomaly, tad_id_input, agg_flow,
+                                pod_label)
     elif algo_type == "ARIMA":
         ret_plot = plot_anomaly(spark, prepared_DF, algo_type, calculate_arima,
                                 calculate_arima_anomaly, tad_id_input,
-                                agg_flow)
+                                agg_flow, pod_label)
     elif algo_type == "DBSCAN":
         ret_plot = plot_anomaly(spark, prepared_DF, algo_type,
                                 calculate_dbscan,
                                 calculate_dbscan_anomaly, tad_id_input,
-                                agg_flow)
+                                agg_flow, pod_label)
     return spark, ret_plot
 
 
@@ -599,7 +736,11 @@ def main():
     tad_id_input = None
     ns_ignore_list = []
     agg_flow = ""
-    pod2pod_label = ""
+    pod_label = ""
+    external_ip = ""
+    svc_port_name = ""
+    pod_name = ""
+    pod_namespace = ""
     help_message = """
     Start the Throughput Anomaly Detection spark job.
         Options:
@@ -621,18 +762,26 @@ def main():
             of flow records.
         -i, --id=None: Throughput Anomaly Detection job ID in UUID format.
             If not specified, it will be generated automatically.
-        -n, --ns_ignore_list=[]: List of namespaces to ignore in anomaly
+        -n, --ns-ignore-list=[]: List of namespaces to ignore in anomaly
             calculation.
-        -f, --agg_flow=None: Aggregated Flow Throughput Anomaly Detection.
-        -l, --pod2pod_label=None: Aggregated Flow Throughput Anomaly Detection
-            pod2pod using labels
+        -f, --agg-flow=None: Aggregated Flow Throughput Anomaly Detection.
+        -l, --pod-label=None: Aggregated Flow Throughput Anomaly Detection
+            to/from Pod using pod labels
+        -N, --pod-name=None: Aggregated Flow Throughput Anomaly Detection
+            to/from Pod using pod Name
+        -P, --pod-namespace=None: Aggregated Flow Throughput Anomaly Detection
+            to/from Pod using pod namespace
+        -x, --external-ip=None: Aggregated Flow Throughput Anomaly Detection
+            to Destination IP
+        -p, --svc-port-name=None: Aggregated Flow Throughput Anomaly Detection
+            to Destination Service Port
         """
 
     # TODO: change to use argparse instead of getopt for options
     try:
         opts, _ = getopt.getopt(
             sys.argv[1:],
-            "ht:d:s:e:i:n:f:l",
+            "ht:d:s:e:i:n:f:l:d:x:p:N:P",
             [
                 "help",
                 "algo=",
@@ -641,8 +790,12 @@ def main():
                 "end_time=",
                 "id=",
                 "ns_ignore_list=",
-                "agg_flow=",
-                "pod2pod_label=",
+                "agg-flow=",
+                "pod-label=",
+                "external-ip=",
+                "svc-port-name=",
+                "pod-name=",
+                "pod-namespace=",
             ],
         )
     except getopt.GetoptError as e:
@@ -703,10 +856,18 @@ def main():
             ns_ignore_list = arg_list
         elif opt in ("-i", "--id"):
             tad_id_input = arg
-        elif opt in ("-f", "--agg_flow"):
+        elif opt in ("-f", "--agg-flow"):
             agg_flow = arg
-        elif opt in ("-l", "--pod2pod_label"):
-            pod2pod_label = arg
+        elif opt in ("-l", "--pod-label"):
+            pod_label = arg
+        elif opt in ("-N", "--pod-name"):
+            pod_name = arg
+        elif opt in ("-P", "--pod-namespace"):
+            pod_namespace = arg
+        elif opt in ("-x", "--external-ip"):
+            external_ip = arg
+        elif opt in ("-", "--svc-port-name"):
+            svc_port_name = arg
 
     func_start_time = time.time()
     logger.info("Script started at {}".format(
@@ -719,7 +880,11 @@ def main():
         tad_id_input,
         ns_ignore_list,
         agg_flow,
-        pod2pod_label,
+        pod_label,
+        external_ip,
+        svc_port_name,
+        pod_name,
+        pod_namespace
     )
     func_end_time = time.time()
     tad_id = write_anomaly_detection_result(

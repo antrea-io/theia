@@ -73,8 +73,12 @@ type ThroughputAnomalyDetector struct {
 	EndInterval         metav1.Time                      `json:"endInterval,omitempty"`
 	ExecutorInstances   int                              `json:"executorInstances,omitempty"`
 	NSIgnoreList        []string                         `json:"nsIgnoreList,omitempty"`
-	AggregatedFlow      string                           `json:"aggflow,omitempty"`
-	Pod2PodLabel        string                           `json:"pod2podlabel,omitempty"`
+	AggregatedFlow      string                           `json:"aggFlow,omitempty"`
+	PodLabel            string                           `json:"podLabel,omitempty"`
+	PodName             string                           `json:"podName,omitempty"`
+	PodNameSpace        string                           `json:"podNameSpace,omitempty"`
+	ExternalIP          string                           `json:"externalIp,omitempty"`
+	ServicePortName     string                           `json:"servicePortName,omitempty"`
 	DriverCoreRequest   string                           `json:"driverCoreRequest,omitempty"`
 	DriverMemory        string                           `json:"driverMemory,omitempty"`
 	ExecutorCoreRequest string                           `json:"executorCoreRequest,omitempty"`
@@ -108,10 +112,10 @@ type ThroughputAnomalyDetectorStats struct {
 	DestinationIP              string `json:"destinationIP,omitempty"`
 	DestinationTransportPort   string `json:"destinationTransportPort,omitempty"`
 	FlowStartSeconds           string `json:"FlowStartSeconds,omitempty"`
-	SourcePodNamespace         string `json:"sourcePodNamespace,omitempty"`
-	SourcePodLabels            string `json:"sourcePodLabels,omitempty"`
-	DestinationPodNamespace    string `json:"destinationPodNamespace,omitempty"`
-	DestinationPodLabels       string `json:"destinationPodLabels,omitempty"`
+	PodNamespace               string `json:"podNamespace,omitempty"`
+	PodLabels                  string `json:"podLabels,omitempty"`
+	PodName                    string `json:"podName,omitempty"`
+	Direction                  string `json:"direction,omitempty"`
 	DestinationServicePortName string `json:"destinationServicePortName,omitempty"`
 	FlowEndSeconds             string `json:"FlowEndSeconds,omitempty"`
 	Throughput                 string `json:"throughput,omitempty"`

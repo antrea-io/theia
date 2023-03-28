@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -105,31 +104,37 @@ func throughputAnomalyDetectionRetrieve(cmd *cobra.Command, args []string) error
 		}
 		return nil
 	} else {
-		w := tabwriter.NewWriter(os.Stdout, 15, 8, 1, '\t', tabwriter.AlignRight)
+		var result [][]string
 		switch tad.Stats[0].AggType {
 		case "e2e":
-			fmt.Fprintf(w, "id\tsourceIP\tsourceTransportPort\tdestinationIP\tdestinationTransportPort\tflowStartSeconds\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+			result = append(result, []string{"id", "sourceIP", "sourceTransportPort", "destinationIP", "destinationTransportPort", "flowStartSeconds", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
 			for _, p := range tad.Stats {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourceIP, p.SourceTransportPort, p.DestinationIP, p.DestinationTransportPort, p.FlowStartSeconds, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+				result = append(result, []string{p.Id, p.SourceIP, p.SourceTransportPort, p.DestinationIP, p.DestinationTransportPort, p.FlowStartSeconds, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})
 			}
-		case "pod_to_external":
-			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
-			for _, p := range tad.Stats {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+		case "pod":
+			if tad.Stats[0].PodName != "" {
+				result = append(result, []string{"id", "podNamespace", "podName", "direction", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
+				for _, p := range tad.Stats {
+					result = append(result, []string{p.Id, p.PodNamespace, p.PodName, p.Direction, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})
+				}
+			} else {
+				result = append(result, []string{"id", "podNamespace", "podLabels", "direction", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
+				for _, p := range tad.Stats {
+					result = append(result, []string{p.Id, p.PodNamespace, p.PodLabels, p.Direction, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})
+				}
 			}
-		case "pod_to_pod":
-			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tdestinationPodNamespace\tdestinationPodLabels\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+		case "external":
+			result = append(result, []string{"id", "destinationIP", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
 			for _, p := range tad.Stats {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.DestinationPodNamespace, p.DestinationPodLabels, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+				result = append(result, []string{p.Id, p.DestinationIP, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})
 			}
-		case "pod_to_svc":
-			fmt.Fprintf(w, "id\tsourcePodNamespace\tsourcePodLabels\tdestinationServicePortName\tflowEndSeconds\tthroughput\taggType\talgoType\talgoCalc\tanomaly\n")
+		case "svc":
+			result = append(result, []string{"id", "destinationServicePortName", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
 			for _, p := range tad.Stats {
-				fmt.Fprintf(w, "%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Id, p.SourcePodNamespace, p.SourcePodLabels, p.DestinationServicePortName, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly)
+				result = append(result, []string{p.Id, p.DestinationServicePortName, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})
 			}
 		}
-		w.Flush()
-		fmt.Printf("\n")
+		TableOutput(result)
 	}
 	return nil
 }

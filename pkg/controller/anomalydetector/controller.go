@@ -543,22 +543,39 @@ func (c *AnomalyDetectorController) startSparkApplication(newTAD *crdv1alpha1.Th
 	if len(newTAD.Spec.NSIgnoreList) > 0 {
 		nsIgnoreListStr := strings.Join(newTAD.Spec.NSIgnoreList, "\",\"")
 		nsIgnoreListStr = "[\"" + nsIgnoreListStr + "\"]"
-		newTADJobArgs = append(newTADJobArgs, "--ns_ignore_list", nsIgnoreListStr)
+		newTADJobArgs = append(newTADJobArgs, "--ns-ignore-list", nsIgnoreListStr)
 	}
 
 	if newTAD.Spec.AggregatedFlow != "" {
-		if newTAD.Spec.AggregatedFlow == "pod" || newTAD.Spec.AggregatedFlow == "pod2pod" || newTAD.Spec.AggregatedFlow == "pod2svc" {
-			newTADJobArgs = append(newTADJobArgs, "--agg_flow", newTAD.Spec.AggregatedFlow)
-		} else {
-			return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector aggregated flow type should be 'pod' or 'pod2pod' or 'pod2svc'")}
+		switch newTAD.Spec.AggregatedFlow {
+		case "pod":
+			newTADJobArgs = append(newTADJobArgs, "--agg-flow", newTAD.Spec.AggregatedFlow)
+			if newTAD.Spec.PodLabel != "" {
+				newTADJobArgs = append(newTADJobArgs, "--pod-label", newTAD.Spec.PodLabel)
+			}
+			if newTAD.Spec.PodName != "" {
+				newTADJobArgs = append(newTADJobArgs, "--pod-name", newTAD.Spec.PodName)
+			}
+			if newTAD.Spec.PodNameSpace != "" {
+				if newTAD.Spec.PodName == "" && newTAD.Spec.PodLabel == "" {
+					return illeagelArguementError{fmt.Errorf("invalid request: 'pod-namespace' argument can not be used alone, should be specified along pod-label or pod-name")}
+				} else {
+					newTADJobArgs = append(newTADJobArgs, "--pod-namespace", newTAD.Spec.PodNameSpace)
+				}
+			}
+		case "external":
+			newTADJobArgs = append(newTADJobArgs, "--agg-flow", newTAD.Spec.AggregatedFlow)
+			if newTAD.Spec.ExternalIP != "" {
+				newTADJobArgs = append(newTADJobArgs, "--external-ip", newTAD.Spec.ExternalIP)
+			}
+		case "svc":
+			newTADJobArgs = append(newTADJobArgs, "--agg-flow", newTAD.Spec.AggregatedFlow)
+			if newTAD.Spec.ServicePortName != "" {
+				newTADJobArgs = append(newTADJobArgs, "--svc-port-name", newTAD.Spec.ServicePortName)
+			}
+		default:
+			return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector aggregated flow type should be 'pod' or 'external' or 'svc'")}
 		}
-	}
-
-	if newTAD.Spec.Pod2PodLabel != "" {
-		if newTAD.Spec.AggregatedFlow != "pod2pod" {
-			return illeagelArguementError{fmt.Errorf("invalid request: Throughput Anomaly Detector Pod2PodLabel requires aggregated flow type to be 'pod2pod'")}
-		}
-		newTADJobArgs = append(newTADJobArgs, "--pod2pod_label", newTAD.Spec.Pod2PodLabel)
 	}
 
 	sparkResourceArgs := struct {

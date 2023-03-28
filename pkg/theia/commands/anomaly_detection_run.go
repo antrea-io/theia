@@ -156,18 +156,55 @@ be a list of namespace string, for example: '["kube-system","flow-aggregator","f
 		return err
 	}
 	if aggregatedFlow != "" {
-		throughputAnomalyDetection.AggregatedFlow = aggregatedFlow
-	}
-
-	pod2podlabel, err := cmd.Flags().GetString("p2p-label")
-	if err != nil {
-		return err
-	}
-	if pod2podlabel != "" {
-		if aggregatedFlow != "pod2pod" {
-			return fmt.Errorf("pop2podlabel can only be mentioned with aggregatedFlow as pod2pod, instead found %v", aggregatedFlow)
+		switch aggregatedFlow {
+		case "pod":
+			podLabel, err := cmd.Flags().GetString("pod-label")
+			if err != nil {
+				return err
+			}
+			if podLabel != "" {
+				throughputAnomalyDetection.PodLabel = podLabel
+			}
+			podName, err := cmd.Flags().GetString("pod-name")
+			if err != nil {
+				return err
+			}
+			if podName != "" {
+				throughputAnomalyDetection.PodName = podName
+			}
+			podNameSpace, err := cmd.Flags().GetString("pod-namespace")
+			if err != nil {
+				return err
+			}
+			if podNameSpace != "" {
+				if podName == "" && podLabel == "" {
+					return fmt.Errorf("'pod-namespace' argument can not be used alone, should be specified along pod-label or pod-name")
+				} else {
+					throughputAnomalyDetection.PodNameSpace = podNameSpace
+				}
+			}
+			throughputAnomalyDetection.AggregatedFlow = aggregatedFlow
+		case "external":
+			externalIp, err := cmd.Flags().GetString("external-ip")
+			if err != nil {
+				return err
+			}
+			if externalIp != "" {
+				throughputAnomalyDetection.ExternalIP = externalIp
+			}
+			throughputAnomalyDetection.AggregatedFlow = aggregatedFlow
+		case "svc":
+			servicePortName, err := cmd.Flags().GetString("svc-port-name")
+			if err != nil {
+				return err
+			}
+			if servicePortName != "" {
+				throughputAnomalyDetection.ServicePortName = servicePortName
+			}
+			throughputAnomalyDetection.AggregatedFlow = aggregatedFlow
+		default:
+			return fmt.Errorf("throughput anomaly detector aggregated flow type should be 'pod' or 'external' or 'svc'")
 		}
-		throughputAnomalyDetection.Pod2PodLabel = pod2podlabel
 	}
 
 	tadID := uuid.New().String()
@@ -262,11 +299,31 @@ Example values include 512M, 1G, 8G, etc.`,
 	throughputAnomalyDetectionAlgoCmd.Flags().String(
 		"agg-flow",
 		"",
-		`Specifies which aggregated flow to perform anomaly detection on, options are pods/pod2pod/pod2svc`,
+		`Specifies which aggregated flow to perform anomaly detection on, options are pod/svc/external`,
 	)
 	throughputAnomalyDetectionAlgoCmd.Flags().String(
-		"p2p-label",
+		"pod-label",
 		"",
-		`On choosing agg-flow as pod2pod, user need to mention labels for inbound/outbound throughput`,
+		`On choosing agg-flow as pod, user has option to specify labels for inbound/outbound throughput, default would be all labels`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"pod-name",
+		"",
+		`On choosing agg-flow as pod, user has option to specify podname for inbound/outbound throughput, if pod-labels specified, that will take priority`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"pod-namespace",
+		"",
+		`On choosing agg-flow as pod, user has option to specify podnamespace for inbound/outbound throughput, podnamespace argument should be combined with podlabels or podname`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"external-ip",
+		"",
+		`On choosing agg-flow as external, user has option to specify external-ip for inbound throughput, default would be all IPs`,
+	)
+	throughputAnomalyDetectionAlgoCmd.Flags().String(
+		"svc-port-name",
+		"",
+		`On choosing agg-flow as svc, user has option to specify svc-port-name for inbound throughput, default would be all service port names`,
 	)
 }

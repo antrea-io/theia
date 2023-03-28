@@ -22,151 +22,236 @@ import anomaly_detection as ad
 @pytest.fixture(scope="session")
 def spark_session(request):
     spark_session = (
-        SparkSession.builder.master("local")
-        .appName("anomaly_detection_job_test")
-        .getOrCreate()
+        SparkSession.builder.master("local").appName(
+            "anomaly_detection_job_test").getOrCreate()
     )
     request.addfinalizer(lambda: spark_session.sparkContext.stop())
     return spark_session
 
 
 table_name = "default.flows"
+inbound_condition = (
+    "ilike(destinationPodLabels, '%\"app\":\"clickhouse\"%') ")
+outbound_condition = ("ilike(sourcePodLabels, '%\"app\":\"clickhouse\"%')")
+inbound_condition_podname = (
+    "destinationPodName = 'TestPodName'")
+outbound_condition_podname = (
+    "sourcePodName = 'TestPodName'")
+inbound_condition_podnamespace = (
+    " AND destinationPodNamespace = 'TestPodNamespace'")
+outbound_condition_podnamespace = (
+    " AND sourcePodNamespace = 'TestPodNamespace'")
 
 
 @pytest.mark.parametrize(
     "test_input, expected_sql_query",
     [
         (
-            ("", "", [], "", ""),
-            "SELECT {} FROM {} GROUP BY {} ".format(
-                ", ".join(ad.FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-            ),
+                ("", "", [], "", "", "", "", "", ""),
+                "SELECT {} FROM {} GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
         ),
         (
-            ("2022-01-01 00:00:00", "", [], "", ""),
-            "SELECT {} FROM {} WHERE "
-            "flowStartSeconds >= '2022-01-01 00:00:00' "
-            "GROUP BY {} ".format(
-                ", ".join(ad.FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-            ),
+                ("2022-01-01 00:00:00", "", [], "", "", "", "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "flowStartSeconds >= '2022-01-01 00:00:00' "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
         ),
         (
-            ("", "2022-01-01 23:59:59", [], "", ""),
-            "SELECT {} FROM {} WHERE "
-            "flowEndSeconds < '2022-01-01 23:59:59' GROUP BY {} ".format(
-                ", ".join(ad.FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-            ),
+                ("", "2022-01-01 23:59:59", [], "", "", "", "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "flowEndSeconds < '2022-01-01 23:59:59' GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
         ),
         (
-            ("2022-01-01 00:00:00", "2022-01-01 23:59:59", [], "", ""),
-            "SELECT {} FROM {} WHERE "
-            "flowStartSeconds >= '2022-01-01 00:00:00' AND "
-            "flowEndSeconds < '2022-01-01 23:59:59' "
-            "GROUP BY {} ".format(
-                ", ".join(ad.FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-            ),
+                ("2022-01-01 00:00:00", "2022-01-01 23:59:59", [], "", "", "",
+                 "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "flowStartSeconds >= '2022-01-01 00:00:00' AND "
+                "flowEndSeconds < '2022-01-01 23:59:59' "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
         ),
         (
-            ("", "", ["mock_ns", "mock_ns2"], "", ""),
-            "SELECT {} FROM {} WHERE "
-            "sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND "
-            "destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2') "
-            "GROUP BY {} ".format(
-                ", ".join(ad.FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
-            ),
+                ("", "", ["mock_ns", "mock_ns2"], "", "", "", "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND "
+                "destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2') "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.FLOW_TABLE_COLUMNS),
+                    table_name,
+                    ", ".join(ad.DF_GROUP_COLUMNS + ['flowEndSeconds']),
+                ),
         ),
         (
-            ("", "", [], "pod", ""),
-            "SELECT {} FROM {} WHERE "
-            "flowType = 3 "
-            "GROUP BY {} ".format(
-                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
-            )
+                ("", "", [], "external", "", "10.0.0.1", "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "flowType = 3 AND destinationIP = '10.0.0.1' "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_EXTERNAL),
+                    table_name,
+                    ", ".join(
+                        ad.DF_AGG_GRP_COLUMNS_EXTERNAL + ['flowEndSeconds']),
+                )
         ),
         (
-            ("", "", [], "pod2pod", ""),
-            "SELECT {} FROM {} WHERE "
-            "destinationPodLabels <> '' AND sourcePodLabels <> '' "
-            "GROUP BY {} ".format(
-                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
-            )
+                ("", "", [], "pod", "\"app\":\"clickhouse\"", "", "", "",
+                ""),
+                "SELECT * FROM "
+                "(SELECT {0} FROM {1} WHERE {2}  GROUP BY {3}) "
+                "UNION ALL "
+                "(SELECT {4} FROM {1} WHERE {5}  GROUP BY {3}) ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_POD_INBOUND),
+                    table_name, inbound_condition,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_POD + ['flowEndSeconds']),
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_POD_OUTBOUND),
+                    outbound_condition)
         ),
         (
-            ("", "", [], "pod2pod", "app:label"),
-            "SELECT {} FROM {} WHERE "
-            "ilike(destinationPodLabels, '%app:label%') "
-            "AND ilike(sourcePodLabels, '%app:label%') "
-            "GROUP BY {} ".format(
-                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
-            )
+                ("", "", [], "pod", "", "", "", "TestPodName", ""),
+                "SELECT * FROM "
+                "(SELECT {0} FROM {1} WHERE {2}  GROUP BY {3}) "
+                "UNION ALL "
+                "(SELECT {4} FROM {1} WHERE {5}  GROUP BY {3}) ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_PODNAME_INBOUND),
+                    table_name, inbound_condition_podname,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_PODNAME +
+                    ['flowEndSeconds']),
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_PODNAME_OUTBOUND),
+                    outbound_condition_podname)
         ),
         (
-            ("", "", [], "pod2svc", ""),
-            "SELECT {} FROM {} WHERE "
-            "destinationServicePortName <> '' "
-            "GROUP BY {} ".format(
-                ", ".join(ad.AGG_FLOW_TABLE_COLUMNS),
-                table_name,
-                ", ".join(ad.DF_AGG_GRP_COLUMNS + ['flowEndSeconds']),
-            )
+                ("", "", [], "pod", "", "", "", "TestPodName",
+                "TestPodNamespace"),
+                "SELECT * FROM "
+                "(SELECT {0} FROM {1} WHERE {2}  GROUP BY {3}) "
+                "UNION ALL "
+                "(SELECT {4} FROM {1} WHERE {5}  GROUP BY {3}) ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_PODNAME_INBOUND),
+                    table_name, inbound_condition_podname +
+                    inbound_condition_podnamespace,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_PODNAME +
+                    ['flowEndSeconds']),
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_PODNAME_OUTBOUND),
+                    outbound_condition_podname +
+                    outbound_condition_podnamespace)
+        ),
+        (
+                ("", "", ["mock_ns", "mock_ns2"], "pod",
+                 "\"app\":\"clickhouse\"", "", "", "", ""),
+                "SELECT * FROM "
+                "(SELECT {0} FROM {1} WHERE {2} {6} GROUP BY {3}) "
+                "UNION ALL "
+                "(SELECT {4} FROM {1} WHERE {5} {6} GROUP BY {3}) ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_POD_INBOUND),
+                    table_name, inbound_condition,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_POD + ['flowEndSeconds']),
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_POD_OUTBOUND),
+                    outbound_condition,
+                    "AND sourcePodNamespace NOT IN ('mock_ns', 'mock_ns2') AND"
+                    " destinationPodNamespace NOT IN ('mock_ns', 'mock_ns2')")
+        ),
+        (
+                ("", "", [], "svc", "", "", "", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "destinationServicePortName <> '' "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_SVC),
+                    table_name,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_SVC + ['flowEndSeconds']),
+                )
+        ),
+        (
+                ("", "", [], "svc", "", "", "test-service-port-name", "", ""),
+                "SELECT {} FROM {} WHERE "
+                "destinationServicePortName = 'test-service-port-name' "
+                "GROUP BY {} ".format(
+                    ", ".join(ad.AGG_FLOW_TABLE_COLUMNS_SVC),
+                    table_name,
+                    ", ".join(ad.DF_AGG_GRP_COLUMNS_SVC + ['flowEndSeconds']),
+                )
         ),
     ],
 )
 def test_generate_sql_query(test_input, expected_sql_query):
-    start_time, end_time, ns_ignore_list, agg_flow, pod2podlabel = test_input
+    (start_time, end_time, ns_ignore_list, agg_flow, pod_label, external_ip,
+     svc_port_name, pod_name, pod_namespace) = test_input
     sql_query = ad.generate_tad_sql_query(
-        start_time, end_time, ns_ignore_list, agg_flow, pod2podlabel)
+        start_time, end_time, ns_ignore_list, agg_flow, pod_label,
+        external_ip, svc_port_name, pod_name, pod_namespace)
     assert sql_query == expected_sql_query
 
 
-diff_secs_throughput_list = [
-    [4004471308], [4006917952], [4006373555],
-    [10004969097], [4005703059], [4005517222],
-    [4007380032], [4005277827], [4005435632],
-    [4004723289], [4005760579], [4005486294],
-    [4006172825], [4005486294], [4005561235],
-    [1005533779], [4005486294], [4004706899],
-    [4006355667], [4005277827], [4005277827],
-    [4005355097], [4005615814], [4004496934],
-    [4004839744], [4005486294], [4005370905],
-    [4005277827], [4005277827], [4006503308],
-    [4006191046], [4004834307], [4006201196],
-    [4004465468], [4006448435], [4005542681]]
+# Introduced 2 anomalies in between the lists
+throughput_list = [
+    4007380032, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4006917952, 4004471308, 4005277827, 4005486294,
+    4005435632, 4004465468, 4005336400, 4006201196, 4005546675,
+    4005703059, 4004631769, 4006915708, 4004834307, 4005943619,
+    4005760579, 4006503308, 4006580124, 4006524102, 4005521494,
+    4004706899, 4006355667, 4006373555, 4005542681, 4006120227,
+    4003599734, 4005561673, 4005682768, 10004969097, 4005517222,
+    1005533779, 4005370905, 4005589772, 4005328806, 4004926121,
+    4004496934, 4005615814, 4005798822, 50007861276, 4005396697,
+    4005148294, 4006448435, 4005355097, 4004335558, 4005389043,
+    4004839744, 4005556492, 4005796992, 4004497248, 4005988134,
+    205881027, 4004638304, 4006191046, 4004723289, 4006172825,
+    4005561235, 4005658636, 4006005936, 3260272025, 4005589772]
 
 expected_ewma_row_list = [
-    2002235654.0, 3004576803.0, 3505475179.0,
-    6755222138.0, 5380462598.5, 4692989910.25,
-    4350184971.125, 4177731399.0625, 4091583515.53125,
-    4048153402.265625, 4026956990.6328125, 4016221642.3164062,
-    4011197233.658203, 4008341763.8291016, 4006951499.414551,
-    2506242639.2072754, 3255864466.6036377, 3630285682.801819,
-    3818320674.9009094, 3911799250.9504547, 3958538538.9752274,
-    3981946817.9876137, 3993781315.993807, 3999139124.9969034,
-    4001989434.4984517, 4003737864.2492256, 4004554384.624613,
-    4004916105.8123064, 4005096966.406153, 4005800137.2030764,
-    4005995591.601538, 4005414949.300769, 4005808072.6503844,
-    4005136770.3251925, 4005792602.662596, 4005667641.831298]
+    2003690016.0, 3005303984.0, 3504887646.0,
+    3755082736.5, 3880284515.25, 3942860073.625,
+    3974889012.8125, 3989680160.40625, 3997478993.703125,
+    4001482643.8515625, 4003459137.9257812, 4005188544.9628906,
+    4004829926.4814453, 4005053876.7407227, 4005270085.3703613,
+    4005352858.6851807, 4006135405.3425903, 4005303356.671295,
+    4005290591.8356476, 4005388442.917824, 4005412037.458912,
+    4006164994.729456, 4005318151.364728, 4005297989.182364,
+    4005392141.5911818, 4005413886.795591, 4006165919.3977957,
+    4005318613.698898, 4005298220.349449, 4005392257.1747246,
+    4005413944.5873623, 4006165948.293681, 4005318628.1468406,
+    4005298227.5734205, 4005392260.7867103, 4005413946.3933554,
+    4004939707.1966777, 4005138053.598339, 4005669624.7991695,
+    4005608149.899585, 4005655604.4497924, 4005143686.7248964,
+    4006029697.362448, 4005432002.181224, 4005687810.590612,
+    4005724194.795306, 4006113751.397653, 4006346937.698827,
+    4006435519.8494134, 4005978506.9247065, 4005342702.962353,
+    4005849184.9811764, 4006111369.990588, 4005827025.495294,
+    4005973626.2476473, 4004786680.1238236, 4005174176.5619116,
+    4005428472.280956, 7005198784.640478, 5505358003.320239,
+    3255445891.1601195, 3630408398.08006, 3817999085.04003,
+    3911663945.520015, 3958295033.2600074, 3981395983.630004,
+    3993505898.815002, 3999652360.407501, 27003756818.20375,
+    15504576757.601875, 9754862525.800938, 6880655480.400469,
+    5443005288.700234, 4723670423.350117, 4364529733.175058,
+    4184684738.587529, 4095120615.2937646, 4050458803.646882,
+    4027478025.823441, 4016733079.9117203, 2111307053.4558601,
+    3057972678.72793, 3532081862.363965, 3768402575.6819825,
+    3887287700.340991, 3946424467.6704955, 3976041551.835248,
+    3991023743.917624, 3625647884.4588118, 3815618828.229406]
 
 
 @pytest.mark.parametrize(
     "test_input, expected_output",
-    [(diff_secs_throughput_list, expected_ewma_row_list), ],
+    [(throughput_list, expected_ewma_row_list), ],
 )
 def test_calculate_ewma(test_input, expected_output):
     ewma_row_list = ad.calculate_ewma(test_input)
@@ -174,20 +259,23 @@ def test_calculate_ewma(test_input, expected_output):
 
 
 expected_arima_row_list = [
-    40044, 40069, 40063, 40055,
-    10006, 49890, 40055, 40106,
-    40058, 40054, 42977, 40055,
-    37671, 40060, 42326, 37999,
-    13902, 36050, 36215, 36385,
-    40014, 40047, 40052, 40055,
-    40047, 40047, 37220, 37309,
-    37394, 37474, 37556, 37626,
-    37686, 37758, 37809, 37878]
+    40073, 40069, 40044, 40044, 40052, 40055, 40054, 40065,
+    40067, 40054, 40055, 40055, 40056, 40060, 40054, 40054,
+    40054, 40056, 40059, 40054, 40053, 40054, 40056, 40059,
+    40054, 40053, 40054, 40056, 40059, 40054, 40053, 40054,
+    40055, 40059, 40054, 40053, 40054, 40053, 40051, 40052,
+    40055, 40055, 40054, 40053, 40057, 40055, 40056, 40057,
+    40059, 40062, 40062, 40058, 40056, 40059, 40059, 40058,
+    40057, 40051, 40053, 98895, 63726, 11685, 56532, 39834,
+    39838, 39841, 39844, 39847, 39850, 51939, 42449, 41960,
+    41624, 41417, 41407, 41379, 41361, 41344, 41328, 41311,
+    41296, 37786, 39971, 39973, 39973, 39975, 39975, 39976,
+    39977, 39795]
 
 
 @pytest.mark.parametrize(
     "test_input, expected_output",
-    [(diff_secs_throughput_list, expected_arima_row_list), ],
+    [(throughput_list, expected_arima_row_list), ],
 )
 def test_calculate_arima(test_input, expected_output):
     arima_list = ad.calculate_arima(test_input)
@@ -197,80 +285,118 @@ def test_calculate_arima(test_input, expected_output):
 
 stddev = 4.9198515356827E9
 
-# Introduced 2 anomalies in between the lists
-throughput_list = [
-    4.0044713079999986E9, 4.006917951999995E9, 4.006373555E9,
-    4.0064328864065647E9, 1.0001208441920076E10, 4.991089312943837E9,
-    4.0055171211742964E9, 4.626073573776036E9, 4.534010184967284E9,
-    4.466799561945112E9, 4.415333279500873E9, 4.374398755270068E9,
-    4.34118839784096E9, 4.313543957535702E9, 4.2901708280305667E9,
-    4.2701589854351115E9, 2.8325782582807236E9, 2.878340351423177E9,
-    3.385947522781177E9, 3.5646004395330224E9, 3.6667007752395616E9,
-    3.734521818953146E9, 3.783516303056411E9, 3.820958451443989E9,
-    3.8506855053810143E10, 3.8756093718031974E9, 3.8975599768541164E9,
-    3.9181189080811553E10, 3.9389864233827744E9, 3.958470156413464E9,
-    3.9601061005316563E9, 3.9615580705907497E9, 3.9628158138629975E9,
-    3.9641264728285837E9, 3.9652109214908457E9, 3.9664069982877073E9]
-
 expanded_arima_row_list = [
-    4004471307.9999986, 4006917951.999995, 4006373555.0,
-    4005589532.039936, 10006702026.604738, 4989043846.332678,
-    4005517137.571196, 4010659163.493726, 4005892608.887371,
-    4005450688.4167933, 4297790490.967786, 4005582738.5384636,
-    3767119154.3932557, 4006051692.1707573, 4232602969.5832963,
-    3799968523.9055543, 1390254377.7501612, 3605038207.7053514,
-    3621518502.8757067, 3638555962.676026, 4001438213.3433123,
-    4004721638.3185096, 4005245177.0466213, 4005527131.198336,
-    4004788075.4534545, 4004792510.4156027, 3722002449.8679004,
-    3730981405.6425004, 3739427992.656704, 3747434614.2705755,
-    3755687741.4894, 3762658349.287123, 3768651030.8630514,
-    3775820305.253907, 3780919888.648877, 3787800077.0179124
-]
+    4007380031.999998, 4006917951.999995, 4004471307.9999986,
+    4004471338.531294, 4005277824.246516, 4005540171.967446,
+    4005417708.3450212, 4006596903.605313, 4006766397.4873962,
+    4005464712.562591, 4005505914.47936, 4005509545.4651246,
+    4005696322.736301, 4006033558.7986755, 4005433015.8854957,
+    4005412742.398469, 4005435189.6809897, 4005639605.435888,
+    4005955240.943543, 4005417006.2521853, 4005394611.0058765,
+    4005423107.5286036, 4005615008.6452837, 4005930744.817921,
+    4005411345.290995, 4005387458.632538, 4005419217.319681,
+    4005600201.8535633, 4005919351.798048, 4005407929.6769786,
+    4005383100.809166, 4005417053.9240017, 4005590088.792332,
+    4005912966.4215846, 4005405453.2374043, 4005380049.8736587,
+    4005415584.314455, 4005347223.1615577, 4005118865.3445063,
+    4005284593.2700768, 4005512211.463756, 4005544131.8972206,
+    4005486224.1983933, 4005378548.2363796, 4005763254.8659606,
+    4005506442.62549, 4005639283.9637246, 4005700488.7304854,
+    4005994680.054991, 4006202832.9615264, 4006238860.0935726,
+    4005890090.9782805, 4005645200.299684, 4005901661.0918307,
+    4005961401.6530385, 4005890634.274731, 4005710152.5932317,
+    4005117957.4774227, 4005335916.072919, 9889541964.746168,
+    6372659702.031328, 1168584960.8614435, 5653370820.402384,
+    3983485999.737595, 3983817981.649843, 3984128774.440398,
+    3984428874.23501, 3984757281.599942, 3985066198.7098646,
+    5193940800.99889, 4244915044.8262258, 4196033928.4701886,
+    4163392386.852055, 4141770112.8968925, 4139754955.6538,
+    4137999352.749037, 4136188331.593653, 4134572893.2860427,
+    4132811885.9396014, 4131164397.6772537, 4129639059.839085,
+    3778811317.851506, 3997193748.126457, 3997318079.4362803,
+    3997388443.8144045, 3997506294.672869, 3997592427.864033,
+    3997686533.833508, 3997782900.975419, 3979560170.4104342]
 
-expected_anomaly_list = [
+expected_anomaly_list_arima = [
     False, False, False, False, False, False,
     False, False, False, False, False, False,
     False, False, False, False, False, False,
     False, False, False, False, False, False,
-    True, False, False, True, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, True, True,
+    True, False, False, False, False, False,
+    False, False, True, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
     False, False, False, False, False, False]
 
 
 @pytest.mark.parametrize(
     "test_input, expected_arima_anomaly",
-    [(["", "", "", "", "", "", "", stddev, "", "", expanded_arima_row_list,
-       throughput_list], expected_anomaly_list), ],
+    [((throughput_list, stddev), expected_anomaly_list_arima), ],
 )
 def test_calculate_arima_anomaly(test_input, expected_arima_anomaly):
-    anomaly_list = ad.calculate_arima_anomaly(test_input)
+    throughput_list, stddev = test_input
+    anomaly_list = ad.calculate_arima_anomaly(throughput_list, stddev)
     assert anomaly_list == expected_arima_anomaly
 
 
-@pytest.mark.parametrize(
-    "test_input, expected_ewma_anomaly",
-    [(["", "", "", "", "", "", "", stddev, "", "", expected_ewma_row_list,
-       throughput_list], expected_anomaly_list), ],
-)
-def test_calculate_ewma_anomaly(test_input, expected_ewma_anomaly):
-    anomaly_list = ad.calculate_ewma_anomaly(test_input)
-    assert anomaly_list == expected_ewma_anomaly
-
-
-expected_dbscan_anomaly_list = [
-    False, False, False, False, True,
-    True, False, False, False, False,
-    False, False, False, False, False,
-    False, True, True, False, False,
-    False, False, False, False, True,
-    False, False, True, False, False,
+expected_anomaly_list_ewma = [
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, True, True, True, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
     False, False, False, False, False, False]
 
 
 @pytest.mark.parametrize(
+    "test_input, expected_ewma_anomaly",
+    [((throughput_list, stddev), expected_anomaly_list_ewma), ],
+)
+def test_calculate_ewma_anomaly(test_input, expected_ewma_anomaly):
+    throughput_list, stddev = test_input
+    anomaly_list = ad.calculate_ewma_anomaly(throughput_list, stddev)
+    assert anomaly_list == expected_ewma_anomaly
+
+
+expected_dbscan_anomaly_list = [
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, False, False,
+    False, False, False, False, True, False,
+    True, False, False, False, False, False,
+    False, False, True, False, False, False,
+    False, False, False, False, False, False,
+    False, False, True, False, False, False,
+    False, False, False, False, True, False]
+
+
+@pytest.mark.parametrize(
     "test_input, expected_dbscan_anomaly",
-    [(["", "", "", "", "", "", "", "", "", "", "", throughput_list],
+    [((throughput_list, stddev),
       expected_dbscan_anomaly_list), ],
 )
 def test_calculate_dbscan_anomaly(test_input, expected_dbscan_anomaly):
-    anomaly_list = ad.calculate_dbscan_anomaly(test_input)
+    throughput_list, stddev = test_input
+    anomaly_list = ad.calculate_dbscan_anomaly(throughput_list, stddev)
     assert anomaly_list == expected_dbscan_anomaly

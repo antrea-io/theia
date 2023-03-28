@@ -367,11 +367,11 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationTransportPort UInt16,
         protocolIdentifier UInt16,
         flowStartSeconds DateTime,
-        sourcePodNamespace String,
-        sourcePodLabels String,
-        destinationPodNamespace String,
-        destinationPodLabels String,
+        podNamespace String,
+        podLabels String,
+        podName String,
         destinationServicePortName String,
+        direction String,
         flowEndSeconds DateTime,
         throughputStandardDeviation Float64,
         aggType String,
@@ -381,7 +381,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         anomaly String,
         id String
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
-    ORDER BY (flowEndSeconds);
+    ORDER BY (flowStartSeconds);
 
     --Create distributed tables for cluster
     CREATE TABLE IF NOT EXISTS flows AS flows_local

@@ -15,15 +15,19 @@
     "d3-chord": "^3.0.1",
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.6",
+    "json5": "2.x",
+    "loader-utils": "^3.2.1",
     "my-d3": "npm:d3@7.1.0",
     "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react-dom": "^16.13.1",
+    "simple-git": "^3.6.0",
+    "webpack": "^5.72.0"
   },
   "author": "antrea-io",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@grafana/data": "latest",
-    "@grafana/toolkit": "latest",
+    "@grafana/data": "^9.4.0",
+    "@grafana/toolkit": "9.4.7",
     "@grafana/ui": "latest",
     "@types/d3": "^7.1.0",
     "@types/enzyme": "^3.10.12",

@@ -47,3 +47,4 @@ information.
 ## License
 
 Theia is licensed under the [Apache License, version 2.0](LICENSE)
+update

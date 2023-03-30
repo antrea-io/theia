@@ -353,6 +353,10 @@ function deliver_antrea {
     (cd $GIT_CHECKOUT_DIR && make theia-linux)
     ${SCP_WITH_ANTREA_CI_KEY} $GIT_CHECKOUT_DIR/bin/theia-linux capv@${control_plane_ip}:~/theia
 
+
+    # delete old images first
+    docker image prune -f --filter "until=1h" || true > /dev/null
+
     # copy images
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
 

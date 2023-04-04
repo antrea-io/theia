@@ -72,7 +72,7 @@ func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions)
 	if npReco.Status.State == crdv1alpha1.NPRecommendationStateCompleted {
 		result, err := r.getRecommendationResult(npReco.Status.SparkApplication)
 		if err != nil {
-			intelliNPR.Status.ErrorMsg = fmt.Sprintf("Failed to get the result for completed NetworkPolicy Recommedation with id %s, error: %v", npReco.Status.SparkApplication, err)
+			intelliNPR.Status.ErrorMsg = fmt.Sprintf("Failed to get the result for completed NetworkPolicy Recommendation with id %s, error: %v", npReco.Status.SparkApplication, err)
 		} else {
 			intelliNPR.Status.RecommendationOutcome = result
 		}

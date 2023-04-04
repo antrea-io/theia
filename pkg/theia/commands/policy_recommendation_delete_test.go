@@ -15,6 +15,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,6 @@ import (
 )
 
 func TestPolicyRecommendationDelete(t *testing.T) {
-	nprName := "pr-e292395c-3de1-11ed-b878-0242ac120002"
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
@@ -38,6 +38,21 @@ func TestPolicyRecommendationDelete(t *testing.T) {
 	}{
 		{
 			name: "Valid case",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
+					if r.Method == "DELETE" {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusOK)
+					} else {
+						http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+					}
+				}
+			})),
+			expectedErrorMsg: "",
+		},
+		{
+			name: "Valid case with args",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/networkpolicyrecommendations/%s", nprName):
@@ -61,23 +76,66 @@ func TestPolicyRecommendationDelete(t *testing.T) {
 			})),
 			expectedErrorMsg: "error when deleting policy recommendation job",
 		},
+		{
+			name:             "Unspecified prName",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified use-cluster-ip",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Invalid prName",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedErrorMsg: "not a valid policy recommendation job",
+		},
+		{
+			name:             TheiaClientSetupDeniedTestCase,
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedErrorMsg: TheiaClientSetupDeniedErr,
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			var err error
 			defer tt.testServer.Close()
 			oldFunc := SetupTheiaClientAndConnection
-			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
-				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
-				clientset, _ := kubernetes.NewForConfig(clientConfig)
-				return clientset.CoreV1().RESTClient(), nil, nil
+			if tt.name == TheiaClientSetupDeniedTestCase {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					return nil, nil, errors.New("mock_error")
+				}
+			} else {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+					clientset, _ := kubernetes.NewForConfig(clientConfig)
+					return clientset.CoreV1().RESTClient(), nil, nil
+				}
 			}
 			defer func() {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
-			cmd.Flags().String("name", nprName, "")
-			cmd.Flags().Bool("use-cluster-ip", true, "")
-			err := policyRecommendationDelete(cmd, []string{})
+			switch tt.name {
+			case "Unspecified prName":
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			case "Unspecified use-cluster-ip":
+				cmd.Flags().String("name", nprName, "")
+			case "Valid case with args":
+				cmd.Flags().String("name", "", "")
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			case "Invalid prName":
+				cmd.Flags().String("name", "mock_nprName", "")
+			default:
+				cmd.Flags().String("name", nprName, "")
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			}
+			if tt.name == "Valid case with args" {
+				err = policyRecommendationDelete(cmd, []string{nprName})
+			} else {
+				err = policyRecommendationDelete(cmd, []string{})
+			}
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 			} else {

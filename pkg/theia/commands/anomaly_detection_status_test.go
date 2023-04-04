@@ -16,6 +16,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +34,6 @@ import (
 )
 
 func TestAnomalyDetectorStatus(t *testing.T) {
-	tadName := "tad-1234abcd-1234-abcd-12ab-12345678abcd"
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
@@ -59,7 +59,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName: "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName: tadName,
 			expectedMsg: []string{
 				"Status of this anomaly detection job is RUNNING: 1/5 (20%) stages completed",
 				"Error message: testErrorMsg",
@@ -82,7 +82,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{"Status of this anomaly detection job is RUNNING: 0/0 (0%) stages completed"},
 			expectedErrorMsg: "",
 		},
@@ -94,32 +94,98 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{},
 			expectedErrorMsg: "error when getting anomaly detection job",
+		},
+		{
+			name:             "Unspecified name",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified use-cluster-ip",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Invalid tadName",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          "mock_tadName",
+			expectedMsg:      []string{},
+			expectedErrorMsg: "not a valid Throughput Anomaly Detection job name",
+		},
+		{
+			name:             TheiaClientSetupDeniedTestCase,
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: TheiaClientSetupDeniedErr,
+		},
+		{
+			name: "Valid case with args",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+					tad := &anomalydetector.ThroughputAnomalyDetector{
+						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+							State:           "RUNNING",
+							CompletedStages: 1,
+							TotalStages:     5,
+							ErrorMsg:        "testErrorMsg",
+						},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(tad)
+				}
+			})),
+			expectedErrorMsg: "",
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			var err error
 			defer tt.testServer.Close()
 			oldFunc := SetupTheiaClientAndConnection
-			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
-				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
-				clientset, _ := kubernetes.NewForConfig(clientConfig)
-				return clientset.CoreV1().RESTClient(), nil, nil
+			if tt.name == TheiaClientSetupDeniedTestCase {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					return nil, nil, errors.New("mock_error")
+				}
+			} else {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+					clientset, _ := kubernetes.NewForConfig(clientConfig)
+					return clientset.CoreV1().RESTClient(), nil, nil
+				}
 			}
 			defer func() {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
-			cmd.Flags().Bool("use-cluster-ip", true, "")
-			cmd.Flags().String("name", tt.tadName, "")
+			switch tt.name {
+			case "Unspecified name":
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			case "Unspecified use-cluster-ip":
+				cmd.Flags().String("name", tt.tadName, "")
+			default:
+				cmd.Flags().String("name", tt.tadName, "")
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			}
 
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
-			err := anomalyDetectionStatus(cmd, []string{})
+			if tt.name == "Valid case with args" {
+				err = anomalyDetectionStatus(cmd, []string{tadName})
+			} else {
+				err = anomalyDetectionStatus(cmd, []string{})
+			}
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)

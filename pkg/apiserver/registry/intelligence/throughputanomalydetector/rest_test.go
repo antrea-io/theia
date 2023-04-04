@@ -71,6 +71,30 @@ func TestREST_Get(t *testing.T) {
 				}},
 			},
 		},
+		{
+			name:      "Unsuccessful Get case query error",
+			tadName:   "tad-2",
+			expectErr: nil,
+			expectResult: &anomalydetector.ThroughputAnomalyDetector{
+				Type: "TAD",
+				Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+					State:    crdv1alpha1.ThroughputAnomalyDetectorStateCompleted,
+					ErrorMsg: "Failed to get the result for completed Throughput Anomaly Detector with id , error: failed to get Throughput Anomaly Detector results with id : error in database, please retry",
+				},
+			},
+		},
+		{
+			name:      "Unsuccessful Get case rows error",
+			tadName:   "tad-2",
+			expectErr: nil,
+			expectResult: &anomalydetector.ThroughputAnomalyDetector{
+				Type: "TAD",
+				Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+					State:    crdv1alpha1.ThroughputAnomalyDetectorStateCompleted,
+					ErrorMsg: "Failed to get the result for completed Throughput Anomaly Detector with id , error: failed to scan Throughput Anomaly Detector results: sql: expected 1 destination arguments in Scan, not 10",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -82,7 +106,13 @@ func TestREST_Get(t *testing.T) {
 			resultRows := sqlmock.NewRows([]string{
 				"Id", "SourceIP", "SourceTransportPort", "DestinationIP", "DestinationTransportPort", "FlowStartSeconds", "FlowEndSeconds", "Throughput", "AlgoCalc", "Anomaly"}).
 				AddRow("mock_Id", "mock_SourceIP", "mock_SourceTransportPort", "mock_DestinationIP", "mock_DestinationTransportPort", "mock_FlowStartSeconds", "mock_FlowEndSeconds", "mock_Throughput", "mock_AlgoCalc", "mock_Anomaly")
-			mock.ExpectQuery("SELECT id, sourceIP, sourceTransportPort, destinationIP, destinationTransportPort, flowStartSeconds, flowEndSeconds, throughput, algoCalc, anomaly FROM tadetector WHERE id = (?);").WillReturnRows(resultRows)
+			if tt.name == "Unsuccessful Get case query error" {
+				mock.ExpectQuery(queryMap[tadQuery]).WillReturnError(fmt.Errorf("error in database, please retry"))
+			} else if tt.name == "Unsuccessful Get case rows error" {
+				mock.ExpectQuery(queryMap[tadQuery]).WillReturnRows(sqlmock.NewRows([]string{"Id"}).AddRow("mock_Id"))
+			} else {
+				mock.ExpectQuery(queryMap[tadQuery]).WillReturnRows(resultRows)
+			}
 
 			setupClickHouseConnection = func(client kubernetes.Interface) (connect *sql.DB, err error) {
 				return db, nil

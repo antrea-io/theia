@@ -16,6 +16,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,21 +75,41 @@ func TestAnomalyDetectionList(t *testing.T) {
 			expectedMsg:      []string{},
 			expectedErrorMsg: "error when getting anomaly detection job list:",
 		},
+		{
+			name:             "Unspecified use-cluster-ip",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             TheiaClientSetupDeniedTestCase,
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			expectedMsg:      []string{},
+			expectedErrorMsg: TheiaClientSetupDeniedErr,
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.testServer.Close()
 			oldFunc := SetupTheiaClientAndConnection
-			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
-				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
-				clientset, _ := kubernetes.NewForConfig(clientConfig)
-				return clientset.CoreV1().RESTClient(), nil, nil
+			if tt.name == TheiaClientSetupDeniedTestCase {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					return nil, nil, errors.New("mock_error")
+				}
+			} else {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+					clientset, _ := kubernetes.NewForConfig(clientConfig)
+					return clientset.CoreV1().RESTClient(), nil, nil
+				}
 			}
 			defer func() {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
-			cmd.Flags().Bool("use-cluster-ip", true, "")
+			if tt.name != "Unspecified use-cluster-ip" {
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			}
 
 			orig := os.Stdout
 			r, w, _ := os.Pipe()

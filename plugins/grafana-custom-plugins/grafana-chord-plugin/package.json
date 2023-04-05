@@ -29,7 +29,7 @@
     "@types/enzyme": "^3.10.12",
     "@types/enzyme-adapter-react-16": "^1.0.6",
     "@types/my-d3": "npm:@types/d3@7.1.0",
-    "emotion": "10.0.27"
+    "emotion": "11.0.0"
   },
   "engines": {
     "node": ">=14"

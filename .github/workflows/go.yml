@@ -41,7 +41,7 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
     - uses: actions/cache@v3
@@ -94,7 +94,7 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'snowflake/go.mod'
     - uses: actions/cache@v3
@@ -135,7 +135,7 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
     - uses: actions/cache@v3
@@ -164,7 +164,7 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
     - name: Check tidy
@@ -181,7 +181,7 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
     - name: Run verify scripts

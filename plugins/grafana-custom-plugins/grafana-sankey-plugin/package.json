@@ -23,7 +23,7 @@
     "node": ">=14"
   },
   "dependencies": {
-    "@types/jest": "^27.0.3",
+    "@types/jest": "^29.5.0",
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.6",
     "react-google-charts": "^3.0.15"

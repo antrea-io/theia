@@ -30,31 +30,31 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Push antrea/theia-clickhouse-operator
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.1.0
         with:
           src: docker.io/altinity/clickhouse-operator:${{ github.event.inputs.ch-operator-tag }}
           dst: |
             docker.io/antrea/theia-clickhouse-operator:${{ github.event.inputs.ch-operator-tag }}
       - name: Push antrea/theia-metrics-exporter
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.1.0
         with:
           src: docker.io/altinity/metrics-exporter:${{ github.event.inputs.ch-operator-tag }}
           dst: |
             docker.io/antrea/theia-metrics-exporter:${{ github.event.inputs.ch-operator-tag }}
       - name: Push antrea/theia-grafana
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.1.0
         with:
           src: docker.io/grafana/grafana:${{ github.event.inputs.grafana-tag }}
           dst: |
             docker.io/antrea/theia-grafana:${{ github.event.inputs.grafana-tag }}
       - name: Push antrea/theia-spark-operator
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.1.0
         with:
           src: ghcr.io/googlecloudplatform/spark-operator:${{ github.event.inputs.spark-operator-tag }}
           dst: |
             docker.io/antrea/theia-spark-operator:${{ github.event.inputs.spark-operator-tag }}
       - name: Push antrea/theia-zookeeper
-        uses: akhilerm/tag-push-action@v2.0.0
+        uses: akhilerm/tag-push-action@v2.1.0
         with:
           src: docker.io/zookeeper:${{ github.event.inputs.zookeeper-tag }}
           dst: |

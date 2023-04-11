@@ -1665,7 +1665,7 @@
   resolved "https://registry.npmjs.org/@grafana/aws-sdk/-/aws-sdk-0.0.3.tgz"
   integrity sha512-V0PJLk+oU1C33knurXp8BkT5N2ctDu9b21zpK16vkJAs5aOiH/OaOhQ/IP9ipxYhB+b9PFjr8RXagV/8XJ8xwg==
 
-"@grafana/data@8.3.2", "@grafana/data@latest":
+"@grafana/data@8.3.2":
   version "8.3.2"
   resolved "https://registry.npmjs.org/@grafana/data/-/data-8.3.2.tgz"
   integrity sha512-Onn/Oh972HwbiduqBUVP1AnL3guyvim3t5k7kVINm0eArNE+3Zs8xeeu5W5RZNESrzQmxLTEBjIo+cUJmmRhtQ==
@@ -1686,7 +1686,7 @@
     uplot "1.6.16"
     xss "1.0.6"
 
-"@grafana/data@9.4.7":
+"@grafana/data@9.4.7", "@grafana/data@latest":
   version "9.4.7"
   resolved "https://registry.yarnpkg.com/@grafana/data/-/data-9.4.7.tgz#8b4c15a5b52ec13908c006baf87416354ee8251a"
   integrity sha512-GnP91XSuTlRaT4crRh7OgC58rKsF/ANAZTFeHOYqVD7r47upTgnnnM46khSLhvA3MoKfNZflXOneaIjU4c5Hyw==
@@ -8572,12 +8572,12 @@ moment-timezone@0.5.38:
   dependencies:
     moment ">= 2.9.0"
 
-moment@2.29.1, moment@2.x, "moment@>= 2.9.0":
+moment@2.29.1:
   version "2.29.1"
   resolved "https://registry.npmjs.org/moment/-/moment-2.29.1.tgz"
   integrity sha512-kHmoybcPV8Sqy59DwNDY3Jefr64lK/by/da0ViFcuA4DH0vQg5Q6Ze5VimxkfQNSC+Mls/Kx53s7TjP1RhFEDQ==
 
-moment@2.29.4:
+moment@2.29.4, moment@2.x, "moment@>= 2.9.0":
   version "2.29.4"
   resolved "https://registry.yarnpkg.com/moment/-/moment-2.29.4.tgz#3dbe052889fe7c1b2ed966fcb3a77328964ef108"
   integrity sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==
@@ -10658,15 +10658,10 @@ regenerator-runtime@^0.11.0:
   resolved "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.11.1.tgz"
   integrity sha512-MguG95oij0fC3QV3URf4V2SDYGJhJnJGqvIIgdECeODCT98wSWDAJ94SSuVpYQUoTcGUIL6L4yNB7j1DFFHSBg==
 
-regenerator-runtime@^0.13.11:
+regenerator-runtime@^0.13.11, regenerator-runtime@^0.13.4:
   version "0.13.11"
   resolved "https://registry.yarnpkg.com/regenerator-runtime/-/regenerator-runtime-0.13.11.tgz#f6dca3e7ceec20590d07ada785636a90cdca17f9"
   integrity sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==
-
-regenerator-runtime@^0.13.4:
-  version "0.13.7"
-  resolved "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.13.7.tgz"
-  integrity sha512-a54FxoJDIr27pgf7IgeQGxmqUNYrcV338lf/6gH456HZ/PhX+5BcwHXG9ajESmwe6WRO0tAzRUrRmNONWgkrew==
 
 regenerator-transform@^0.15.1:
   version "0.15.1"
@@ -10920,14 +10915,7 @@ rxjs@7.5.7:
   dependencies:
     tslib "^2.1.0"
 
-rxjs@^7.2.0:
-  version "7.4.0"
-  resolved "https://registry.npmjs.org/rxjs/-/rxjs-7.4.0.tgz"
-  integrity sha512-7SQDi7xeTMCJpqViXh8gL/lebcwlp3d831F05+9B44A4B0WfsEwUQHR64gsH1kvJ+Ep/J9K2+n1hVl1CsGN23w==
-  dependencies:
-    tslib "~2.1.0"
-
-rxjs@^7.5.5:
+rxjs@^7.2.0, rxjs@^7.5.5:
   version "7.8.0"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.0.tgz#90a938862a82888ff4c7359811a595e14e1e09a4"
   integrity sha512-F2+gxDshqmIub1KdvZkaEfGDwLNpPvk9Fs6LD/MyQxNgMds/WH9OdDDXOmxUZpME+iSK3rQCctkL0DYyytUqMg==

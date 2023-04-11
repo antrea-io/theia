@@ -11,9 +11,6 @@ on:
     - release-*
     - feature/*
 
-env:
-  go-cache-name: go
-
 jobs:
   check-changes:
     name: Check whether tests need to be run based on diff
@@ -41,23 +38,9 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
-    - uses: actions/cache@v3
-      with:
-        # In order:
-        # * Module download cache
-        # * Build cache (Linux)
-        # * Build cache (Mac)
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/Library/Caches/go-build
-          %LocalAppData%\go-build
-        key: ${{ runner.os }}-${{ env.go-cache-name }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ env.go-cache-name }}-
     - name: Run unit tests
       run: make test-unit
     - name: Codecov
@@ -94,23 +77,10 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'snowflake/go.mod'
-    - uses: actions/cache@v3
-      with:
-        # In order:
-        # * Module download cache
-        # * Build cache (Linux)
-        # * Build cache (Mac)
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/Library/Caches/go-build
-          %LocalAppData%\go-build
-        key: ${{ runner.os }}-${{ env.go-cache-name }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ env.go-cache-name }}-
+        cache-dependency-path: 'snowflake/go.sum'
     - name: Run unit tests
       run: |
         cd snowflake
@@ -135,23 +105,10 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
-    - uses: actions/cache@v3
-      with:
-        # In order:
-        # * Module download cache
-        # * Build cache (Linux)
-        # * Build cache (Mac)
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/Library/Caches/go-build
-          %LocalAppData%\go-build
-        key: ${{ runner.os }}-${{ env.go-cache-name }}-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ env.go-cache-name }}-
+        cache-dependency-path: '**/go.sum'
     - name: Run golangci-lint
       run: make golangci
 
@@ -164,9 +121,10 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
+        cache-dependency-path: '**/go.sum'
     - name: Check tidy
       run: make test-tidy
     - name: Check manifest
@@ -181,9 +139,10 @@ jobs:
     - name: Check-out code
       uses: actions/checkout@v3
     - name: Set up Go using version from go.mod
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'go.mod'
+        cache-dependency-path: '**/go.sum'
     - name: Run verify scripts
       run: make verify
     - name: Checking for broken Markdown links

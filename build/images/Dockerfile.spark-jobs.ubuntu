@@ -1,4 +1,4 @@
-FROM gcr.io/spark-operator/spark-py:v3.1.1
+FROM apache/spark-py:v3.3.2
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy policy recommendation and throughput anomaly detection Spark job."
@@ -15,7 +15,6 @@ COPY plugins/policy-recommendation/policy_recommendation_utils.py /opt/spark/wor
 COPY plugins/policy-recommendation/antrea_crd.py /opt/spark/work-dir/antrea_crd.py
 COPY plugins/anomaly-detection/anomaly_detection.py /opt/spark/work-dir/anomaly_detection.py
 COPY plugins/anomaly-detection/requirements.txt /opt/spark/work-dir/anomaly_detection_requirements.txt
-
 
 RUN pip3 install --upgrade pip && \
     pip3 install pyyaml && \

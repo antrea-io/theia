@@ -1,13 +1,10 @@
 import React from 'react';
-import { PanelProps } from '@grafana/data';
-import { DependencyOptions } from 'types';
 import mermaid from 'mermaid';
+import { DependencyOptions } from 'types';
+import { PanelProps } from '@grafana/data';
+import { useTheme2 } from '@grafana/ui';
 
 interface Props extends PanelProps<DependencyOptions> {}
-
-mermaid.initialize({
-  startOnLoad: true
-});
 
 class Mermaid extends React.Component<any> {
   componentDidMount() {
@@ -19,6 +16,7 @@ class Mermaid extends React.Component<any> {
 }
 
 export const DependencyPanel: React.FC<Props> = ({ options, data, width, height }) => {
+  const theme = useTheme2();
   const frame = data.series[0];
   const sourcePodNames = frame.fields.find((field) => field.name === 'sourcePodName');
   const sourceNodeNames = frame.fields.find((field) => field.name === 'sourceNodeName');
@@ -31,6 +29,18 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
   let srcToDestMap = new Map<string, Map<string, number>>();
 
   let graphString = 'graph LR;\n';
+
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: theme.colors.warning.main,
+      secondaryColor: theme.colors.background.canvas,
+      tertiaryColor: theme.colors.background.canvas,
+      primaryTextColor: theme.colors.text.maxContrast,
+      lineColor: theme.colors.text.maxContrast,
+    },
+  });
 
   for (let i = 0; i < frame.length; i++) {
     const sourcePodName = sourcePodNames?.values.get(i);

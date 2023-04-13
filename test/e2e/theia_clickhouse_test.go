@@ -226,7 +226,7 @@ func getClickHouseDBInfo(t *testing.T, data *TestData, query string) (stdout str
 	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), query)
 
 	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+		return "", fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", query, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	return strings.TrimSuffix(stdout, "\n"), nil
 }

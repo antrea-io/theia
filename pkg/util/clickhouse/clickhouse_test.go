@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ClickHouse/clickhouse-go"
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes"
@@ -82,6 +83,30 @@ func TestSetupConnection(t *testing.T) {
 				return nil, nil
 			},
 			expectedErrorMsg: fmt.Sprintf("failed to get ClickHouse URL: error when getting the ClickHouse Service address: error when finding the Service %s: services \"%s\" not found", ServiceName, ServiceName),
+		},
+		{
+			name: "Ping failed test",
+			setup: func() (*sql.DB, sqlmock.Sqlmock) {
+				os.Setenv(usernameKey, "username")
+				os.Setenv(passwordKey, "password")
+				os.Setenv(urlKey, "tcp://localhost:9000")
+				db, mock, err := sqlmock.New(sqlmock.MonitorPingsOption(true))
+				if err != nil {
+					t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+				}
+				openSql = func(driverName, dataSourceName string) (*sql.DB, error) {
+					return db, nil
+				}
+				mock.ExpectPing().WillReturnError(&clickhouse.Exception{Message: "first error"})
+				mock.ExpectPing().WillReturnError(fmt.Errorf("second error"))
+				return db, mock
+			},
+			cleanup: func() {
+				os.Unsetenv(usernameKey)
+				os.Unsetenv(passwordKey)
+				os.Unsetenv(urlKey)
+			},
+			expectedErrorMsg: "failed to connect to ClickHouse after 10s, error list: [\nerror message: first error,\nsecond error,\n",
 		},
 	}
 

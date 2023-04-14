@@ -13,7 +13,7 @@ require (
 	github.com/spf13/afero v1.9.2
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.1
+	github.com/stretchr/testify v1.8.2
 	github.com/tidwall/gjson v1.14.1
 	github.com/vmware/go-ipfix v0.5.12
 	golang.org/x/crypto v0.8.0

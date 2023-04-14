@@ -238,21 +238,21 @@ jobs:
     steps:
     - name: Delete spark-jobs
       if: ${{ needs.build-spark-jobs-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v1
+      uses: geekyeggo/delete-artifact@v2
       with:
         name: spark-jobs
     - name: Delete clickhouse-monitor
       if: ${{ needs.build-clickhouse-monitor-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v1
+      uses: geekyeggo/delete-artifact@v2
       with:
         name: clickhouse-monitor
     - name: Delete clickhouse-server
       if: ${{ needs.build-clickhouse-server-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v1
+      uses: geekyeggo/delete-artifact@v2
       with:
         name: clickhouse-server
     - name: Delete theia-manager
       if: ${{ needs.build-theia-manager-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v1
+      uses: geekyeggo/delete-artifact@v2
       with:
         name: theia-manager

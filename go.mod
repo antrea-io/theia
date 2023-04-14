@@ -7,7 +7,7 @@ require (
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/containernetworking/plugins v0.8.7
-	github.com/google/uuid v1.1.2
+	github.com/google/uuid v1.3.0
 	github.com/kevinburke/ssh_config v1.2.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/afero v1.9.5

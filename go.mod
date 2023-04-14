@@ -10,7 +10,7 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spf13/afero v1.9.2
+	github.com/spf13/afero v1.9.5
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2

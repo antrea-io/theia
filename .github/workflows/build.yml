@@ -32,7 +32,7 @@ jobs:
     if: ${{ needs.check-clickhouse-monitor-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
     runs-on: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build clickhouse-monitor Docker image
       run: make clickhouse-monitor
     - name: Push clickhouse-monitor Docker image to registry
@@ -63,7 +63,7 @@ jobs:
     if: ${{ needs.check-clickhouse-server-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
     runs-on: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
     - name: Build and push clickhouse-server Docker image to registry
@@ -95,7 +95,7 @@ jobs:
     if: ${{ needs.check-spark-jobs-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
     runs-on: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build spark-jobs Docker image
       run: make spark-jobs
     - name: Push spark-jobs Docker image to registry
@@ -126,7 +126,7 @@ jobs:
     if: ${{ needs.check-theia-manager-changes.outputs.has_changes == 'yes' || github.event_name == 'push' }}
     runs-on: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build theia-manager Docker image
       run: make theia-manager
     - name: Push theia-manager Docker image to registry

@@ -114,6 +114,7 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf "/usr/local/lib/android"
           df -h
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
@@ -180,6 +181,7 @@ jobs:
           sudo rm -rf /opt/ghc
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf "/usr/local/lib/android"
           df -h
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4

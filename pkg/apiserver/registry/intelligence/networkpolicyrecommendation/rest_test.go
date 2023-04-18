@@ -65,6 +65,32 @@ func TestREST_Get(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:      "Unsuccessful Get case query error",
+			nprName:   "npr-2",
+			expectErr: nil,
+			expectResult: &intelligence.NetworkPolicyRecommendation{
+				Type:       "NPR",
+				PolicyType: "Allow",
+				Status: intelligence.NetworkPolicyRecommendationStatus{
+					State:    crdv1alpha1.NPRecommendationStateCompleted,
+					ErrorMsg: "Failed to get the result for completed NetworkPolicy Recommendation with id , error: failed to get recommendation results with id : error in database, please retry",
+				},
+			},
+		},
+		{
+			name:      "Unsuccessful Get case rows error",
+			nprName:   "npr-2",
+			expectErr: nil,
+			expectResult: &intelligence.NetworkPolicyRecommendation{
+				Type:       "NPR",
+				PolicyType: "Allow",
+				Status: intelligence.NetworkPolicyRecommendationStatus{
+					State:    crdv1alpha1.NPRecommendationStateCompleted,
+					ErrorMsg: "Failed to get the result for completed NetworkPolicy Recommendation with id , error: failed to scan recommendation results: sql: expected 2 destination arguments in Scan, not 1",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -74,7 +100,13 @@ func TestREST_Get(t *testing.T) {
 			}
 			defer db.Close()
 			resultRows := sqlmock.NewRows([]string{"policy"}).AddRow(policy1).AddRow(policy2)
-			mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnRows(resultRows)
+			if tt.name == "Unsuccessful Get case query error" {
+				mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnError(fmt.Errorf("error in database, please retry"))
+			} else if tt.name == "Unsuccessful Get case rows error" {
+				mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnRows(sqlmock.NewRows([]string{"policy", "Id"}).AddRow("mock_policy", "mock_Id"))
+			} else {
+				mock.ExpectQuery("SELECT policy FROM recommendations WHERE id = (?);").WillReturnRows(resultRows)
+			}
 
 			setupClickHouseConnection = func(client kubernetes.Interface) (connect *sql.DB, err error) {
 				return db, nil

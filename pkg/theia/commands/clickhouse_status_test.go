@@ -16,6 +16,7 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -164,21 +165,55 @@ func TestGetStatus(t *testing.T) {
 				"Shard_test", "TraceFunctions_test", "Count_test",
 				"converting NULL to string is unsupported"},
 		},
+		{
+			name:             "Unspecified use-cluster-ip",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			options:          &chOptions{diskInfo: true},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+			expectedMsg:      []string{},
+		},
+		{
+			name:             TheiaClientSetupDeniedTestCase,
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			options:          &chOptions{diskInfo: true},
+			expectedErrorMsg: TheiaClientSetupDeniedErr,
+			expectedMsg:      []string{},
+		},
+		{
+			name: "Unable to get ClickHouse status",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case "/apis/intelligence.theia.antrea.io/v1alpha1/clickhouse/diskInfo":
+					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				}
+			})),
+			options:          &chOptions{diskInfo: true},
+			expectedErrorMsg: "error when getting clickhouse",
+			expectedMsg:      []string{},
+		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.testServer.Close()
 			oldFunc := SetupTheiaClientAndConnection
-			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
-				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
-				clientset, _ := kubernetes.NewForConfig(clientConfig)
-				return clientset.CoreV1().RESTClient(), nil, nil
+			if tt.name == TheiaClientSetupDeniedTestCase {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					return nil, nil, errors.New("mock_error")
+				}
+			} else {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+					clientset, _ := kubernetes.NewForConfig(clientConfig)
+					return clientset.CoreV1().RESTClient(), nil, nil
+				}
 			}
 			defer func() {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
-			cmd.Flags().Bool("use-cluster-ip", true, "")
+			if tt.name != "Unspecified use-cluster-ip" {
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			}
 			options = tt.options
 
 			orig := os.Stdout

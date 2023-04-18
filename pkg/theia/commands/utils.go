@@ -41,9 +41,10 @@ import (
 
 var (
 	SetupTheiaClientAndConnection = setupTheiaClientAndConnection
+	CreateK8sClient               = createK8sClient
 )
 
-func CreateK8sClient(kubeconfig string) (kubernetes.Interface, error) {
+func createK8sClient(kubeconfig string) (kubernetes.Interface, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, err

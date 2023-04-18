@@ -17,6 +17,7 @@ package commands
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,7 +36,6 @@ import (
 )
 
 func TestAnomalyDetectorRetrieve(t *testing.T) {
-	tadName := "tad-1234abcd-1234-abcd-12ab-12345678abcd"
 	testCases := []struct {
 		name             string
 		testServer       *httptest.Server
@@ -54,7 +54,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 							State: "COMPLETED",
 						},
 						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
-							Id:       "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Id:       tadName,
 							Anomaly:  "true",
 							AlgoCalc: "1234567",
 						}},
@@ -64,7 +64,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{"1234567\t\ttrue"},
 			expectedErrorMsg: "",
 		},
@@ -78,7 +78,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 							State: "COMPLETED",
 						},
 						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
-							Id:      "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Id:      tadName,
 							Anomaly: "NO ANOMALY DETECTED",
 						}},
 					}
@@ -87,7 +87,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{"No Anomaly found"},
 			expectedErrorMsg: "",
 		},
@@ -101,7 +101,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 							State: "COMPLETED",
 						},
 						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
-							Id:      "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Id:      tadName,
 							Anomaly: "[true]",
 						}},
 					}
@@ -110,7 +110,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{},
 			expectedErrorMsg: "",
 			filePath:         "/tmp/testResult",
@@ -123,27 +123,78 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 					http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 				}
 			})),
-			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			tadName:          tadName,
 			expectedMsg:      []string{},
 			expectedErrorMsg: "error when getting anomaly detection job",
+		},
+		{
+			name:             "Unspecified name",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified file",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified use-cluster-ip",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Invalid tadName",
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          "mock_tadName",
+			expectedMsg:      []string{},
+			expectedErrorMsg: "not a valid Throughput Anomaly Detection job name",
+		},
+		{
+			name:             TheiaClientSetupDeniedTestCase,
+			testServer:       httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})),
+			tadName:          tadName,
+			expectedMsg:      []string{},
+			expectedErrorMsg: TheiaClientSetupDeniedErr,
 		},
 	}
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			defer tt.testServer.Close()
 			oldFunc := SetupTheiaClientAndConnection
-			SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
-				clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
-				clientset, _ := kubernetes.NewForConfig(clientConfig)
-				return clientset.CoreV1().RESTClient(), nil, nil
+			if tt.name == TheiaClientSetupDeniedTestCase {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					return nil, nil, errors.New("mock_error")
+				}
+			} else {
+				SetupTheiaClientAndConnection = func(cmd *cobra.Command, useClusterIP bool) (restclient.Interface, *portforwarder.PortForwarder, error) {
+					clientConfig := &restclient.Config{Host: tt.testServer.URL, TLSClientConfig: restclient.TLSClientConfig{Insecure: true}}
+					clientset, _ := kubernetes.NewForConfig(clientConfig)
+					return clientset.CoreV1().RESTClient(), nil, nil
+				}
 			}
 			defer func() {
 				SetupTheiaClientAndConnection = oldFunc
 			}()
 			cmd := new(cobra.Command)
-			cmd.Flags().Bool("use-cluster-ip", true, "")
-			cmd.Flags().String("file", tt.filePath, "")
-			cmd.Flags().String("name", tt.tadName, "")
+			switch tt.name {
+			case "Unspecified name":
+				cmd.Flags().String("file", tt.filePath, "")
+			case "Unspecified file":
+				cmd.Flags().String("name", tt.tadName, "")
+			case "Unspecified use-cluster-ip":
+				cmd.Flags().String("name", tt.tadName, "")
+				cmd.Flags().String("file", tt.filePath, "")
+			default:
+				cmd.Flags().String("name", tt.tadName, "")
+				cmd.Flags().String("file", tt.filePath, "")
+				cmd.Flags().Bool("use-cluster-ip", true, "")
+			}
 
 			orig := os.Stdout
 			r, w, _ := os.Pipe()

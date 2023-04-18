@@ -1,0 +1,68 @@
+name: Scan Theia Docker images for vulnerabilities every day
+
+on:
+  schedule:
+    # every day at 10am
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+    inputs:
+      theia-version:
+        description: 'The released Theia version to scan'
+        type: string
+        required: false
+
+jobs:
+  find-theia-greatest-version:
+    if: github.repository == 'antrea-io/theia'
+    runs-on: ubuntu-latest
+    outputs:
+      theia-version: ${{ steps.find-theia-greatest-version.outputs.theia_version }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Find greatest Theia version
+      id: find-theia-greatest-version
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        VERSION=${{ github.event.inputs.theia-version }}
+        if [ -z "$VERSION" ]; then
+            VERSION=$(gh api /repos/antrea-io/theia/releases/latest --jq '.tag_name')
+        fi
+        echo "theia_version=$VERSION" >> $GITHUB_OUTPUT  
+  build:
+    runs-on: ubuntu-latest
+    needs: find-theia-greatest-version
+    strategy:
+      matrix:
+        image:
+          - theia-spark-jobs
+          - theia-clickhouse-monitor
+          - theia-clickhouse-server
+          - theia-manager
+        version:
+          - latest
+          - ${{ needs.find-theia-greatest-version.outputs.theia-version }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Pull theia Docker image
+        id: pull
+        run: |
+          docker pull antrea/${{ matrix.image }}:${{ matrix.version }}
+      - name: Run Trivy vulnerability scanner on theia ${{ matrix.image }}:${{ matrix.version }} image
+        if: ${{ always() && steps.pull.conclusion == 'success' }}
+        uses: aquasecurity/trivy-action@0.10.0
+        continue-on-error: true
+        with:
+          scan-type: 'image'
+          image-ref: 'antrea/${{ matrix.image }}:${{ matrix.version }}'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+          format: 'table'
+          output: 'trivy.${{ matrix.image }}.${{ matrix.version }}.txt'
+      - name: Upload Trivy scan report
+        uses: actions/upload-artifact@v3
+        with:
+          name: trivy-scan-reports
+          path: trivy.*.txt
+          retention-days: 90 # max value

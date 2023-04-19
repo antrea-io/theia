@@ -19,9 +19,12 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
 	"antrea.io/theia/pkg/util/env"
@@ -36,6 +39,10 @@ const (
 	ServicePortProtocal = "TCP"
 	// #nosec G101: false positive triggered by variable name which includes "secret"
 	SecretName = "clickhouse-secret"
+	// Ping to ClickHouse time out if it fails for 10 seconds.
+	pingTimeout = 10 * time.Second
+	// Retry ping to ClickHouse every second if it fails.
+	pingRetryInterval = 1 * time.Second
 )
 
 var (
@@ -63,13 +70,21 @@ func Connect(url string) (*sql.DB, error) {
 	if err != nil {
 		return connect, fmt.Errorf("failed to open ClickHouse: %v", err)
 	}
-	if err := connect.Ping(); err != nil {
-		if exception, ok := err.(*clickhouse.Exception); ok {
-			return connect, fmt.Errorf("failed to ping ClickHouse: %v", exception.Message)
-		} else {
-			return connect, fmt.Errorf("failed to ping ClickHouse: %v", err)
+	var errMessages []string
+	if err = wait.PollImmediate(pingRetryInterval, pingTimeout, func() (done bool, err error) {
+		if err := connect.Ping(); err != nil {
+			if exception, ok := err.(*clickhouse.Exception); ok {
+				errMessages = append(errMessages, fmt.Errorf("error message: %v", exception.Message).Error())
+			} else {
+				errMessages = append(errMessages, err.Error())
+			}
+			return false, nil
 		}
+		return true, nil
+	}); err != nil {
+		return nil, fmt.Errorf("failed to connect to ClickHouse after %s, error list: [\n%v]", pingTimeout, strings.Join(errMessages, ",\n"))
 	}
+
 	return connect, nil
 }
 

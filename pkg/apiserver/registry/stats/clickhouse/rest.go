@@ -49,33 +49,41 @@ func (r *REST) New() runtime.Object {
 
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	var status v1alpha1.ClickHouseStats
-	var err error
 	switch name {
 	case "diskInfo":
-		err = r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace, &status)
+		err := r.clickHouseStatusQuerier.GetDiskInfo(defaultNameSpace, &status)
+		if err != nil {
+			return nil, fmt.Errorf("error when sending diskInfo query to ClickHouse: %s", err)
+		}
 		if status.DiskInfos == nil {
 			return nil, fmt.Errorf("no diskInfo data is returned by database")
 		}
 	case "tableInfo":
-		err = r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace, &status)
+		err := r.clickHouseStatusQuerier.GetTableInfo(defaultNameSpace, &status)
+		if err != nil {
+			return nil, fmt.Errorf("error when sending tableInfo query to ClickHouse: %s", err)
+		}
 		if status.TableInfos == nil {
 			return nil, fmt.Errorf("no tableInfo data is returned by database")
 		}
 	case "insertRate":
-		err = r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace, &status)
+		err := r.clickHouseStatusQuerier.GetInsertRate(defaultNameSpace, &status)
+		if err != nil {
+			return nil, fmt.Errorf("error when sending insertRate query to ClickHouse: %s", err)
+		}
 		if status.InsertRates == nil {
 			return nil, fmt.Errorf("no insertRate data is returned by database")
 		}
 	case "stackTrace":
-		err = r.clickHouseStatusQuerier.GetStackTrace(defaultNameSpace, &status)
+		err := r.clickHouseStatusQuerier.GetStackTrace(defaultNameSpace, &status)
+		if err != nil {
+			return nil, fmt.Errorf("error when sending stackTrace query to ClickHouse: %s", err)
+		}
 		if status.StackTraces == nil {
 			return nil, fmt.Errorf("no stackTrace data is returned by database")
 		}
 	default:
 		return nil, fmt.Errorf("cannot recognize the statua name: %s", name)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error when sending query to ClickHouse: %s", err)
 	}
 	return &status, nil
 }

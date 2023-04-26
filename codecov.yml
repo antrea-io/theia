@@ -18,7 +18,7 @@ coverage:
   status:
     patch:
       default:
-        target: auto
+        target: 60%
         threshold: 5%
         base: auto
         only_pulls: true
@@ -27,14 +27,22 @@ coverage:
     project:
       default:
         target: auto
+        threshold: 1%
       theia-unit-tests:
         target: auto
+        threshold: 1%
         flags:
           - unit-tests
+      theia-kind-e2e-tests:
+        target: auto
+        threshold: 1%
+        flags:
+          - kind-e2e-tests
 
 flag_management:
   default_rules:
     carryforward: true
+
 ignore:
   - "**/testing/*.go"
   - "**/mock_*.go"

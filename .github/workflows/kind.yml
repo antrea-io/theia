@@ -154,7 +154,17 @@ jobs:
       - name: Run e2e tests
         run: |
           mkdir log
-          ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh
+          mkdir test-e2e-coverage
+          ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh --coverage
+      - name: Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: test-e2e-coverage
+          fail_ci_if_error: ${{ github.event_name == 'push' }}
+          file: .cov.out
+          flags: kind-e2e-tests
+          name: codecov-kind-e2e-test
       - name: Tar log files
         if: ${{ failure() }}
         run: tar -czf log.tar.gz log

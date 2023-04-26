@@ -28,6 +28,7 @@ _usage="Usage: $0 [--ip-family <v4|v6>] [--help|-h]
         --setup-only                  Only perform setting up the cluster and run test.
         --cleanup-only                Only perform cleaning up the cluster.
         --test-only                   Only run test on current cluster. Not set up/clean up the cluster.
+        --coverage                    Enables coverage to be calculated when e2e tests are run on kind.
         --help, -h                    Print this message and exit.
 "
 
@@ -60,6 +61,7 @@ skiplist=""
 setup_only=false
 cleanup_only=false
 test_only=false
+coverage=false
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -83,6 +85,10 @@ case $key in
     ;;
     --test-only)
     test_only=true
+    shift
+    ;;
+    --coverage)
+    coverage=true
     shift
     ;;
     -h|--help)
@@ -172,7 +178,11 @@ function run_test {
   rm -rf $TMP_DIR
   sleep 1
 
-  go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  if $coverage; then
+    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR -cover -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/... -coverprofile=test-e2e-coverage/.cov.out -covermode=atomic --skip=$skiplist
+  else
+    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  fi
 }
 
 echo "======== Test encap mode =========="

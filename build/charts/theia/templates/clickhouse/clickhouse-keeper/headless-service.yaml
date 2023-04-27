@@ -1,0 +1,18 @@
+{{- if (eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0) }}
+# Setup Headless Service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse-keepers
+  labels:
+    app: clickhouse-keeper
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - port: 9444
+      name: raft
+  clusterIP: None
+  selector:
+    app: clickhouse-keeper
+    what: node
+{{- end }}

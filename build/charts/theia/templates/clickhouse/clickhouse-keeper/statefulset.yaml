@@ -1,0 +1,109 @@
+{{- if (eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  # nodes would be named as clickhouse-keeper-0, clickhouse-keeper-1, clickhouse-keeper-2
+  name: clickhouse-keeper
+  labels:
+    app: clickhouse-keeper
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: clickhouse-keeper
+  serviceName: clickhouse-keepers
+  replicas: {{ .Values.clickhouse.cluster.installClickhousekeeper.replicas }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app: clickhouse-keeper
+        what: node
+      annotations:
+        prometheus.io/port: '7000'
+        prometheus.io/scrape: 'true'
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - clickhouse-keeper
+              topologyKey: "kubernetes.io/hostname"
+      volumes:
+        - name: clickhouse-keeper-settings
+          configMap:
+            name: clickhouse-keeper-settings
+            items:
+              - key: keeper_config.xml
+                path: keeper_config.xml
+        - emptyDir:
+            medium: ""
+            sizeLimit: 5Gi
+          name: clickhouse-keeper-datadir-volume
+      containers:
+        - name: clickhouse-keeper
+          imagePullPolicy: {{ .Values.clickhouse.cluster.installClickhousekeeper.image.pullPolicy }}
+          image: {{ .Values.clickhouse.cluster.installClickhousekeeper.image.repository }}:{{ .Values.clickhouse.cluster.installClickhousekeeper.image.tag }}
+          resources:
+            requests:
+              memory: "256M"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+          volumeMounts:
+            - name: clickhouse-keeper-settings
+              mountPath: /etc/clickhouse-keeper/
+            - name: clickhouse-keeper-datadir-volume
+              mountPath: /var/lib/clickhouse-keeper
+          env:
+            - name: SERVERS
+              value: "1"
+            - name: RAFT_PORT
+              value: "9444"
+          command:
+            - bash
+            - -x
+            - -c
+            - |
+              HOST=`hostname -s` &&
+              DOMAIN=`hostname -d` &&
+              if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
+                  NAME=${BASH_REMATCH[1]}
+                  ORD=${BASH_REMATCH[2]}
+              else
+                  echo "Failed to parse name and ordinal of Pod"
+                  exit 1
+              fi &&
+              export MY_ID=$((ORD+1)) &&
+              mkdir -p /tmp/clickhouse-keeper/config.d/ &&
+              {
+                echo "<yandex><keeper_server>"
+                echo "<server_id>${MY_ID}</server_id>"
+                echo "<raft_configuration>"
+                for (( i=1; i<=$SERVERS; i++ )); do
+                    echo "<server><id>${i}</id><hostname>$NAME-$((i-1)).${DOMAIN}</hostname><port>${RAFT_PORT}</port></server>"
+                done
+                echo "</raft_configuration>"
+                echo "</keeper_server></yandex>"
+              } > /tmp/clickhouse-keeper/config.d/generated-keeper-settings.xml &&
+              cat /tmp/clickhouse-keeper/config.d/generated-keeper-settings.xml && 
+              clickhouse-keeper --config-file=/etc/clickhouse-keeper/keeper_config.xml --force-recovery
+          livenessProbe:
+            exec:
+              command:
+                - bash
+                - -xc
+                - 'date && OK=$(exec 3<>/dev/tcp/127.0.0.1/2181 ; printf "ruok" >&3 ; IFS=; tee <&3; exec 3<&- ;); if [[ "$OK" == "imok" ]]; then exit 0; else exit 1; fi'
+            initialDelaySeconds: 20
+            timeoutSeconds: 15
+          ports:
+            - containerPort: 7000
+              name: prometheus
+{{- end }}

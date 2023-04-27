@@ -35,11 +35,13 @@ spec:
           replicasCount: {{ .Values.clickhouse.cluster.replicas }}
     zookeeper:
       nodes:
-      {{- if eq (len .Values.clickhouse.cluster.zookeeperHosts) 0 }}
-      - host: zookeeper.{{ .Release.Namespace }}
+      {{- if eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0 }}
+      - host: clickhouse-keeper.{{ .Release.Namespace }}
+        port: 2181
       {{- else }}
-      {{- range $host := .Values.clickhouse.cluster.zookeeperHosts }}
+      {{- range $host := .Values.clickhouse.cluster.ClickhousekeeperHosts }}
       - host: {{ $host }}
+        port: 2181
       {{- end }}
       {{- end }}
     settings:

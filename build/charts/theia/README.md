@@ -18,14 +18,15 @@ Kubernetes: `>= 1.16.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| clickhouse.cluster.installZookeeper.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-zookeeper","tag":"3.8.0"}` | Container image used by the ZooKeeper. |
-| clickhouse.cluster.installZookeeper.replicas | int | `1` | Number of ZooKeeper replicas. It is recommended to be odd. When deploying ClickHouse cluster with more than 1 replica, 3 is the minimum number of ZooKeeper hosts required to manage replication and fault tolerance. Please refer to <https://zookeeper.apache.org/doc/current/zookeeperStarted.html#sc_RunningReplicatedZooKeeper> for more information. |
-| clickhouse.cluster.installZookeeper.securityContext | object | `{"fsGroup":1000,"runAsUser":1000}` | Set securityContext. Use a specific uid, gid for zookeeper. |
-| clickhouse.cluster.installZookeeper.size | string | `"5Gi"` | Memory size for each ZooKeeper pod. Can be a plain integer or as a fixed-point number using one of these quantity suffixes: E, P, T, G, M, K. Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki. |
+| clickhouse.cluster.ClickhousekeeperHosts | list | `[]` | To use a pre-installed Clickhouse-keeper for ClickHouse data replication, please provide a list of your Clickhouse-keeper hosts. |
+| clickhouse.cluster.installClickhousekeeper.host | string | `"0.6.0-dev.0"` |  |
+| clickhouse.cluster.installClickhousekeeper.image | object | `{"pullPolicy":"IfNotPresent","repository":"clickhouse/clickhouse-keeper","tag":"head-alpine"}` | Container image used by the Clickhouse-keeper. |
+| clickhouse.cluster.installClickhousekeeper.replicas | int | `1` | Number of Clickhouse-keeper replicas. It is recommended to be odd. When deploying ClickHouse cluster with more than 1 replica, 3 is the minimum number of Clickhouse-keeper hosts required to manage replication and fault tolerance. Please refer to <https://zookeeper.apache.org/doc/current/zookeeperStarted.html#sc_RunningReplicatedZooKeeper> for more information as Clickhouse-keeper is based of Zookeeper |
+| clickhouse.cluster.installClickhousekeeper.securityContext | object | `{"fsGroup":1000,"runAsUser":1000}` | Set securityContext. Use a specific uid, gid for Clickhouse-keeper. |
+| clickhouse.cluster.installClickhousekeeper.size | string | `"5Gi"` | Memory size for each Clickhouse-keeper pod. Can be a plain integer or as a fixed-point number using one of these quantity suffixes: E, P, T, G, M, K. Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki. |
 | clickhouse.cluster.podDistribution | list | `[{"number":1,"topologyKey":"kubernetes.io/hostname","type":"MaxNumberPerNode"}]` | Affinity for the ClickHouse Pods. By default, it allows only one ClickHouse instance per Node. Please refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/chi-examples/99-clickhouseinstallation-max.yaml> for other distributions. |
 | clickhouse.cluster.replicas | int | `1` | Number of ClickHouse replicas in each shard. |
 | clickhouse.cluster.shards | int | `1` | Number of ClickHouse shards in the cluster. |
-| clickhouse.cluster.zookeeperHosts | list | `[]` | To use a pre-installed ZooKeeper for ClickHouse data replication, please provide a list of your ZooKeeper hosts. To install a customized ZooKeeper, refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md> |
 | clickhouse.connectionSecret | object | `{"password":"clickhouse_operator_password","username":"clickhouse_operator"}` | Credentials to connect to ClickHouse. They will be stored in a secret. |
 | clickhouse.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-server","tag":""}` | Container image used by ClickHouse. |
 | clickhouse.logger.count | int | `4` | The number of archived log files that ClickHouse stores. |

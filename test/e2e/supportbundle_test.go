@@ -62,9 +62,9 @@ var supportBundleTestCases = []supportBundleTestCase{
 		},
 	},
 	{
-		filePath: "zookeeper/zookeeper-[a-z0-9-]+",
+		filePath: "clickhouse-keeper/clickhouse-keeper-[a-z0-9-]+",
 		filenames: []string{
-			"zookeeper-[a-z0-9-]+.log",
+			"clickhouse-keeper-[a-z0-9-]+.log",
 		},
 	},
 }

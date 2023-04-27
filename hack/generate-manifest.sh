@@ -222,7 +222,7 @@ VERSION=$(head -n1 $THIS_DIR/../VERSION)
 VERSION=${VERSION:1} # strip leading 'v'
 VERSION=${VERSION%-*} # strip "-dev" suffix if present
 # Replace version placeholder
-sed -i.bak "s/0\.0\.0/$VERSION/g" $MANIFEST
+sed -i.bak "s/value: 0\.0\.0/value: $VERSION/g" $MANIFEST
 
 INCLUDE_CRD=false
 if $SPARK_OP || $THEIA_MANAGER; then

@@ -1,4 +1,5 @@
 // Copyright 2022 Antrea Authors
+// Copyright 2022 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +28,8 @@ import (
 
 	antreav1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	antreav1alpha2 "antrea.io/antrea/pkg/apis/crd/v1alpha2"
+
+	"antrea.io/theia/hack/clickhouse-backup-restore/clickhouseBackupRestore"
 )
 
 var (
@@ -105,13 +108,23 @@ func applyNewVersion(t *testing.T, data *TestData, antreaYML string, flowVisibil
 		t.Fatalf("Error when restarting Antrea: %v", err)
 	}
 
-	t.Logf("Changing Flow Visibility YAML to %s", flowVisibilityYML)
-	if err := data.deployFlowVisibilityCommon(flowVisibilityYML); err != nil {
-		t.Fatalf("Error upgrading Flow Visibility: %v", err)
-	}
-	t.Logf("Waiting for the ClickHouse Pod restarting")
-	if err := data.waitForClickHousePod(); err != nil {
-		t.Fatalf("Error when waiting for the ClickHouse Pod restarting: %v", err)
+	if *upgradeFromVersion == "v0.5.0" {
+		if flowVisibilityYML == upgradeToFlowVisibilityYML {
+			t.Logf("Using upgrade script to upgrade from %s to %s", upgradeFromFlowVisibilityYML, upgradeToFlowVisibilityYML)
+			clickhouseBackupRestore.BackupAndRestoreClickhouse(upgradeFromFlowVisibilityYML, upgradeToFlowVisibilityYML, true, "0", true)
+		} else {
+			t.Logf("Using upgrade script to upgrade from %s to %s", upgradeToFlowVisibilityYML, upgradeFromFlowVisibilityYML)
+			clickhouseBackupRestore.BackupAndRestoreClickhouse(upgradeToFlowVisibilityYML, upgradeFromFlowVisibilityYML, true, "0", true)
+		}
+	} else {
+		t.Logf("Changing Flow Visibility YAML to %s", flowVisibilityYML)
+		if err := data.deployFlowVisibilityCommon(flowVisibilityYML); err != nil {
+			t.Fatalf("Error upgrading Flow Visibility: %v", err)
+		}
+		t.Logf("Waiting for the ClickHouse Pod restarting")
+		if err := data.waitForClickHousePod(); err != nil {
+			t.Fatalf("Error when waiting for the ClickHouse Pod restarting: %v", err)
+		}
 	}
 }
 

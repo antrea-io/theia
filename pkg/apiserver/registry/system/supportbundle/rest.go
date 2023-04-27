@@ -45,16 +45,16 @@ import (
 )
 
 const (
-	bundleExpireDuration = time.Hour
-	bundleName           = "theia-manager"
-	clickhouseLabel      = "app=clickhouse"
-	flowAggregatorLabel  = "app=flow-aggregator"
-	flowAggregatorNS     = "flow-aggregator"
-	grafanaLabel         = "app=grafana"
-	sparkDriverLabel     = "spark-role=driver"
-	sparkExecLabel       = "spark-role=executor"
-	sparkOperatorLabel   = "app.kubernetes.io/name=spark-operator"
-	zookeeperLabel       = "app=zookeeper"
+	bundleExpireDuration  = time.Hour
+	bundleName            = "theia-manager"
+	clickhouseLabel       = "app=clickhouse"
+	flowAggregatorLabel   = "app=flow-aggregator"
+	flowAggregatorNS      = "flow-aggregator"
+	grafanaLabel          = "app=grafana"
+	sparkDriverLabel      = "spark-role=driver"
+	sparkExecLabel        = "spark-role=executor"
+	sparkOperatorLabel    = "app.kubernetes.io/name=spark-operator"
+	clickhousekeeperLabel = "app=clickhouse-keeper"
 )
 
 var (
@@ -276,14 +276,14 @@ func (r *supportBundleREST) collectController(ctx context.Context, since string)
 	if err != nil {
 		return nil, err
 	}
-	zookeeperPodNames, err := r.fetchPodNameByLabel(ctx, zookeeperLabel, r.namespace)
+	clickhouseKeeperPodNames, err := r.fetchPodNameByLabel(ctx, clickhousekeeperLabel, r.namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	dumper := newManagerDumper(defaultFS, r.restConfig, r.clientSet, since, r.namespace,
 		clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-		sparkExecPodNames, sparkOperatorPodNames, zookeeperPodNames)
+		sparkExecPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames)
 	return r.collect(
 		ctx,
 		dumper.DumpLog,
@@ -293,7 +293,7 @@ func (r *supportBundleREST) collectController(ctx context.Context, since string)
 		dumper.DumpSparkDriverLog,
 		dumper.DumpSparkExecutorLog,
 		dumper.DumpSparkOperatorLog,
-		dumper.DumpZookeeperLog,
+		dumper.DumpClickhouseKeeperLog,
 	)
 }
 

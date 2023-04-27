@@ -57,7 +57,7 @@ type ManagerDumper interface {
 	DumpSparkDriverLog(basedir string) error
 	DumpSparkExecutorLog(basedir string) error
 	DumpSparkOperatorLog(basedir string) error
-	DumpZookeeperLog(basedir string) error
+	DumpClickhouseKeeperLog(basedir string) error
 }
 
 type managerDumper struct {
@@ -66,32 +66,32 @@ type managerDumper struct {
 	clientSet  kubernetes.Interface
 	since      string
 
-	namespace              string
-	clickhousePodNames     []string
-	grafanaPodNames        []string
-	flowAggregatorPodNames []string
-	sparkDriverPodNames    []string
-	sparkExecutorPodNames  []string
-	sparkOperatorPodNames  []string
-	zookeeperPodNames      []string
+	namespace                string
+	clickhousePodNames       []string
+	grafanaPodNames          []string
+	flowAggregatorPodNames   []string
+	sparkDriverPodNames      []string
+	sparkExecutorPodNames    []string
+	sparkOperatorPodNames    []string
+	clickhouseKeeperPodNames []string
 }
 
 func NewManagerDumper(fs afero.Fs, restConfig *rest.Config, clientSet kubernetes.Interface, since string,
 	namespace string, clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-	sparkExecutorPodNames, sparkOperatorPodNames, zookeeperPodNames []string) ManagerDumper {
+	sparkExecutorPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames []string) ManagerDumper {
 	return &managerDumper{
-		fs:                     fs,
-		restConfig:             restConfig,
-		clientSet:              clientSet,
-		since:                  since,
-		namespace:              namespace,
-		clickhousePodNames:     clickhousePodNames,
-		grafanaPodNames:        grafanaPodNames,
-		flowAggregatorPodNames: flowAggregatorPodNames,
-		sparkDriverPodNames:    sparkDriverPodNames,
-		sparkExecutorPodNames:  sparkExecutorPodNames,
-		sparkOperatorPodNames:  sparkOperatorPodNames,
-		zookeeperPodNames:      zookeeperPodNames,
+		fs:                       fs,
+		restConfig:               restConfig,
+		clientSet:                clientSet,
+		since:                    since,
+		namespace:                namespace,
+		clickhousePodNames:       clickhousePodNames,
+		grafanaPodNames:          grafanaPodNames,
+		flowAggregatorPodNames:   flowAggregatorPodNames,
+		sparkDriverPodNames:      sparkDriverPodNames,
+		sparkExecutorPodNames:    sparkExecutorPodNames,
+		sparkOperatorPodNames:    sparkOperatorPodNames,
+		clickhouseKeeperPodNames: clickhouseKeeperPodNames,
 	}
 }
 
@@ -169,11 +169,11 @@ func (d *managerDumper) DumpSparkOperatorLog(basedir string) error {
 	return nil
 }
 
-func (d *managerDumper) DumpZookeeperLog(basedir string) error {
-	for _, podName := range d.zookeeperPodNames {
+func (d *managerDumper) DumpClickhouseKeeperLog(basedir string) error {
+	for _, podName := range d.clickhouseKeeperPodNames {
 		if err := d.copyLogFromPod(d.namespace, podName,
-			path.Join(basedir, "logs", "zookeeper", podName)); err != nil {
-			return fmt.Errorf("error when streaming logs from zookeeper %s: %w", podName, err)
+			path.Join(basedir, "logs", "clickhouse-keeper", podName)); err != nil {
+			return fmt.Errorf("error when streaming logs from clickhouse-keeper %s: %w", podName, err)
 		}
 	}
 	return nil

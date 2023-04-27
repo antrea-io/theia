@@ -237,6 +237,40 @@ subjects:
 ---
 apiVersion: v1
 data:
+  keeper_config.xml: |
+    <clickhouse>
+        <include_from>/tmp/clickhouse-keeper/config.d/generated-keeper-settings.xml</include_from>
+        <logger>
+            <level>trace</level>
+            <console>true</console>
+        </logger>
+        <listen_host>0.0.0.0</listen_host>
+        <keeper_server incl="keeper_server">
+            <path>/var/lib/clickhouse-keeper</path>
+            <tcp_port>2181</tcp_port>
+            <four_letter_word_white_list>*</four_letter_word_white_list>
+            <coordination_settings>
+                <!-- <raft_logs_level>trace</raft_logs_level> -->
+                <raft_logs_level>information</raft_logs_level>
+            </coordination_settings>
+        </keeper_server>
+        <prometheus>
+            <endpoint>/metrics</endpoint>
+            <port>7000</port>
+            <metrics>true</metrics>
+            <events>true</events>
+            <asynchronous_metrics>true</asynchronous_metrics>
+            <!-- https://github.com/ClickHouse/ClickHouse/issues/46136 -->
+            <status_info>false</status_info>
+        </prometheus>
+    </clickhouse>
+kind: ConfigMap
+metadata:
+  name: clickhouse-keeper-settings
+  namespace: flow-visibility
+---
+apiVersion: v1
+data:
   000001_0-1-0.down.sql: ""
   000001_0-1-0.up.sql: |
     --Create a table to store records
@@ -6261,6 +6295,39 @@ type: kubernetes.io/service-account-token
 apiVersion: v1
 kind: Service
 metadata:
+  labels:
+    app: clickhouse-keeper
+  name: clickhouse-keeper
+  namespace: flow-visibility
+spec:
+  ports:
+  - name: client
+    port: 2181
+  - name: prometheus
+    port: 7000
+  selector:
+    app: clickhouse-keeper
+    what: node
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: clickhouse-keeper
+  name: clickhouse-keepers
+  namespace: flow-visibility
+spec:
+  clusterIP: None
+  ports:
+  - name: raft
+    port: 9444
+  selector:
+    app: clickhouse-keeper
+    what: node
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: grafana
   namespace: flow-visibility
 spec:
@@ -6287,41 +6354,6 @@ spec:
     targetPort: theia-api-http
   selector:
     app: theia-manager
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: zookeeper
-  name: zookeeper
-  namespace: flow-visibility
-spec:
-  ports:
-  - name: client
-    port: 2181
-  - name: prometheus
-    port: 7000
-  selector:
-    app: zookeeper
-    what: node
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app: zookeeper
-  name: zookeepers
-  namespace: flow-visibility
-spec:
-  clusterIP: None
-  ports:
-  - name: server
-    port: 2888
-  - name: leader-election
-    port: 3888
-  selector:
-    app: zookeeper
-    what: node
 ---
 apiVersion: v1
 kind: PersistentVolume
@@ -6562,23 +6594,23 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   labels:
-    app: zookeeper
-  name: zookeeper
+    app: clickhouse-keeper
+  name: clickhouse-keeper
   namespace: flow-visibility
 spec:
   podManagementPolicy: Parallel
   replicas: 1
   selector:
     matchLabels:
-      app: zookeeper
-  serviceName: zookeepers
+      app: clickhouse-keeper
+  serviceName: clickhouse-keepers
   template:
     metadata:
       annotations:
         prometheus.io/port: "7000"
         prometheus.io/scrape: "true"
       labels:
-        app: zookeeper
+        app: clickhouse-keeper
         what: node
     spec:
       affinity:
@@ -6589,153 +6621,81 @@ spec:
               - key: app
                 operator: In
                 values:
-                - zookeeper
+                - clickhouse-keeper
             topologyKey: kubernetes.io/hostname
       containers:
       - command:
         - bash
         - -x
         - -c
-        - |
-          SERVERS=1 &&
-          HOST=`hostname -s` &&
-          DOMAIN=`hostname -d` &&
-          CLIENT_PORT=2181 &&
-          SERVER_PORT=2888 &&
-          ELECTION_PORT=3888 &&
-          PROMETHEUS_PORT=7000 &&
-          ZOO_DATA_DIR=/var/lib/zookeeper/data &&
-          ZOO_DATA_LOG_DIR=/var/lib/zookeeper/datalog &&
-          {
-            echo "clientPort=${CLIENT_PORT}"
-            echo 'tickTime=2000'
-            echo 'initLimit=300'
-            echo 'syncLimit=10'
-            echo 'maxClientCnxns=2000'
-            echo 'maxSessionTimeout=60000000'
-            echo "dataDir=${ZOO_DATA_DIR}"
-            echo "dataLogDir=${ZOO_DATA_LOG_DIR}"
-            echo 'autopurge.snapRetainCount=10'
-            echo 'autopurge.purgeInterval=1'
-            echo 'preAllocSize=131072'
-            echo 'snapCount=3000000'
-            echo 'leaderServes=yes'
-            echo 'standaloneEnabled=false'
-            echo '4lw.commands.whitelist=*'
-            echo 'metricsProvider.className=org.apache.zookeeper.metrics.prometheus.PrometheusMetricsProvider'
-            echo "metricsProvider.httpPort=${PROMETHEUS_PORT}"
-          } > /conf/zoo.cfg &&
-          {
-            echo "zookeeper.root.logger=CONSOLE"
-            echo "zookeeper.console.threshold=INFO"
-            echo "log4j.rootLogger=\${zookeeper.root.logger}"
-            echo "log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender"
-            echo "log4j.appender.CONSOLE.Threshold=\${zookeeper.console.threshold}"
-            echo "log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout"
-            echo "log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n"
-          } > /conf/log4j.properties &&
-          echo 'JVMFLAGS="-Xms128M -Xmx4G -XX:+UseG1GC -XX:+CMSParallelRemarkEnabled -XX:ActiveProcessorCount=8"' > /conf/java.env &&
-          if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
-              NAME=${BASH_REMATCH[1]}
-              ORD=${BASH_REMATCH[2]}
-          else
-              echo "Failed to parse name and ordinal of Pod"
-              exit 1
-          fi &&
-          mkdir -p ${ZOO_DATA_DIR} &&
-          mkdir -p ${ZOO_DATA_LOG_DIR} &&
-          export MY_ID=$((ORD+1)) &&
-          echo $MY_ID > $ZOO_DATA_DIR/myid &&
-          for (( i=1; i<=$SERVERS; i++ )); do
-              echo "server.$i=$NAME-$((i-1)).$DOMAIN:$SERVER_PORT:$ELECTION_PORT" >> /conf/zoo.cfg;
-          done &&
-          if [[ $SERVERS -eq 1 ]]; then
-              echo "group.1=1" >> /conf/zoo.cfg;
-          else
-              groupstr="group.1=1"
-              for (( i=2; i<=$SERVERS; i++ )); do
-                groupstr+=":$i"
-              done
-              echo $groupstr >> /conf/zoo.cfg;
-          fi &&
-          for (( i=1; i<=$SERVERS; i++ )); do
-              WEIGHT=1
-              if [[ $i == 1 ]]; then
-                WEIGHT=10
-              fi
-              echo "weight.$i=$WEIGHT" >> /conf/zoo.cfg;
-          done &&
-          chown -Rv zookeeper "$ZOO_DATA_DIR" "$ZOO_DATA_LOG_DIR" "$ZOO_LOG_DIR" "$ZOO_CONF_DIR" &&
-          zkServer.sh start-foreground
-        image: projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
+        - "HOST=`hostname -s` &&\nDOMAIN=`hostname -d` &&\nif [[ $HOST =~ (.*)-([0-9]+)$
+          ]]; then\n    NAME=${BASH_REMATCH[1]}\n    ORD=${BASH_REMATCH[2]}\nelse\n
+          \   echo \"Failed to parse name and ordinal of Pod\"\n    exit 1\nfi &&\nexport
+          MY_ID=$((ORD+1)) &&\nmkdir -p /tmp/clickhouse-keeper/config.d/ &&\n{\n  echo
+          \"<yandex><keeper_server>\"\n  echo \"<server_id>${MY_ID}</server_id>\"\n
+          \ echo \"<raft_configuration>\"\n  for (( i=1; i<=$SERVERS; i++ )); do\n
+          \     echo \"<server><id>${i}</id><hostname>$NAME-$((i-1)).${DOMAIN}</hostname><port>${RAFT_PORT}</port></server>\"\n
+          \ done\n  echo \"</raft_configuration>\"\n  echo \"</keeper_server></yandex>\"\n}
+          > /tmp/clickhouse-keeper/config.d/generated-keeper-settings.xml &&\ncat
+          /tmp/clickhouse-keeper/config.d/generated-keeper-settings.xml && \nclickhouse-keeper
+          --config-file=/etc/clickhouse-keeper/keeper_config.xml --force-recovery\n"
+        env:
+        - name: SERVERS
+          value: "1"
+        - name: RAFT_PORT
+          value: "9444"
+        image: clickhouse/clickhouse-keeper:head-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
             command:
             - bash
-            - -c
-            - OK=$(echo ruok | nc 127.0.0.1 2181); if [[ "$OK" == "imok" ]]; then
-              exit 0; else exit 1; fi
-          initialDelaySeconds: 10
-          timeoutSeconds: 5
-        name: kubernetes-zookeeper
+            - -xc
+            - date && OK=$(exec 3<>/dev/tcp/127.0.0.1/2181 ; printf "ruok" >&3 ; IFS=;
+              tee <&3; exec 3<&- ;); if [[ "$OK" == "imok" ]]; then exit 0; else exit
+              1; fi
+          initialDelaySeconds: 20
+          timeoutSeconds: 15
+        name: clickhouse-keeper
         ports:
-        - containerPort: 2181
-          name: client
-        - containerPort: 2888
-          name: server
-        - containerPort: 3888
-          name: leader-election
         - containerPort: 7000
           name: prometheus
-        readinessProbe:
-          exec:
-            command:
-            - bash
-            - -c
-            - OK=$(echo ruok | nc 127.0.0.1 2181); if [[ "$OK" == "imok" ]]; then
-              STATE=$(echo mntr | nc 127.0.0.1 2181 | grep zk_server_state | cut -d
-              " " -f 2); if [[ "$STATE" == "leader" ]]; then SYNCED_FOLLOWERS=$(echo
-              mntr | nc 127.0.0.1 2181 | grep zk_synced_followers | cut -d " " -f
-              2 | cut -d "." -f 1); if [[ $SYNCED_FOLLOWERS == $(( $SERVERS - 1 ))
-              ]]; then ./bin/zkCli.sh ls /; exit $?; else exit 1; fi; elif [[ "$STATE"
-              == "follower" ]]; then PEER_STATE=$(echo mntr | nc 127.0.0.1 2181 |
-              grep zk_peer_state); if [[ "$PEER_STATE" == "following - broadcast"
-              ]]; then ./bin/zkCli.sh ls /; exit $?; else exit 1; fi; fi; else exit
-              1; fi
-          initialDelaySeconds: 10
-          timeoutSeconds: 5
         resources:
           limits:
             cpu: "2"
             memory: 4Gi
           requests:
             cpu: "1"
-            memory: 512M
+            memory: 256M
         volumeMounts:
-        - mountPath: /var/lib/zookeeper
-          name: datadir-volume
-      securityContext:
-        fsGroup: 1000
-        runAsUser: 1000
+        - mountPath: /etc/clickhouse-keeper/
+          name: clickhouse-keeper-settings
+        - mountPath: /var/lib/clickhouse-keeper
+          name: clickhouse-keeper-datadir-volume
       volumes:
+      - configMap:
+          items:
+          - key: keeper_config.xml
+            path: keeper_config.xml
+          name: clickhouse-keeper-settings
+        name: clickhouse-keeper-settings
       - emptyDir:
           medium: ""
           sizeLimit: 5Gi
-        name: datadir-volume
+        name: clickhouse-keeper-datadir-volume
   updateStrategy:
     type: RollingUpdate
 ---
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: zookeeper-pod-disruption-budget
+  name: clickhouse-keeper-pod-disruption-budget
   namespace: flow-visibility
 spec:
   maxUnavailable: 1
   selector:
     matchLabels:
-      app: zookeeper
+      app: clickhouse-keeper
 ---
 apiVersion: clickhouse.altinity.com/v1
 kind: ClickHouseInstallation
@@ -6760,7 +6720,8 @@ spec:
       clickhouse_operator/networks/ip: ::/0
     zookeeper:
       nodes:
-      - host: zookeeper.flow-visibility
+      - host: clickhouse-keeper.flow-visibility
+        port: 2181
   defaults:
     templates:
       podTemplate: pod-template

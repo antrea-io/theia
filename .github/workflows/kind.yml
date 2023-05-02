@@ -29,6 +29,7 @@ jobs:
     outputs:
       has_changes: ${{ steps.check_diff.outputs.has_changes }}
 
+  # TODO add coverage args to spark jobs
   build-spark-jobs-image:
     name: Build Spark Jobs image to be used for Kind e2e tests
     needs: check-changes
@@ -46,6 +47,7 @@ jobs:
         path: spark-jobs.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
   
+  # TODO potentially add coverage args to monitor
   build-clickhouse-monitor-image:
     name: Build ClickHouse monitor image to be used for Kind e2e tests
     needs: check-changes
@@ -80,6 +82,7 @@ jobs:
         path: clickhouse-server.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
+  # TODO potentially add coverage args to manager
   build-theia-manager-image:
     name: Build Theia Manager image to be used for Kind e2e tests
     needs: check-changes

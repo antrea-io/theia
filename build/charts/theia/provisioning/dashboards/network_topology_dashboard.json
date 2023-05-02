@@ -21,8 +21,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 4,
-  "iteration": 1677633025540,
+  "id": 8,
+  "iteration": 1682533463233,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -39,6 +39,8 @@
       },
       "id": 2,
       "options": {
+        "color": "yellow",
+        "groupByLabel": false,
         "seriesCountSize": "sm",
         "showSeriesCount": false,
         "text": "Default value of text input option"
@@ -58,7 +60,7 @@
             }
           },
           "queryType": "sql",
-          "rawSql": "SELECT sourcePodName, sourcePodNamespace, sourceNodeName, destinationPodName, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
           "refId": "A"
         }
       ],
@@ -100,6 +102,6 @@
   "timezone": "",
   "title": "network_topology_dashboard",
   "uid": "yRVDEad4k",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

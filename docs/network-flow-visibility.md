@@ -764,6 +764,13 @@ the selected time range.
 
 <img src="https://downloads.antrea.io/static/04132023/flow-visibility-network-topology-0.png" width="400" alt="Network Topology Dashboard service dependency graph">
 
+By editing the panel, users can group Pods by label, allowing Pod squares in
+the diagram to represent a set of Pods with the same label value. It is also
+possible to choose the color of the Pod squares to be red, yellow, green, or
+blue.
+
+<img src="https://downloads.antrea.io/static/05022023/flow-visibility-network-topology-1.png" width="400" alt="Network Topology Dashboard additional configuration options">
+
 ### Dashboard Customization
 
 If you would like to make any change to any of the pre-built dashboards, or build

@@ -1,4 +1,4 @@
-FROM apache/spark-py:v3.3.2
+FROM apache/spark-py:v3.4.0
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy policy recommendation and throughput anomaly detection Spark job."

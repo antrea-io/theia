@@ -7,7 +7,7 @@ WORKDIR /theia
 RUN make theia-manager-bin
 
 # Chose this base image so that a shell is available for users to exec into the container
-FROM ubuntu:20.04
+FROM ubuntu:23.04
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy theia manager."

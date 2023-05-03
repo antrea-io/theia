@@ -42,18 +42,22 @@ loading of data for the Service Dependency Graph Plugin, the query is expected
 to return the following fields, in arbitrary order.
 
 - field 1: sourcePodName value with name or an alias of `sourcePodName`
-- field 2: sourceNodeName value with name or an alias of `sourceNodeName`
-- field 3: destinationPodName value with name or an alias of `destinationPodName`
-- field 4: destinationNodeName value with name or an alias of `destinationNodeName`
-- field 5: destinationServicePortName value with name or an alias of `destinationServicePortName`
-- field 6: octetDeltaCount value with name or an alias of `octetDeltaCount`
+- field 2: sourcePodLabels value with name or alias of `sourcePodLabels`
+- field 3: sourceNodeName value with name or an alias of `sourceNodeName`
+- field 4: destinationPodName value with name or an alias of `destinationPodName`
+- field 5: destinationPodLabels value with name or an alias of `destinationPodLabels`
+- field 6: destinationNodeName value with name or an alias of `destinationNodeName`
+- field 7: destinationServicePortName value with name or an alias of `destinationServicePortName`
+- field 8: octetDeltaCount value with name or an alias of `octetDeltaCount`
 
 ClickHouse query example:
 
 ```sql
 SELECT sourcePodName,
+sourcePodLabels,
 sourceNodeName,
 destinationPodName,
+destinationPodLabels,
 destinationNodeName,
 destinationServicePortName,
 octetDeltaCount
@@ -105,6 +109,16 @@ installed panels, click the Plugins item in the main menu. Both core panels and
 installed panels will appear. For more information, visit the docs on [Grafana plugin installation](https://grafana.com/docs/grafana/latest/plugins/installation/).
 
 ## Customization
+
+### 3. Customize the Panel Options
+
+Users can customize the panel by editing its options and choosing to group the
+diagram based on a chosen Pod label. It is also possible to change the color
+of the Pod squares in the diagram.
+
+<img src="https://user-images.githubusercontent.com/10016630/233191376-7cf471b8-5e3e-473a-8696-da25ab981066.png" width="400" alt="Panel Option Editor View">
+
+### 4. Further Customization
 
 This plugin is built with [@grafana/toolkit](https://www.npmjs.com/package/@grafana/toolkit),
 which is a CLI that enables efficient development of Grafana plugins. To customize

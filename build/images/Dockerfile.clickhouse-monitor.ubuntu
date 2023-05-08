@@ -5,7 +5,7 @@ COPY . /theia
 WORKDIR /theia
 
 # Statically links clickhouse-monitor-plugin binary.
-RUN CGO_ENABLED=0 make clickhouse-monitor-plugin
+RUN CGO_ENABLED=0 make clickhouse-monitor-plugin clickhouse-monitor-instr-binary
 
 FROM scratch
 

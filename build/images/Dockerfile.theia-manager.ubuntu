@@ -4,7 +4,7 @@ FROM golang:${GO_VERSION} as theia-manager-build
 COPY . /theia
 WORKDIR /theia
 
-RUN make theia-manager-bin
+RUN make theia-manager-bin theia-manager-instr-binary
 
 # Chose this base image so that a shell is available for users to exec into the container
 FROM ubuntu:20.04

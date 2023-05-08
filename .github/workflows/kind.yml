@@ -159,6 +159,13 @@ jobs:
           mkdir log
           mkdir test-e2e-coverage
           ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh --coverage
+      - name: Tar coverage files
+        run: tar -czf test-e2e-coverage.tar.gz test-e2e-coverage
+      - name: Upload coverage for test-e2e-coverage
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-e2e-coverage
+          path: test-e2e-coverage.tar.gz
       - name: Codecov
         uses: codecov/codecov-action@v3
         with:

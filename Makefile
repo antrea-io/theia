@@ -92,12 +92,12 @@ add-copyright:
 .PHONY: clickhouse-monitor-instr-binary
 clickhouse-monitor-instr-binary:
 	@mkdir -p $(BINDIR)
-	GOOS=linux $(GO) test antrea.io/theia/test/e2e -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...
+	GOOS=linux $(GO) test antrea.io/theia/test/e2e -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/... -coverprofile=.coverage/clickhouse-monitor-coverage-e2e.txt
 
 .PHONY: theia-manager-instr-binary
 theia-manager-instr-binary:
 	@mkdir -p $(BINDIR)
-	GOOS=linux $(GO) test antrea.io/theia/test/e2e -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...
+	GOOS=linux $(GO) test antrea.io/theia/test/e2e -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/... -coverprofile=.coverage/theia-manager-coverage-e2e.txt
 
 .PHONY: build-theia-e2e-coverage
 build-theia-e2e-coverage:

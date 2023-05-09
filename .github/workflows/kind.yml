@@ -100,6 +100,24 @@ jobs:
         path: theia-manager.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
+  build-theia-coverage-image:
+    name: Build coverage to be used for Kind e2e tests
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    runs-on: [ ubuntu-latest ]
+    steps:
+    - uses: actions/checkout@v3
+    - run: make build-theia-e2e-coverage
+    - name: Save Theia Coverage image to tarball
+      run: docker save -o theia-e2e-coverage.tar antrea/theia-e2e-coverage
+    # TODO perhaps don't need vvvvv line
+    - name: Upload Theia Coverage image for subsequent jobs
+      uses: actions/upload-artifact@v3
+      with:
+        name: theia-manager
+        path: theia-manager.tar
+        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+
   test-e2e-encap:
     name: E2e tests on a Kind cluster on Linux
     needs:
@@ -107,6 +125,7 @@ jobs:
       - build-clickhouse-monitor-image
       - build-clickhouse-server-image
       - build-theia-manager-image
+      - build-theia-coverage-image
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -172,7 +191,6 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: test-e2e-coverage
           fail_ci_if_error: ${{ github.event_name == 'push' }}
-          file: .cov.out
           flags: kind-e2e-tests
           name: codecov-kind-e2e-test
       - name: Tar log files

@@ -99,6 +99,12 @@ theia-manager-instr-binary:
 	@mkdir -p $(BINDIR)
 	GOOS=linux $(GO) test antrea.io/theia/test/e2e -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/... -coverprofile=.coverage/theia-manager-coverage-e2e.txt
 
+.PHONY: build-theia-e2e-coverage
+build-theia-e2e-coverage:
+	@echo "==> Building Theia coverage <=="
+	docker build -t antrea/theia-e2e-coverage:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.build.coverage .
+	docker tag antrea/theia-e2e-coverage:$(DOCKER_IMG_VERSION) antrea/theia-e2e-coverage
+
 .PHONY: tidy
 tidy:
 	@rm -f go.sum

@@ -107,7 +107,9 @@ jobs:
     runs-on: [ ubuntu-latest ]
     steps:
     - uses: actions/checkout@v3
-    - run: make build-theia-e2e-coverage
+    - run: |
+      mkdir .coverage
+      make build-theia-e2e-coverage
     - name: Save Theia Coverage image to tarball
       run: docker save -o theia-e2e-coverage.tar antrea/theia-e2e-coverage
     # TODO perhaps don't need vvvvv line

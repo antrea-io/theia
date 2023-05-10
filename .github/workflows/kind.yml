@@ -116,8 +116,8 @@ jobs:
     - name: Upload Theia Coverage image for subsequent jobs
       uses: actions/upload-artifact@v3
       with:
-        name: theia-manager
-        path: theia-manager.tar
+        name: theia-e2e-coverage
+        path: theia-e2e-coverage.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
   test-e2e-encap:
@@ -182,6 +182,10 @@ jobs:
           ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-e2e-kind.sh --coverage
       - name: Tar coverage files
         run: tar -czf test-e2e-coverage.tar.gz test-e2e-coverage
+      - name: print ls MARKERASDF
+        run: |
+          ls -a
+          ls -a test-e2e-coverage
       - name: Upload coverage for test-e2e-coverage
         uses: actions/upload-artifact@v2
         with:

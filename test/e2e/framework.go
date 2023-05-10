@@ -23,6 +23,8 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -93,6 +95,8 @@ const (
 	antreaPodLabel             string = "app=antrea,component=antrea-agent"
 	clickHouseLocalPvLabel     string = "antrea.io/clickhouse-data-node"
 	clickHouseLocalPvPath      string = "/data/clickhouse"
+	clickHouseMonitorCovFile   string = "clickhouse-monitor.cov.out"
+	theiaManagerCovFile        string = "theia-manager.cov.out"
 
 	agnhostImage  = "registry.k8s.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
@@ -1040,6 +1044,40 @@ func (data *TestData) RunCommandOnNode(nodeName string, cmd string) (code int, s
 	return data.provider.RunCommandOnNode(nodeName, cmd)
 }
 
+func (data *TestData) copyPodFiles(podName string, containerName string, nsName string, fileName string, covDir string) error {
+	// getPodWriter creates the file with name podName-fileName-suffix. It returns nil if the
+	// file cannot be created. File must be closed by the caller.
+	getPodWriter := func(podName, fileName, suffix string) *os.File {
+		destFile := filepath.Join(covDir, fmt.Sprintf("%s-%s-%s", podName, fileName, suffix))
+		f, err := os.Create(destFile)
+		if err != nil {
+			_ = fmt.Errorf("error when creating destination file '%s': %v", destFile, err)
+			return nil
+		}
+		return f
+	}
+
+	// dump the file from Antrea Pods to disk.
+	// a filepath-friendly timestamp format.
+	const timeFormat = "Jan02-15-04-05"
+	timeStamp := time.Now().Format(timeFormat)
+	w := getPodWriter(podName, fileName, timeStamp)
+	if w == nil {
+		return nil
+	}
+	defer w.Close()
+	cmd := []string{"cat", fileName}
+	stdout, stderr, err := data.RunCommandFromPod(nsName, podName, containerName, cmd)
+	if err != nil {
+		return fmt.Errorf("cannot retrieve content of file '%s' from Pod '%s', stderr: <%v>, err: <%v>", fileName, podName, stderr, err)
+	}
+	if stdout == "" {
+		return nil
+	}
+	w.WriteString(stdout)
+	return nil
+}
+
 // createNetworkPolicy creates a network policy with spec.
 func (data *TestData) createNetworkPolicy(name string, spec *networkingv1.NetworkPolicySpec) (*networkingv1.NetworkPolicy, error) {
 	policy := &networkingv1.NetworkPolicy{
@@ -1519,7 +1557,34 @@ func (data *TestData) Cleanup(namespaces []string) {
 	}
 }
 
+func (data *TestData) copyCovFilesFromPods(covDir string, nodeName string) error {
+	listOptions := metav1.ListOptions{
+		LabelSelector: "app=antrea,component=antrea-agent",
+	}
+	if nodeName != "all" {
+		listOptions.FieldSelector = fmt.Sprintf("spec.nodeName=%s", nodeName)
+	}
+
+	pods, err := data.clientset.CoreV1().Pods(flowVisibilityNamespace).List(context.TODO(), listOptions)
+	if err != nil {
+		return fmt.Errorf("failed to list antrea-agent pods: %v", err)
+	}
+	for _, pod := range pods.Items {
+		podName := pod.Name
+		if strings.Contains(podName, "clickhouse-monitor") {
+			err = data.copyPodFiles(podName, "clickhouse-monitor", flowVisibilityNamespace, clickHouseMonitorCovFile, covDir)
+		} else if strings.Contains(podName, "theia-manager") {
+			err = data.copyPodFiles(podName, "theia-manager", flowVisibilityNamespace, theiaManagerCovFile, covDir)
+		}
+		if err != nil {
+			return fmt.Errorf("error when graceful exit Antrea agent: copy pod files out, error:%v", err)
+		}
+	}
+	return nil
+}
+
 func flowVisibilityCleanup(tb testing.TB, data *TestData, config FlowVisibiltiySetUpConfig) {
+	data.copyCovFilesFromPods(".coverage", "all")
 	teardownTest(tb, data)
 	teardownFlowVisibility(tb, data, config)
 }

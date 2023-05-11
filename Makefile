@@ -102,6 +102,7 @@ theia-manager-instr-binary:
 .PHONY: build-theia-e2e-coverage
 build-theia-e2e-coverage:
 	@echo "==> Building Theia coverage <=="
+	@mkdir .coverage
 	docker build -t antrea/theia-e2e-coverage:$(DOCKER_IMG_VERSION) -f build/images/Dockerfile.build.coverage $(DOCKER_BUILD_ARGS) .
 	docker tag antrea/theia-e2e-coverage:$(DOCKER_IMG_VERSION) antrea/theia-e2e-coverage
 

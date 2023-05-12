@@ -34,7 +34,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        python-version: ["3.7"]
+        python-version: ["3.9"]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Set up Python ${{ matrix.python-version }}
@@ -90,7 +90,7 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest]
-          python-version: ["3.7"]
+          python-version: ["3.9"]
       runs-on: ${{ matrix.os }}
       steps:
       - name: Set up Python ${{ matrix.python-version }}
@@ -139,7 +139,7 @@ jobs:
       strategy:
         matrix:
           os: [ubuntu-latest]
-          python-version: ["3.7"]
+          python-version: ["3.9"]
       runs-on: ${{ matrix.os }}
       steps:
       - name: Set up Python ${{ matrix.python-version }}

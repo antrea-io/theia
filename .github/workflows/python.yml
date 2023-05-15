@@ -117,6 +117,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: plugins/policy-recommendation/coverage.xml,plugins/anomaly-detection/coverage.xml
           flags: python-coverage
 
   check-udf-changes:

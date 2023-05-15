@@ -113,6 +113,7 @@ jobs:
         run: |
           cd plugins/anomaly-detection/
           pytest -vv --cov . --cov-report xml
+          ls -a
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
         with:

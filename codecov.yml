@@ -18,7 +18,7 @@ coverage:
   status:
     patch:
       default:
-        target: auto
+        target: 69%
         threshold: 5%
         base: auto
         only_pulls: true
@@ -27,8 +27,10 @@ coverage:
     project:
       default:
         target: auto
+        threshold: 1%
       theia-unit-tests:
         target: auto
+        threshold: 1%
         flags:
           - unit-tests
 

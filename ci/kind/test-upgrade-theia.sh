@@ -150,12 +150,40 @@ else
     CLICKHOUSE_FROM_TAG=$THEIA_FROM_TAG
 fi
 
+# theiaTagArray and chOperatorTagArray are expected to be updated together
+# when we upgrade ClickHouse Operator version
+declare -a theiaTagArray=(
+[0]="0.1.0"
+[1]="0.7.0"
+)
+
+declare -a chOperatorTagArray=(
+[0]="0.18.2"
+[1]="0.21.0"
+)
+
+# find the index of tag less than or equal to $THEIA_FROM_TAG, then get the
+# corresponding ClickHouse Operator tag
+INDEX=0
+for i in ${!theiaTagArray[@]}
+do
+if version_lt ${theiaTagArray[$i]} ${THEIA_FROM_TAG:1}; then
+    INDEX=$i
+else
+    break
+fi
+done
+
+CH_OPERATOR_FROM_TAG=${chOperatorTagArray[$INDEX]}
+
 DOCKER_IMAGES=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/busybox"  \
                 "projects.registry.vmware.com/antrea/nginx:1.21.6-alpine" \
                 "projects.registry.vmware.com/antrea/perftool" \
-                "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
-                "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
+                "projects.registry.vmware.com/antrea/clickhouse-operator:$CH_OPERATOR_FROM_TAG" \
+                "projects.registry.vmware.com/antrea/metrics-exporter:$CH_OPERATOR_FROM_TAG" \
+                "projects.registry.vmware.com/antrea/clickhouse-operator:0.21.0" \
+                "projects.registry.vmware.com/antrea/metrics-exporter:0.21.0" \
                 "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
                 "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
@@ -194,8 +222,7 @@ sed -i -e "s|type: RollingUpdate|type: OnDelete|g" $TMP_DIR/antrea.yml
 # Load latest Theia yaml files
 docker exec -i kind-control-plane dd of=/root/antrea-new.yml < $TMP_DIR/antrea.yml
 $ROOT_DIR/hack/generate-manifest.sh --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-new.yml
-# Always use the latest ClickHouse operator through the test
-docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < $ROOT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
+docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle-new.yaml < $ROOT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 rm -rf $TMP_DIR
 
 # Load previous version yaml files from Antrea repo
@@ -222,6 +249,7 @@ if [[ $THEIA_FROM_TAG == "v0.1.0" ]]; then
     cp $ROOT_DIR/hack/generate-manifest.sh hack/generate-manifest.sh
 fi
 ./hack/generate-manifest.sh --mode release --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
+docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 
 popd
 rm -rf $TMP_THEIA_DIR

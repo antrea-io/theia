@@ -20,7 +20,7 @@
     - name: TABLE_NAME
       value: "default.flows_local"
     - name: MV_NAMES
-      value: "default.flows_pod_view_local default.flows_node_view_local default.flows_policy_view_local"
+      value: "default.pod_view_table_local default.node_view_table_local default.policy_view_table_local"
     - name: STORAGE_SIZE
       value: {{ $clickhouse.storage.size | quote }}
     - name: THRESHOLD

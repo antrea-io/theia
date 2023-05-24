@@ -81,7 +81,7 @@ const (
 	antreaDeployment           string = "antrea-controller"
 	flowAggregatorDeployment   string = "flow-aggregator"
 	flowAggregatorYML          string = "flow-aggregator.yml"
-	flowVisibilityYML          string = "flow-visibility.yml"
+	flowVisibilityDefaultYML   string = "flow-visibility.yml"
 	flowVisibilityWithSparkYML string = "flow-visibility-with-spark.yml"
 	flowVisibilityChOnlyYML    string = "flow-visibility-ch-only.yml"
 	clickHouseOperatorYML      string = "clickhouse-operator-install-bundle.yaml"
@@ -1197,13 +1197,9 @@ func (data *TestData) deployFlowVisibility(config FlowVisibiltiySetUpConfig) (ch
 	} else if config.withSparkOperator {
 		flowVisibilityManifest = flowVisibilityWithSparkYML
 	} else {
-		flowVisibilityManifest = flowVisibilityYML
+		flowVisibilityManifest = flowVisibilityDefaultYML
 	}
-	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", clickHouseOperatorYML))
-	if err != nil || rc != 0 {
-		return "", fmt.Errorf("error when deploying the ClickHouse Operator YML; %s not available on the control-plane Node", clickHouseOperatorYML)
-	}
-	err = data.deployFlowVisibilityCommon(flowVisibilityManifest)
+	err = data.deployFlowVisibilityCommon(clickHouseOperatorYML, flowVisibilityManifest)
 	if err != nil {
 		return "", err
 	}
@@ -1234,11 +1230,19 @@ func (data *TestData) deployFlowVisibility(config FlowVisibiltiySetUpConfig) (ch
 		return "", err
 	}
 
-	// check ClickHouse Service http port for Service connectivity
-	chSvc, err := data.GetService(flowVisibilityNamespace, "clickhouse-clickhouse")
-	if err != nil {
-		return "", err
+	var chSvc *corev1.Service
+	if err := wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
+		chSvc, err = data.GetService(flowVisibilityNamespace, "clickhouse-clickhouse")
+		if err != nil {
+			return false, nil
+		} else {
+			return true, nil
+		}
+	}); err != nil {
+		return "", fmt.Errorf("timeout waiting for ClickHouse Service: %v", err)
 	}
+
+	// check ClickHouse Service http port for Service connectivity
 	if err := wait.PollImmediate(defaultInterval, defaultTimeout, func() (bool, error) {
 		rc, _, _, err := testData.RunCommandOnNode(controlPlaneNodeName(),
 			fmt.Sprintf("curl -Ss %s:%s", chSvc.Spec.ClusterIP, clickHouseHTTPPort))
@@ -1265,18 +1269,22 @@ func (data *TestData) deployFlowVisibility(config FlowVisibiltiySetUpConfig) (ch
 	return chSvc.Spec.ClusterIP, nil
 }
 
-func (data *TestData) deployFlowVisibilityCommon(yamlFile string) error {
+func (data *TestData) deployFlowVisibilityCommon(chOperatorYML, flowVisibilityYML string) error {
+	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", chOperatorYML))
+	if err != nil || rc != 0 {
+		return fmt.Errorf("error when deploying the ClickHouse Operator YML: %v\n is %s available on the control-plane Node?", err, chOperatorYML)
+	}
 	if err := wait.Poll(2*time.Second, 10*time.Second, func() (bool, error) {
-		rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", yamlFile))
+		rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply -f %s", flowVisibilityYML))
 		if err != nil || rc != 0 {
-			log.Infof("error when deploying the flow visibility YML %s: %s, %s, %v", yamlFile, stdout, stderr, err)
+			log.Infof("error when deploying the flow visibility YML %s: %s, %s, %v", flowVisibilityYML, stdout, stderr, err)
 			// ClickHouseInstallation CRD from ClickHouse Operator install bundle applied soon before
 			// applying CR. Sometimes apiserver validation fails to recognize resource of
 			// kind: ClickHouseInstallation. Retry in such scenario.
 			if strings.Contains(stderr, "ClickHouseInstallation") || strings.Contains(stdout, "ClickHouseInstallation") {
 				return false, nil
 			}
-			return false, fmt.Errorf("error when deploying the flow visibility YML %s: %s, %s, %v", yamlFile, stdout, stderr, err)
+			return false, fmt.Errorf("error when deploying the flow visibility YML %s: %s, %s, %v", flowVisibilityYML, stdout, stderr, err)
 		}
 		return true, nil
 	}); err != nil {
@@ -1289,9 +1297,9 @@ func (data *TestData) deployFlowVisibilityCommon(yamlFile string) error {
 // after applying a new Flow Visibility manifest.
 func (data *TestData) waitForClickHousePod() error {
 	startUpdating := false
-	// ClickHouse Operator takes around 1 minute to restart the ClickHouse Pod
+	// ClickHouse Operator takes around 2 minute to restart the ClickHouse Pod
 	// which requires more time to make sure that ClickHouse Pod is ready.
-	err := wait.Poll(defaultInterval, defaultTimeout*2, func() (bool, error) {
+	err := wait.Poll(defaultInterval, defaultTimeout*4, func() (bool, error) {
 		clickHouseStatefulSetName := fmt.Sprintf("%s-0-0", clickHousePodNamePrefix)
 		ss, err := data.clientset.AppsV1().StatefulSets(flowVisibilityNamespace).Get(context.TODO(), clickHouseStatefulSetName, metav1.GetOptions{})
 		if err != nil {
@@ -1374,8 +1382,8 @@ func (data *TestData) getPodByLabel(podLabel, ns string) (string, error) {
 	return pod.Name, nil
 }
 
-func (data *TestData) deleteClickHouseOperator() error {
-	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s -n kube-system", clickHouseOperatorYML))
+func (data *TestData) deleteClickHouseOperator(chOperatorYML string) error {
+	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s -n kube-system --ignore-not-found", clickHouseOperatorYML))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting ClickHouse operator: %v", err)
 	}
@@ -1391,7 +1399,7 @@ func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibiltiy
 	if err := data.deleteFlowVisibility(config); err != nil {
 		tb.Logf("Error when deleting K8s resources created by flow visibility: %v", err)
 	}
-	if err := data.deleteClickHouseOperator(); err != nil {
+	if err := data.deleteClickHouseOperator(clickHouseOperatorYML); err != nil {
 		tb.Logf("Error when deleting ClickHouse Operator: %v", err)
 	}
 }
@@ -1403,7 +1411,7 @@ func (data *TestData) deleteFlowVisibility(config FlowVisibiltiySetUpConfig) err
 	} else if config.withSparkOperator {
 		flowVisibilityManifest = flowVisibilityWithSparkYML
 	} else {
-		flowVisibilityManifest = flowVisibilityYML
+		flowVisibilityManifest = flowVisibilityDefaultYML
 	}
 	startTime := time.Now()
 	defer func() {

@@ -37,8 +37,10 @@ var (
 const (
 	upgradeFromAntreaYML         = "antrea.yml"
 	upgradeFromFlowVisibilityYML = "flow-visibility-ch-only.yml"
+	upgradeFromChOperatorYML     = "clickhouse-operator-install-bundle.yaml"
 	upgradeToAntreaYML           = "antrea-new.yml"
 	upgradeToFlowVisibilityYML   = "flow-visibility-new.yml"
+	upgradeToChOperatorYML       = "clickhouse-operator-install-bundle-new.yaml"
 	id1                          = "86b1f47b-7864-4351-bb73-1ffb8bacb2e7"
 	id2                          = "13465fa5-99d7-430b-91df-272ce6b9704c"
 )
@@ -71,13 +73,14 @@ func TestUpgrade(t *testing.T) {
 	defer func() {
 		teardownTest(t, data)
 		teardownFlowVisibility(t, data, config)
+		data.deleteClickHouseOperator(upgradeToChOperatorYML)
 	}()
 	checkClickHouseVersionTable(t, data, *upgradeFromVersion)
 	if needCheckRecommendationsSchema(*upgradeFromVersion) {
 		insertRecommendations(t, data)
 	}
 	// upgrade and check
-	applyNewVersion(t, data, upgradeToAntreaYML, upgradeToFlowVisibilityYML)
+	applyNewVersion(t, data, upgradeToAntreaYML, upgradeToChOperatorYML, upgradeToFlowVisibilityYML)
 	checkClickHouseVersionTable(t, data, *upgradeToVersion)
 	// This check only works when upgrading from v0.3.0 to v0.4.0 for now
 	// as the recommendations schema only changes between these 2 version.
@@ -87,14 +90,14 @@ func TestUpgrade(t *testing.T) {
 		checkRecommendations(t, data, *upgradeToVersion)
 	}
 	// downgrade and check
-	applyNewVersion(t, data, upgradeFromAntreaYML, upgradeFromFlowVisibilityYML)
+	applyNewVersion(t, data, upgradeFromAntreaYML, upgradeFromChOperatorYML, upgradeFromFlowVisibilityYML)
 	checkClickHouseVersionTable(t, data, *upgradeFromVersion)
 	if needCheckRecommendationsSchema(*upgradeFromVersion) {
 		checkRecommendations(t, data, *upgradeFromVersion)
 	}
 }
 
-func applyNewVersion(t *testing.T, data *TestData, antreaYML string, flowVisibilityYML string) {
+func applyNewVersion(t *testing.T, data *TestData, antreaYML, chOperatorYML, flowVisibilityYML string) {
 	t.Logf("Changing Antrea YAML to %s", antreaYML)
 	// Do not wait for agent rollout as its updateStrategy is set to OnDelete for upgrade test.
 	if err := data.deployAntreaCommon(antreaYML, "", false); err != nil {
@@ -105,8 +108,8 @@ func applyNewVersion(t *testing.T, data *TestData, antreaYML string, flowVisibil
 		t.Fatalf("Error when restarting Antrea: %v", err)
 	}
 
-	t.Logf("Changing Flow Visibility YAML to %s", flowVisibilityYML)
-	if err := data.deployFlowVisibilityCommon(flowVisibilityYML); err != nil {
+	t.Logf("Changing ClickHouse Operator YAML to %s,\nFlow Visibility YAML to %s", chOperatorYML, flowVisibilityYML)
+	if err := data.deployFlowVisibilityCommon(chOperatorYML, flowVisibilityYML); err != nil {
 		t.Fatalf("Error upgrading Flow Visibility: %v", err)
 	}
 	t.Logf("Waiting for the ClickHouse Pod restarting")

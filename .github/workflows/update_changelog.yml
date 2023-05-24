@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - v*
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: 'Tag'
+        required: false
 
 jobs:
   check-version:
@@ -22,7 +27,7 @@ jobs:
           echo "$version is a release candidate or a pre-release"
           exit 0
         fi
-        echo "::set-output name=version::$version"
+        echo "version=$version" >> $GITHUB_OUTPUT
 
   pr-update-changelog:
     runs-on: [ubuntu-latest]
@@ -40,7 +45,7 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          commit_hash=$(git log "$VERSION" --format="%H" --grep="Update CHANGELOG for $VERSION release")
+          commit_hash=$(git log "$VERSION" --format="%H" --grep="Update CHANGELOG and VERSION for $VERSION release")
           if [[ -z "$commit_hash" ]]; then
             echo "Cannot find commit"
             exit 1
@@ -51,7 +56,7 @@ jobs:
         with:
           token: ${{ secrets.ANTREA_BOT_WRITE_PAT }}
           delete-branch: true
-          title: "Update CHANGELOG for ${{ needs.check-version.outputs.version }} release"
+          title: "Update CHANGELOG and VERSION for ${{ needs.check-version.outputs.version }} release"
           body: |
             PR was opened automatically from Github Actions
       - name: Check outputs

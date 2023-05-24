@@ -88,9 +88,11 @@ not to clone the repository, you can mannually deploy it. The first step is to
 install the ClickHouse Operator, which creates, configures and manages ClickHouse
 clusters. Check the [homepage](https://github.com/Altinity/clickhouse-operator)
 for more information about the ClickHouse Operator. Current checked-in yaml is
-based on their [v0.18.2](https://github.com/Altinity/clickhouse-operator/blob/refs/tags/0.18.2/deploy/operator/clickhouse-operator-install-bundle.yaml)
+based on their [v0.21.0](https://github.com/Altinity/clickhouse-operator/blob/release-0.21.0/deploy/operator/clickhouse-operator-install-bundle.yaml)
 released version. Running the following command will install ClickHouse Operator
-into `kube-system` Namespace.
+into `kube-system` Namespace. Note that we upgrade ClickHouse Operator to
+v0.21.0 starting from Theia 0.7. Please make sure to deploy the latest ClickHouse
+Operator if you would like to try Theia 0.7.
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/antrea-io/theia/main/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml

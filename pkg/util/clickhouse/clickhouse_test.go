@@ -106,7 +106,7 @@ func TestSetupConnection(t *testing.T) {
 				os.Unsetenv(passwordKey)
 				os.Unsetenv(urlKey)
 			},
-			expectedErrorMsg: "failed to connect to ClickHouse after 10s, error list: [\nerror message: first error,\nsecond error,\n",
+			expectedErrorMsg: fmt.Sprintf("failed to connect to ClickHouse after %ds, error list: [\nerror message: first error,\nsecond error,\n", int(pingTimeout.Seconds())),
 		},
 	}
 

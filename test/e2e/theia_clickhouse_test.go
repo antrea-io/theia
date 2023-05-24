@@ -121,12 +121,13 @@ func testTheiaGetClickHouseDiskInfo(t *testing.T, data *TestData) {
 }
 
 // Example output
-// Shard          DatabaseName   TableName                TotalRows      TotalBytes     TotalCols
-// 1              default        .inner.flows_node_view   50000          4.19 MiB       16
-// 1              default        .inner.flows_pod_view    48000          4.72 MiB       20
-// 1              default        .inner.flows_policy_view 48000          7.16 MiB       27
-// 1              default        flows                    50000          13.09 MiB      49
-// 1              default        recommendations          10             2.34 KiB       4
+// Shard          DatabaseName   TableName               TotalRows      TotalBytes     TotalCols
+// 1              default        flows_local             780            40.33 KiB      50
+// 1              default        node_view_table_local   29             5.56 KiB       17
+// 1              default        pod_view_table_local    392            14.41 KiB      21
+// 1              default        policy_view_table_local 392            19.07 KiB      28
+// 1              default        recommendations_local   0              0.00 B         5
+// 1              default        tadetector_local        0              0.00 B         13
 func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.DB) {
 	// send 1000 records to clickhouse
 	commitNum := 1
@@ -152,11 +153,12 @@ func testTheiaGetClickHouseTableInfo(t *testing.T, data *TestData, connect *sql.
 	assert.Containsf(stdout, "TotalBytes", "stdout: %s", stdout)
 	assert.Containsf(stdout, "TotalCols", "stdout: %s", stdout)
 	// check four tables are in db
-	assert.Containsf(stdout, ".inner.flows_node_view_local", "stdout: %s", stdout)
-	assert.Containsf(stdout, ".inner.flows_pod_view_local", "stdout: %s", stdout)
-	assert.Containsf(stdout, ".inner.flows_policy_view_local", "stdout: %s", stdout)
+	assert.Containsf(stdout, "node_view_table_local", "stdout: %s", stdout)
+	assert.Containsf(stdout, "pod_view_table_local", "stdout: %s", stdout)
+	assert.Containsf(stdout, "policy_view_table_local", "stdout: %s", stdout)
 	assert.Containsf(stdout, "flows_local", "stdout: %s", stdout)
 	assert.Containsf(stdout, "recommendations_local", "stdout: %s", stdout)
+	assert.Containsf(stdout, "tadetector_local", "stdout: %s", stdout)
 
 	flowNum := 0
 	for i := 1; i < length; i++ {

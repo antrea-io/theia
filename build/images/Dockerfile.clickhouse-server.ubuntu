@@ -6,7 +6,7 @@ WORKDIR /theia
 
 RUN make clickhouse-schema-management-plugin
 
-FROM docker.io/clickhouse/clickhouse-server:22.6
+FROM docker.io/clickhouse/clickhouse-server:23.4
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy the ClickHouse server."

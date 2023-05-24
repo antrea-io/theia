@@ -157,6 +157,7 @@ DOCKER_IMAGES=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                 "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
                 "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
+                "projects.registry.vmware.com/antrea/theia-clickhouse-keeper:23.4.2"\
                 "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$THEIA_FROM_TAG" \
@@ -229,6 +230,6 @@ rm -rf $TMP_THEIA_DIR
 rc=0
 go test -v -run=TestUpgrade antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --upgrade.toVersion=$CURRENT_VERSION --upgrade.fromVersion=$THEIA_FROM_TAG || rc=$?
 
-# $THIS_DIR/kind-setup.sh destroy kind
+$THIS_DIR/kind-setup.sh destroy kind
 
 exit $rc

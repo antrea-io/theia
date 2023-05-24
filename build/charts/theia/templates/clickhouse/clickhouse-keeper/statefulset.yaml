@@ -1,4 +1,4 @@
-{{- if (eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0) }}
+{{- if (eq (len .Values.clickhouse.cluster.ClickHouseKeeperHosts) 0) }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -12,7 +12,7 @@ spec:
     matchLabels:
       app: clickhouse-keeper
   serviceName: clickhouse-keepers
-  replicas: {{ .Values.clickhouse.cluster.installClickhousekeeper.replicas }}
+  replicas: {{ .Values.clickhouse.cluster.installClickHouseKeeper.replicas }}
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: Parallel
@@ -48,8 +48,8 @@ spec:
           name: clickhouse-keeper-datadir-volume
       containers:
         - name: clickhouse-keeper
-          imagePullPolicy: {{ .Values.clickhouse.cluster.installClickhousekeeper.image.pullPolicy }}
-          image: {{ .Values.clickhouse.cluster.installClickhousekeeper.image.repository }}:{{ .Values.clickhouse.cluster.installClickhousekeeper.image.tag }}
+          imagePullPolicy: {{ .Values.clickhouse.cluster.installClickHouseKeeper.image.pullPolicy }}
+          image: {{ .Values.clickhouse.cluster.installClickHouseKeeper.image.repository }}:{{ .Values.clickhouse.cluster.installClickHouseKeeper.image.tag }}
           resources:
             requests:
               memory: "256M"

@@ -257,17 +257,24 @@ and `clickhouse.cluster.replicas` per your requirement.
 
 ClickHouse uses [Apache ZooKeeper](https://zookeeper.apache.org/) for storing
 replicas meta information. When scaling the ClickHouse cluster, please set
-`clickhouse.cluster.installClickhousekeeper.replicas` to at least 3 to ensure fault
+`clickhouse.cluster.installZookeeper.replicas` to at least 3 to ensure fault
 tolerance. Each replica is expected to be deployed on a different Node. To
 leverage a user-provided ZooKeeper cluster, please refer to the
 [ZooKeeper setup instructions for ClickHouse](https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md)
-and set `clickhouse.cluster.ClickhousekeeperHosts` to your ZooKeeper hosts.
+and set `clickhouse.cluster.zookeeperHosts` to your ZooKeeper hosts.
 
 When stopping the ClickHouse cluster, please ensure it is stopped before ZooKeeper,
 as ClickHouse relies on ZooKeeper to stop correctly. You can run the following
 command to stop the ClickHouse cluster.
 
-Starting from v0.6.0, ZooKeeper is replaced by Clickhouse-Keeper. ClickHouse Keeper provides the same guarantees as ZooKeeper (linearizable writes, non-linearizable reads). Similar configuration to Zookeeper could be made in the values.yml.
+Starting from v0.7.0, ClickHouse-keeper is added to Theia. ClickHouse-Keeper
+provides the same guarantees as ZooKeeper (linearizable writes,
+non-linearizable reads). ClickHouse Keeper provides the coordination system
+for data replication and distributed DDL queries execution.
+
+Similar to Zookeeper, ClickHouse-Keeper also supports shards and replicas,
+set `clickhouse.cluster.installClickHousekeeper.replicas` as per your requirement
+or as in Zookeeper.
 
 ```bash
 kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n flow-visibility

@@ -1,4 +1,4 @@
-{{- if (eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0) }}
+{{- if (eq (len .Values.clickhouse.cluster.ClickHouseKeeperHosts) 0) }}
 # Setup Headless Service for StatefulSet
 apiVersion: v1
 kind: Service

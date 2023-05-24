@@ -94,31 +94,31 @@ clickhouse:
     shards: 1
     # -- Number of ClickHouse replicas in each shard.
     replicas: 1
-    # -- To use a pre-installed Clickhouse-keeper for ClickHouse data replication, please
-    # provide a list of your Clickhouse-keeper hosts.
-    ClickhousekeeperHosts: []
-      # - Clickhouse-keeper.flow-visibility
-    # Specification to install a default Clickhouse-keeper cluster. This is ignored
-    # if ClickhousekeeperHosts are provided. 
-    installClickhousekeeper:
-      # -- Memory size for each Clickhouse-keeper pod. Can be a plain integer or as a
+    # -- To use a pre-installed ClickHouse-Keeper for ClickHouse data replication, please
+    # provide a list of your ClickHouse-Keeper hosts.
+    ClickHouseKeeperHosts: []
+      # - ClickHouse-Keeper.flow-visibility
+    # Specification to install a default ClickHouse-Keeper cluster. This is ignored
+    # if ClickHouseKeeperHosts are provided. 
+    installClickHouseKeeper:
+      # -- Memory size for each ClickHouse-Keeper pod. Can be a plain integer or as a
       # fixed-point number using one of these quantity suffixes: E, P, T, G, M, K.
       # Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki.
       size: "5Gi"
-      # -- Number of Clickhouse-keeper replicas. It is recommended to be odd. When deploying
-      # ClickHouse cluster with more than 1 replica, 3 is the minimum number of Clickhouse-keeper
+      # -- Number of ClickHouse-Keeper replicas. It is recommended to be odd. When deploying
+      # ClickHouse cluster with more than 1 replica, 3 is the minimum number of ClickHouse-Keeper
       # hosts required to manage replication and fault tolerance. Please refer to
       # <https://zookeeper.apache.org/doc/current/zookeeperStarted.html#sc_RunningReplicatedZooKeeper>
-      # for more information as Clickhouse-keeper is based of Zookeeper
+      # for more information as ClickHouse-Keeper is based of Zookeeper
       replicas: 1
-      # -- Container image used by the Clickhouse-keeper.
+      # -- Container image used by the ClickHouse-Keeper.
       image:
-        repository: "clickhouse/clickhouse-keeper"
+        repository: "projects.registry.vmware.com/antrea/theia-clickhouse-keeper"
         pullPolicy: "IfNotPresent"
-        tag: "head-alpine"
+        tag: "23.4.2"
       host: "0.0.0.0"
       # -- Set securityContext.
-      # Use a specific uid, gid for Clickhouse-keeper.
+      # Use a specific uid, gid for ClickHouse-Keeper.
       securityContext:
         runAsUser: 1000
         fsGroup: 1000

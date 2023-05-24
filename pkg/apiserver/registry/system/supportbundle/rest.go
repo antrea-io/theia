@@ -54,7 +54,7 @@ const (
 	sparkDriverLabel      = "spark-role=driver"
 	sparkExecLabel        = "spark-role=executor"
 	sparkOperatorLabel    = "app.kubernetes.io/name=spark-operator"
-	clickhousekeeperLabel = "app=clickhouse-keeper"
+	clickHouseKeeperLabel = "app=clickhouse-keeper"
 )
 
 var (
@@ -276,14 +276,14 @@ func (r *supportBundleREST) collectController(ctx context.Context, since string)
 	if err != nil {
 		return nil, err
 	}
-	clickhouseKeeperPodNames, err := r.fetchPodNameByLabel(ctx, clickhousekeeperLabel, r.namespace)
+	clickHouseKeeperPodNames, err := r.fetchPodNameByLabel(ctx, clickHouseKeeperLabel, r.namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	dumper := newManagerDumper(defaultFS, r.restConfig, r.clientSet, since, r.namespace,
 		clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-		sparkExecPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames)
+		sparkExecPodNames, sparkOperatorPodNames, clickHouseKeeperPodNames)
 	return r.collect(
 		ctx,
 		dumper.DumpLog,
@@ -293,7 +293,7 @@ func (r *supportBundleREST) collectController(ctx context.Context, since string)
 		dumper.DumpSparkDriverLog,
 		dumper.DumpSparkExecutorLog,
 		dumper.DumpSparkOperatorLog,
-		dumper.DumpClickhouseKeeperLog,
+		dumper.DumpClickHouseKeeperLog,
 	)
 }
 

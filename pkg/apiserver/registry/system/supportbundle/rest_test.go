@@ -137,7 +137,7 @@ func (f *fakeManagerDumper) DumpSparkOperatorLog(basedir string) error {
 	return f.returnErr
 }
 
-func (f *fakeManagerDumper) DumpClickhouseKeeperLog(basedir string) error {
+func (f *fakeManagerDumper) DumpClickHouseKeeperLog(basedir string) error {
 	return f.returnErr
 }
 
@@ -145,7 +145,7 @@ func TestSupportBundleStorage(t *testing.T) {
 	defaultFS = afero.NewMemMapFs()
 	newManagerDumper = func(fs afero.Fs, restConfig *clientrest.Config, clientSet kubernetes.Interface, since string,
 		namespace string, clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-		sparkExecutorPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames []string) support.ManagerDumper {
+		sparkExecutorPodNames, sparkOperatorPodNames, clickHouseKeeperPodNames []string) support.ManagerDumper {
 		return &fakeManagerDumper{}
 	}
 	defer func() {
@@ -200,7 +200,7 @@ func TestSupportBundleStorageFailure(t *testing.T) {
 	defaultFS = afero.NewMemMapFs()
 	newManagerDumper = func(fs afero.Fs, restConfig *clientrest.Config, clientSet kubernetes.Interface, since string,
 		namespace string, clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-		sparkExecutorPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames []string) support.ManagerDumper {
+		sparkExecutorPodNames, sparkOperatorPodNames, clickHouseKeeperPodNames []string) support.ManagerDumper {
 		return &fakeManagerDumper{returnErr: fmt.Errorf("error faked by test")}
 	}
 	defer func() {

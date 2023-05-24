@@ -57,7 +57,7 @@ type ManagerDumper interface {
 	DumpSparkDriverLog(basedir string) error
 	DumpSparkExecutorLog(basedir string) error
 	DumpSparkOperatorLog(basedir string) error
-	DumpClickhouseKeeperLog(basedir string) error
+	DumpClickHouseKeeperLog(basedir string) error
 }
 
 type managerDumper struct {
@@ -73,12 +73,12 @@ type managerDumper struct {
 	sparkDriverPodNames      []string
 	sparkExecutorPodNames    []string
 	sparkOperatorPodNames    []string
-	clickhouseKeeperPodNames []string
+	clickHouseKeeperPodNames []string
 }
 
 func NewManagerDumper(fs afero.Fs, restConfig *rest.Config, clientSet kubernetes.Interface, since string,
 	namespace string, clickhousePodNames, grafanaPodNames, flowAggregatorPodNames, sparkDriverPodNames,
-	sparkExecutorPodNames, sparkOperatorPodNames, clickhouseKeeperPodNames []string) ManagerDumper {
+	sparkExecutorPodNames, sparkOperatorPodNames, clickHouseKeeperPodNames []string) ManagerDumper {
 	return &managerDumper{
 		fs:                       fs,
 		restConfig:               restConfig,
@@ -91,7 +91,7 @@ func NewManagerDumper(fs afero.Fs, restConfig *rest.Config, clientSet kubernetes
 		sparkDriverPodNames:      sparkDriverPodNames,
 		sparkExecutorPodNames:    sparkExecutorPodNames,
 		sparkOperatorPodNames:    sparkOperatorPodNames,
-		clickhouseKeeperPodNames: clickhouseKeeperPodNames,
+		clickHouseKeeperPodNames: clickHouseKeeperPodNames,
 	}
 }
 
@@ -169,8 +169,8 @@ func (d *managerDumper) DumpSparkOperatorLog(basedir string) error {
 	return nil
 }
 
-func (d *managerDumper) DumpClickhouseKeeperLog(basedir string) error {
-	for _, podName := range d.clickhouseKeeperPodNames {
+func (d *managerDumper) DumpClickHouseKeeperLog(basedir string) error {
+	for _, podName := range d.clickHouseKeeperPodNames {
 		if err := d.copyLogFromPod(d.namespace, podName,
 			path.Join(basedir, "logs", "clickhouse-keeper", podName)); err != nil {
 			return fmt.Errorf("error when streaming logs from clickhouse-keeper %s: %w", podName, err)

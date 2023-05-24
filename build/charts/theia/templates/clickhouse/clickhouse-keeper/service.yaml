@@ -1,4 +1,4 @@
-{{- if (eq (len .Values.clickhouse.cluster.ClickhousekeeperHosts) 0) }}
+{{- if (eq (len .Values.clickhouse.cluster.ClickHouseKeeperHosts) 0) }}
 # Setup Service to provide access to Zookeeper for clients
 apiVersion: v1
 kind: Service

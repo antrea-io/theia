@@ -112,6 +112,7 @@ COMMON_IMAGES_LIST=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                     "projects.registry.vmware.com/antrea/theia-clickhouse-operator:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-metrics-exporter:0.18.2" \
                     "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
+                    "projects.registry.vmware.com/antrea/theia-clickhouse-keeper:23.4.2"\
                     "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                     "projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1")
 

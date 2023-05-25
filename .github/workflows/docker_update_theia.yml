@@ -19,6 +19,9 @@ on:
       zookeeper-tag:
         description: 'Tag for zookeeper Docker image'
         required: true
+      clickhouse-keeper-tag:
+        description: 'Tag for ClickHouse-keeper Docker image'
+        required: true
 
 jobs:
   build:
@@ -59,3 +62,9 @@ jobs:
           src: docker.io/zookeeper:${{ github.event.inputs.zookeeper-tag }}
           dst: |
             docker.io/antrea/theia-zookeeper:${{ github.event.inputs.zookeeper-tag }}
+      - name: Push antrea/theia-clickhouse-keeper
+        uses: akhilerm/tag-push-action@v2.1.0
+        with:
+          src: docker.io/clickhouse/clickhouse-keeper:${{ github.event.inputs.clickhouse-keeper-tag }}
+          dst: |
+            docker.io/antrea/theia-clickhouse-keeper:${{ github.event.inputs.clickhouse-keeper-tag }}

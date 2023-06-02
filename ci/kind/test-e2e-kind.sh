@@ -148,6 +148,7 @@ function run_test {
   curl -o $TMP_DIR/antrea.yml https://raw.githubusercontent.com/antrea-io/antrea/main/build/yamls/antrea.yml
   sed -i -e "s|image: \"projects.registry.vmware.com/antrea/antrea-ubuntu:latest\"|image: \"antrea/antrea-ubuntu:latest\"|g" $TMP_DIR/antrea.yml
   sed -i -e "s/#  FlowExporter: false/  FlowExporter: true/g" $TMP_DIR/antrea.yml
+  perl -i -p0e 's/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: false/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: true/' $TMP_DIR/antrea.yml
   sed -i -e "s/flowPollInterval: \"5s\"/flowPollInterval: \"1s\"/g" $TMP_DIR/antrea.yml
   sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $TMP_DIR/antrea.yml
   sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $TMP_DIR/antrea.yml

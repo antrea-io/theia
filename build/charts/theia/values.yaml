@@ -6,7 +6,7 @@ clickhouse:
     tag: ""
   logger:
     # -- Logging level. Acceptable values: trace, debug, information, warning, error.
-    level: information
+    level: debug
     # --  Size of log files. Applies to log and errorlog. Once the file reaches size,
     # ClickHouse archives and renames it, and creates a new log file in its place.
     size: 100M

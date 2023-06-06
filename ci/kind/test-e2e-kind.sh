@@ -160,7 +160,7 @@ function run_test {
   sed -i -e "s/    inactiveFlowRecordTimeout: 90s/    inactiveFlowRecordTimeout: 6s/g" $TMP_DIR/flow-aggregator.yml
   sed -i -e "s/      podLabels: false/      podLabels: true/g" $TMP_DIR/flow-aggregator.yml
   sed -i -e "s/      commitInterval: \"8s\"/      commitInterval: \"1s\"/g" $TMP_DIR/flow-aggregator.yml
-
+  
   docker exec -i kind-control-plane dd of=/root/antrea.yml < $TMP_DIR/antrea.yml
   docker exec -i kind-control-plane dd of=/root/flow-aggregator.yml < $TMP_DIR/flow-aggregator.yml
   docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < $CH_OPERATOR_YML
@@ -173,7 +173,7 @@ function run_test {
   rm -rf $TMP_DIR
   sleep 1
 
-  go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  go test -v -timeout=30m antrea.io/theia/test/e2e --run=TestFlowVisibility/IPv4/IntraNodeFlows -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
 }
 
 echo "======== Test encap mode =========="

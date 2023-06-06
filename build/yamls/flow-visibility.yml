@@ -7150,7 +7150,7 @@ spec:
       name: clickhouse
     settings:
       logger/count: 4
-      logger/level: information
+      logger/level: debug
       logger/size: 100M
     users:
       clickhouse_operator/k8s_secret_password: flow-visibility/clickhouse-secret/password

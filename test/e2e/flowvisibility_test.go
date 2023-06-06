@@ -182,6 +182,16 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		failOnError(fmt.Errorf("error when creating perftest Services: %v", err), t, data)
 	}
 
+	// FlowAggregator takes up to 20s to set up the initial connection with
+	// ClickHouse DB. Most of the wait happens when looking up for ClickHouse
+	// on kube-dns. FlowAggregator Pod may also crash and restart once due
+	// to 10s ping timeout. It will not introduce too much issue in real-life
+	// use cases, but will fail the e2e tests, as we start the iPerf traffic
+	// right away and we check whether ClickHouse receive every record.
+	// We wait 30s before starting sending iPerf traffic to avoid missing the
+	// first a few records.
+	time.Sleep(30 * time.Second)
+
 	// IntraNodeFlows tests the case, where Pods are deployed on same Node
 	// and their flow information is exported as IPFIX flow records.
 	// K8s network policies are being tested here.

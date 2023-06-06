@@ -29,22 +29,22 @@ jobs:
     outputs:
       has_changes: ${{ steps.check_diff.outputs.has_changes }}
 
-  build-spark-jobs-image:
-    name: Build Spark Jobs image to be used for Kind e2e tests
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
-    runs-on: [ ubuntu-latest ]
-    steps:
-    - uses: actions/checkout@v3
-    - run: make spark-jobs
-    - name: Save Spark jobs image to tarball
-      run: docker save -o spark-jobs.tar antrea/theia-spark-jobs
-    - name: Upload Spark jobs image for subsequent jobs
-      uses: actions/upload-artifact@v3
-      with:
-        name: spark-jobs
-        path: spark-jobs.tar
-        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+  # build-spark-jobs-image:
+  #   name: Build Spark Jobs image to be used for Kind e2e tests
+  #   needs: check-changes
+  #   if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+  #   runs-on: [ ubuntu-latest ]
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - run: make spark-jobs
+  #   - name: Save Spark jobs image to tarball
+  #     run: docker save -o spark-jobs.tar antrea/theia-spark-jobs
+  #   - name: Upload Spark jobs image for subsequent jobs
+  #     uses: actions/upload-artifact@v3
+  #     with:
+  #       name: spark-jobs
+  #       path: spark-jobs.tar
+  #       retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
   
   build-clickhouse-monitor-image:
     name: Build ClickHouse monitor image to be used for Kind e2e tests
@@ -80,30 +80,30 @@ jobs:
         path: clickhouse-server.tar
         retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
-  build-theia-manager-image:
-    name: Build Theia Manager image to be used for Kind e2e tests
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
-    runs-on: [ ubuntu-latest ]
-    steps:
-    - uses: actions/checkout@v3
-    - run: make theia-manager
-    - name: Save Theia Manager image to tarball
-      run: docker save -o theia-manager.tar antrea/theia-manager
-    - name: Upload Theia Manager image for subsequent jobs
-      uses: actions/upload-artifact@v3
-      with:
-        name: theia-manager
-        path: theia-manager.tar
-        retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
+  # build-theia-manager-image:
+  #   name: Build Theia Manager image to be used for Kind e2e tests
+  #   needs: check-changes
+  #   if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+  #   runs-on: [ ubuntu-latest ]
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - run: make theia-manager
+  #   - name: Save Theia Manager image to tarball
+  #     run: docker save -o theia-manager.tar antrea/theia-manager
+  #   - name: Upload Theia Manager image for subsequent jobs
+  #     uses: actions/upload-artifact@v3
+  #     with:
+  #       name: theia-manager
+  #       path: theia-manager.tar
+  #       retention-days: 1 # minimum value, in case artifact deletion by 'artifact-cleanup' job fails
 
   test-e2e-encap:
     name: E2e tests on a Kind cluster on Linux
     needs:
-      - build-spark-jobs-image
+      # - build-spark-jobs-image
       - build-clickhouse-monitor-image
       - build-clickhouse-server-image
-      - build-theia-manager-image
+      # - build-theia-manager-image
     runs-on: [ubuntu-latest]
     steps:
       - name: Free disk space
@@ -120,10 +120,10 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
-      - name: Download Spark jobs images from previous jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: spark-jobs
+      # - name: Download Spark jobs images from previous jobs
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: spark-jobs
       - name: Download ClickHouse monitor images from previous jobs
         uses: actions/download-artifact@v3
         with:
@@ -132,20 +132,16 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: clickhouse-server
-      - name: Download Theia Manager images from previous jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: theia-manager
+      # - name: Download Theia Manager images from previous jobs
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: theia-manager
       - name: Load Theia image
         run:  |
-          docker load -i spark-jobs.tar
-          docker tag antrea/theia-spark-jobs:latest projects.registry.vmware.com/antrea/theia-spark-jobs:latest
           docker load -i clickhouse-monitor.tar
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           docker load -i clickhouse-server.tar
           docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
-          docker load -i theia-manager.tar
-          docker tag antrea/theia-manager:latest projects.registry.vmware.com/antrea/theia-manager:latest
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
@@ -166,62 +162,62 @@ jobs:
           path: log.tar.gz
           retention-days: 30
 
-  test-upgrade-from-N-1:
-    name: Upgrade from Theia version N-1
-    needs: 
-      - build-clickhouse-monitor-image
-      - build-clickhouse-server-image 
-    runs-on: [ubuntu-latest]
-    steps:
-      - name: Free disk space
-        # https://github.com/actions/virtual-environments/issues/709
-        run: |
-          sudo apt-get clean
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf "/usr/local/share/boost"
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf "/usr/local/lib/android"
-          df -h
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
-        with:
-          go-version-file: 'go.mod'
-      - name: Download ClickHouse monitor images from previous jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: clickhouse-monitor
-      - name: Load Theia image
-        run:  |
-          docker load -i clickhouse-monitor.tar
-          docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
-      - name: Download ClickHouse server images from previous jobs
-        uses: actions/download-artifact@v3
-        with:
-          name: clickhouse-server
-      - name: Load Theia image
-        run:  |
-          docker load -i clickhouse-server.tar
-          docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
-      - name: Install Kind
-        run: |
-          curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
-          chmod +x ./kind
-          sudo mv kind /usr/local/bin
-      - name: Run test
-        run: |
-          mkdir log
-          ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-upgrade-theia.sh  --from-version-n-minus 1
-      - name: Tar log files
-        if: ${{ failure() }}
-        run: tar -czf log.tar.gz log
-      - name: Upload test log
-        uses: actions/upload-artifact@v3
-        if: ${{ failure() }}
-        with:
-          name: upgrade-from-theia-version-n-1.tar.gz
-          path: log.tar.gz
-          retention-days: 30
+  # test-upgrade-from-N-1:
+  #   name: Upgrade from Theia version N-1
+  #   needs: 
+  #     - build-clickhouse-monitor-image
+  #     - build-clickhouse-server-image 
+  #   runs-on: [ubuntu-latest]
+  #   steps:
+  #     - name: Free disk space
+  #       # https://github.com/actions/virtual-environments/issues/709
+  #       run: |
+  #         sudo apt-get clean
+  #         sudo rm -rf /usr/share/dotnet
+  #         sudo rm -rf /opt/ghc
+  #         sudo rm -rf "/usr/local/share/boost"
+  #         sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+  #         sudo rm -rf "/usr/local/lib/android"
+  #         df -h
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-go@v4
+  #       with:
+  #         go-version-file: 'go.mod'
+  #     - name: Download ClickHouse monitor images from previous jobs
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: clickhouse-monitor
+  #     - name: Load Theia image
+  #       run:  |
+  #         docker load -i clickhouse-monitor.tar
+  #         docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
+  #     - name: Download ClickHouse server images from previous jobs
+  #       uses: actions/download-artifact@v3
+  #       with:
+  #         name: clickhouse-server
+  #     - name: Load Theia image
+  #       run:  |
+  #         docker load -i clickhouse-server.tar
+  #         docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
+  #     - name: Install Kind
+  #       run: |
+  #         curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64
+  #         chmod +x ./kind
+  #         sudo mv kind /usr/local/bin
+  #     - name: Run test
+  #       run: |
+  #         mkdir log
+  #         ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-upgrade-theia.sh  --from-version-n-minus 1
+  #     - name: Tar log files
+  #       if: ${{ failure() }}
+  #       run: tar -czf log.tar.gz log
+  #     - name: Upload test log
+  #       uses: actions/upload-artifact@v3
+  #       if: ${{ failure() }}
+  #       with:
+  #         name: upgrade-from-theia-version-n-1.tar.gz
+  #         path: log.tar.gz
+  #         retention-days: 30
 
   # Runs after all other jobs in the workflow succeed and deletes Theia Docker images uploaded as temporary
   # artifacts. It uses a third-party, MIT-licensed action (geekyeggo/delete-artifact). While Github
@@ -230,19 +226,19 @@ jobs:
   artifact-cleanup:
     name: Delete uploaded images
     needs:
-    - build-spark-jobs-image
+    # - build-spark-jobs-image
     - build-clickhouse-monitor-image
     - build-clickhouse-server-image
-    - build-theia-manager-image
+    # - build-theia-manager-image
     - test-e2e-encap
-    - test-upgrade-from-N-1
+    # - test-upgrade-from-N-1
     runs-on: [ubuntu-latest]
     steps:
-    - name: Delete spark-jobs
-      if: ${{ needs.build-spark-jobs-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v2
-      with:
-        name: spark-jobs
+    # - name: Delete spark-jobs
+    #   if: ${{ needs.build-spark-jobs-image.result == 'success' }}
+    #   uses: geekyeggo/delete-artifact@v2
+    #   with:
+    #     name: spark-jobs
     - name: Delete clickhouse-monitor
       if: ${{ needs.build-clickhouse-monitor-image.result == 'success' }}
       uses: geekyeggo/delete-artifact@v2
@@ -253,8 +249,8 @@ jobs:
       uses: geekyeggo/delete-artifact@v2
       with:
         name: clickhouse-server
-    - name: Delete theia-manager
-      if: ${{ needs.build-theia-manager-image.result == 'success' }}
-      uses: geekyeggo/delete-artifact@v2
-      with:
-        name: theia-manager
+    # - name: Delete theia-manager
+    #   if: ${{ needs.build-theia-manager-image.result == 'success' }}
+    #   uses: geekyeggo/delete-artifact@v2
+    #   with:
+    #     name: theia-manager

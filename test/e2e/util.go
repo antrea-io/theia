@@ -498,7 +498,7 @@ func TheiaManagerRestart(t *testing.T, data *TestData, jobName1 string, job stri
 	}
 
 	// Redeploy the Theia Manager
-	err = data.deployFlowVisibilityCommon(flowVisibilityWithSparkYML)
+	err = data.deployFlowVisibilityCommon(clickHouseOperatorYML, flowVisibilityWithSparkYML)
 	if err != nil {
 		return err
 	}

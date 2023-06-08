@@ -39,8 +39,8 @@ const (
 	ServicePortProtocal = "TCP"
 	// #nosec G101: false positive triggered by variable name which includes "secret"
 	SecretName = "clickhouse-secret"
-	// Ping to ClickHouse time out if it fails for 10 seconds.
-	pingTimeout = 10 * time.Second
+	// Ping to ClickHouse time out if it fails for 30 seconds.
+	pingTimeout = 30 * time.Second
 	// Retry ping to ClickHouse every second if it fails.
 	pingRetryInterval = 1 * time.Second
 )

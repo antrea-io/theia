@@ -182,6 +182,18 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 		failOnError(fmt.Errorf("error when creating perftest Services: %v", err), t, data)
 	}
 
+	// FlowAggregator takes up to 20s to set up the initial connection with
+	// ClickHouse DB. Most of the wait happens when looking up for ClickHouse
+	// on kube-dns. During the wait, FlowAggregator Pod is also likely to crash
+	// and restart once due to ping timeout. It usually does not introduce too
+	// much issue in real-life use cases, but will fail the e2e tests, as we
+	// start the iPerf traffic right away and we check whether ClickHouse
+	// receive every record. Here we add a workaround to wait 30s before
+	// starting sending iPerf traffic to avoid missing the first a few records.
+	// We should consider support a method to check the connection setup status
+	// later on, e.g. a new Antctl command.
+	time.Sleep(30 * time.Second)
+
 	// IntraNodeFlows tests the case, where Pods are deployed on same Node
 	// and their flow information is exported as IPFIX flow records.
 	// K8s network policies are being tested here.
@@ -664,9 +676,9 @@ func checkClickHouseMonitorLogs(t *testing.T, data *TestData, deleted bool, numR
 		assert.Greater(t, percentage, monitorThreshold)
 		// Monitor deletes records from table flows and related MVs
 		assert.Contains(t, logString, "ALTER TABLE default.flows_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from Table flows")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_pod_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_pod_view")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_node_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_node_view")
-		assert.Contains(t, logString, "ALTER TABLE default.flows_policy_view_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_policy_view")
+		assert.Contains(t, logString, "ALTER TABLE default.pod_view_table_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_pod_view")
+		assert.Contains(t, logString, "ALTER TABLE default.node_view_table_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_node_view")
+		assert.Contains(t, logString, "ALTER TABLE default.policy_view_table_local DELETE WHERE timeInserted < toDateTime", "Monitor should delete records from View flows_policy_view")
 		assert.Contains(t, logString, "Skip rounds after a successful deletion", "Monitor should skip rounds after a successful deletion")
 		require.Contains(t, logString, "[send query] SELECT timeInserted FROM default.flows_local LIMIT 1 OFFSET (", "Monitor should log the deletion SQL command")
 		deletedRecordLog := strings.Split(logString, "[send query] SELECT timeInserted FROM default.flows_local LIMIT 1 OFFSET (")[1]

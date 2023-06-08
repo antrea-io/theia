@@ -394,8 +394,8 @@ function deliver_antrea {
         ssh-keygen -f "/var/lib/jenkins/.ssh/known_hosts" -R ${IPs[$i]}
         copy_image antrea-ubuntu.tar docker.io/antrea/antrea-ubuntu ${IPs[$i]} latest true
         copy_image flow-aggregator.tar docker.io/antrea/flow-aggregator ${IPs[$i]} latest  true
-        copy_image theia-clickhouse-operator.tar projects.registry.vmware.com/antrea/theia-clickhouse-operator  ${IPs[$i]} $image_tag true
-        copy_image theia-metrics-exporter.tar projects.registry.vmware.com/antrea/theia-metrics-exporter  ${IPs[$i]} $image_tag true
+        copy_image clickhouse-operator.tar projects.registry.vmware.com/antrea/clickhouse-operator  ${IPs[$i]} $image_tag true
+        copy_image metrics-exporter.tar projects.registry.vmware.com/antrea/metrics-exporter  ${IPs[$i]} $image_tag true
         copy_image theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper  ${IPs[$i]} 3.8.0 true
         copy_image theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator ${IPs[$i]} v1beta2-1.3.3-3.1.1 true
         copy_image theia-spark-jobs.tar projects.registry.vmware.com/antrea/theia-spark-jobs ${IPs[$i]} latest true

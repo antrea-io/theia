@@ -26,7 +26,7 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.cluster.replicas | int | `1` | Number of ClickHouse replicas in each shard. |
 | clickhouse.cluster.shards | int | `1` | Number of ClickHouse shards in the cluster. |
 | clickhouse.cluster.zookeeperHosts | list | `[]` | To use a pre-installed ZooKeeper for ClickHouse data replication, please provide a list of your ZooKeeper hosts. To install a customized ZooKeeper, refer to <https://github.com/Altinity/clickhouse-operator/blob/master/docs/zookeeper_setup.md> |
-| clickhouse.connectionSecret | object | `{"password":"clickhouse_operator_password","username":"clickhouse_operator"}` | Credentials to connect to ClickHouse. They will be stored in a secret. |
+| clickhouse.connectionSecret | object | `{"password":"clickhouse_operator_password","readOnlyPassword":"readonly_password","readOnlyUsername":"readonly","username":"clickhouse_operator"}` | Credentials to connect to ClickHouse. They will be stored in a secret. |
 | clickhouse.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-server","tag":""}` | Container image used by ClickHouse. |
 | clickhouse.logger.count | int | `4` | The number of archived log files that ClickHouse stores. |
 | clickhouse.logger.level | string | `"information"` | Logging level. Acceptable values: trace, debug, information, warning, error. |

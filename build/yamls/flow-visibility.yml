@@ -6633,6 +6633,8 @@ metadata:
   namespace: flow-visibility
 stringData:
   password: clickhouse_operator_password
+  readOnlyPassword: readonly_password
+  readOnlyUsername: readonly
   username: clickhouse_operator
 type: Opaque
 ---
@@ -7148,6 +7150,8 @@ spec:
         replicasCount: 1
         shardsCount: 1
       name: clickhouse
+    profiles:
+      readonly/readonly: 1
     settings:
       logger/count: 4
       logger/level: information
@@ -7155,6 +7159,9 @@ spec:
     users:
       clickhouse_operator/k8s_secret_password: flow-visibility/clickhouse-secret/password
       clickhouse_operator/networks/ip: ::/0
+      readonly/k8s_secret_password: flow-visibility/clickhouse-secret/readOnlyPassword
+      readonly/networks/ip: ::/0
+      readonly/profile: readonly
     zookeeper:
       nodes:
       - host: zookeeper.flow-visibility

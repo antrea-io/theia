@@ -11,6 +11,11 @@ spec:
     users:
       {{ .Values.clickhouse.connectionSecret.username }}/k8s_secret_password: {{ .Release.Namespace }}/clickhouse-secret/password
       {{ .Values.clickhouse.connectionSecret.username }}/networks/ip: "::/0"
+      {{ .Values.clickhouse.connectionSecret.readOnlyUsername }}/k8s_secret_password: {{ .Release.Namespace }}/clickhouse-secret/readOnlyPassword
+      {{ .Values.clickhouse.connectionSecret.readOnlyUsername }}/profile: readonly
+      {{ .Values.clickhouse.connectionSecret.readOnlyUsername }}/networks/ip: "::/0"
+    profiles:
+      readonly/readonly: 1
     clusters:
       - name: "clickhouse"
         layout:

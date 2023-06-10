@@ -35,8 +35,10 @@ clickhouse:
       tag: ""
   # -- Credentials to connect to ClickHouse. They will be stored in a secret.
   connectionSecret:
-    username : "clickhouse_operator"
+    username: "clickhouse_operator"
     password: "clickhouse_operator_password"
+    readOnlyUsername: "readonly"
+    readOnlyPassword: "readonly_password"
   service:
     # -- The type of Service exposing ClickHouse. It can be one of ClusterIP,
     # NodePort or LoadBalancer.

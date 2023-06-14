@@ -1322,7 +1322,7 @@
   dependencies:
     tslib "2.4.0"
 
-"@grafana/data@9.5.2", "@grafana/data@latest":
+"@grafana/data@9.5.2":
   version "9.5.2"
   resolved "https://registry.yarnpkg.com/@grafana/data/-/data-9.5.2.tgz#983042208a61c3a321499da7837fdd2ecbe7a04c"
   integrity sha512-L5lXzwPfG1Zu04slMLVqwETykYoWfJFqB7HqeqHWRtUD4YW7NlsyNXnSI7/d0GnbPGNWjejWFxjss3jq4Beq5Q==
@@ -1345,6 +1345,36 @@
     react-use "17.4.0"
     regenerator-runtime "0.13.11"
     rxjs "7.8.0"
+    tinycolor2 "1.6.0"
+    tslib "2.5.0"
+    uplot "1.6.24"
+    xss "^1.0.14"
+
+"@grafana/data@latest":
+  version "10.0.0"
+  resolved "https://registry.yarnpkg.com/@grafana/data/-/data-10.0.0.tgz#a3941ac3fa4c37441640c34287218d3df51e12ab"
+  integrity sha512-5aLehUxKv5DxdyExrn6EWcStUY+/MvGHF4Y88svHId/xW/5U4dBedMxIEnWpvftJTosuF+nIC2E1RzjWtZXcXg==
+  dependencies:
+    "@braintree/sanitize-url" "6.0.2"
+    "@grafana/schema" "10.0.0"
+    "@types/d3-interpolate" "^3.0.0"
+    "@types/string-hash" "1.1.1"
+    d3-interpolate "3.0.1"
+    date-fns "2.29.3"
+    dompurify "^2.4.3"
+    eventemitter3 "5.0.0"
+    fast_array_intersect "1.1.0"
+    history "4.10.1"
+    lodash "4.17.21"
+    marked "4.2.12"
+    moment "2.29.4"
+    moment-timezone "0.5.41"
+    ol "7.2.2"
+    papaparse "5.3.2"
+    react-use "17.4.0"
+    regenerator-runtime "0.13.11"
+    rxjs "7.8.0"
+    string-hash "^1.1.3"
     tinycolor2 "1.6.0"
     tslib "2.5.0"
     uplot "1.6.24"
@@ -1390,6 +1420,13 @@
     "@grafana/faro-core" "^1.0.2"
     ua-parser-js "^1.0.32"
     web-vitals "^3.1.1"
+
+"@grafana/schema@10.0.0":
+  version "10.0.0"
+  resolved "https://registry.yarnpkg.com/@grafana/schema/-/schema-10.0.0.tgz#7fa31199daa7fee9cde2739e155165c0b840ae61"
+  integrity sha512-P0sNxUez2UmUdiA52+NOdLCWzsDfbU4Kw2xg9WbBa54+ApzRDl9w/EYeR9cp0Z0mLORF0Pxr6dm0AgfoeUyyAg==
+  dependencies:
+    tslib "2.5.0"
 
 "@grafana/schema@9.5.2":
   version "9.5.2"
@@ -2810,6 +2847,11 @@
   version "2.0.1"
   resolved "https://registry.npmjs.org/@types/stack-utils/-/stack-utils-2.0.1.tgz"
   integrity sha512-Hl219/BT5fLAaz6NDkSuhzasy49dwQS/DSdu4MdggFB8zcXv7vflBI3xp7FEmkmdDkBUI2bPUNeMttp2knYdxw==
+
+"@types/string-hash@1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@types/string-hash/-/string-hash-1.1.1.tgz#4c336e61d1e13ce2d3efaaa5910005fd080e106b"
+  integrity sha512-ijt3zdHi2DmZxQpQTmozXszzDo78V4R3EdvX0jFMfnMH2ZzQSmCbaWOMPGXFUYSzSIdStv78HDjg32m5dxc+tA==
 
 "@types/tapable@^1":
   version "1.0.8"
@@ -9465,6 +9507,11 @@ state-local@^1.0.6:
   version "1.0.7"
   resolved "https://registry.npmjs.org/state-local/-/state-local-1.0.7.tgz"
   integrity sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==
+
+string-hash@^1.1.3:
+  version "1.1.3"
+  resolved "https://registry.yarnpkg.com/string-hash/-/string-hash-1.1.3.tgz#e8aafc0ac1855b4666929ed7dd1275df5d6c811b"
+  integrity sha512-kJUvRUFK49aub+a7T1nNE66EJbZBMnBgoC1UbCZ5n6bsZKBRga4KgBRTMn/pFkeCZSYtNeSyMxPDM0AXWELk2A==
 
 string-length@^4.0.1:
   version "4.0.2"

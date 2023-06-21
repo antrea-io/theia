@@ -129,3 +129,13 @@ INSERT INTO policy_view_table_local SELECT * FROM ".inner.flows_policy_view_loca
 DROP VIEW flows_pod_view_local;
 DROP VIEW flows_node_view_local;
 DROP VIEW flows_policy_view_local;
+
+--Alter table to add new columns
+ALTER TABLE flows
+ADD COLUMN egressName String;
+ALTER TABLE flows
+ADD COLUMN egressIP String;
+ALTER TABLE flows_local
+ADD COLUMN egressName String;
+ALTER TABLE flows_local
+ADD COLUMN egressIP String;

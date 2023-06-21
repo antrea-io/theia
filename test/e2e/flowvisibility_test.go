@@ -95,6 +95,8 @@ throughputFromDestinationNode: 15902813472
 reverseThroughputFromSourceNode: 12381344
 reverseThroughputFromDestinationNode: 12381344
 clusterUUID: 7e2e1de2-c85f-476e-ab1a-fce1bf83ee2c
+egressName: test-egressbkclk
+egressIP: 172.18.0.2
 trusted: 0
 */
 
@@ -1272,6 +1274,8 @@ type ClickHouseFullRow struct {
 	ReverseThroughputFromSourceNode      uint64    `json:"reverseThroughputFromSourceNode,string"`
 	ReverseThroughputFromDestinationNode uint64    `json:"reverseThroughputFromDestinationNode,string"`
 	ClusterUUID                          string    `json:"clusterUUID"`
+	EgressName                           string    `json:"egressName"`
+	EgressIP                             string    `json:"egressIP"`
 	Trusted                              uint8     `json:"trusted"`
 }
 

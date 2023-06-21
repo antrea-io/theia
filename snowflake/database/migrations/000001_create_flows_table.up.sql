@@ -47,5 +47,7 @@ CREATE TABLE flows (
   reverseThroughputFromSourceNode NUMBER(20, 0),
   reverseThroughputFromDestinationNode NUMBER(20, 0),
   clusterUUID STRING(36),
-  timeInserted TIMESTAMP_TZ DEFAULT current_timestamp()
+  timeInserted TIMESTAMP_TZ DEFAULT current_timestamp(),
+  egressName STRING(256),
+  egressIP STRING(50)
 ) IF NOT EXISTS

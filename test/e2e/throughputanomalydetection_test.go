@@ -374,6 +374,8 @@ func addFakeRecordforTAD(t *testing.T, stmt *sql.Stmt) {
 			uint64(randInt(t, MaxInt32)),
 			uint64(randInt(t, MaxInt32)),
 			"",
+			"",
+			"",
 		)
 		require.NoError(t, err)
 	}

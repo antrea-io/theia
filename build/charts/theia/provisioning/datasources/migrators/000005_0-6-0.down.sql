@@ -190,3 +190,11 @@ INSERT INTO ".inner.flows_policy_view_local" SELECT * FROM policy_view_table_loc
 DROP TABLE pod_view_table_local;
 DROP TABLE node_view_table_local;
 DROP TABLE policy_view_table_local;
+
+--Alter table to drop new columns
+ALTER TABLE flows
+    DROP COLUMN egressName,
+    DROP COLUMN egressIP;
+ALTER TABLE flows_local
+    DROP COLUMN egressName,
+    DROP COLUMN egressIP;

@@ -581,6 +581,14 @@ data:
     DROP TABLE pod_view_table_local;
     DROP TABLE node_view_table_local;
     DROP TABLE policy_view_table_local;
+
+    --Alter table to drop new columns
+    ALTER TABLE flows
+        DROP COLUMN egressName,
+        DROP COLUMN egressIP;
+    ALTER TABLE flows_local
+        DROP COLUMN egressName,
+        DROP COLUMN egressIP;
   000005_0-6-0.up.sql: |
     -- Create underlying tables for Materialized Views to attach data
     CREATE TABLE IF NOT EXISTS pod_view_table_local (
@@ -713,6 +721,14 @@ data:
     DROP VIEW flows_pod_view_local;
     DROP VIEW flows_node_view_local;
     DROP VIEW flows_policy_view_local;
+
+    --Alter table to add new columns
+    ALTER TABLE flows
+        ADD COLUMN egressName String,
+        ADD COLUMN egressIP String;
+    ALTER TABLE flows_local
+        ADD COLUMN egressName String,
+        ADD COLUMN egressIP String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -785,6 +801,8 @@ data:
             reverseThroughputFromSourceNode UInt64,
             reverseThroughputFromDestinationNode UInt64,
             clusterUUID String,
+            egressName String,
+            egressIP String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds);

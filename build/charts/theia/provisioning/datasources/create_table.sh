@@ -78,6 +78,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         reverseThroughputFromSourceNode UInt64,
         reverseThroughputFromDestinationNode UInt64,
         clusterUUID String,
+        egressName String,
+        egressIP String,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeInserted, flowEndSeconds);

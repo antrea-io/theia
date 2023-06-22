@@ -132,10 +132,8 @@ DROP VIEW flows_policy_view_local;
 
 --Alter table to add new columns
 ALTER TABLE flows
-ADD COLUMN egressName String;
-ALTER TABLE flows
-ADD COLUMN egressIP String;
+    ADD COLUMN egressName String,
+    ADD COLUMN egressIP String;
 ALTER TABLE flows_local
-ADD COLUMN egressName String;
-ALTER TABLE flows_local
-ADD COLUMN egressIP String;
+    ADD COLUMN egressName String,
+    ADD COLUMN egressIP String;

@@ -193,10 +193,8 @@ DROP TABLE policy_view_table_local;
 
 --Alter table to drop new columns
 ALTER TABLE flows
-DROP egressName String;
-ALTER TABLE flows
-DROP egressIP String;
+    DROP COLUMN egressName,
+    DROP COLUMN egressIP;
 ALTER TABLE flows_local
-DROP egressName String;
-ALTER TABLE flows_local
-DROP egressIP String;
+    DROP COLUMN egressName,
+    DROP COLUMN egressIP;

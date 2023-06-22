@@ -584,13 +584,11 @@ data:
 
     --Alter table to drop new columns
     ALTER TABLE flows
-    DROP egressName String;
-    ALTER TABLE flows
-    DROP egressIP String;
+        DROP COLUMN egressName,
+        DROP COLUMN egressIP;
     ALTER TABLE flows_local
-    DROP egressName String;
-    ALTER TABLE flows_local
-    DROP egressIP String;
+        DROP COLUMN egressName,
+        DROP COLUMN egressIP;
   000005_0-6-0.up.sql: |
     -- Create underlying tables for Materialized Views to attach data
     CREATE TABLE IF NOT EXISTS pod_view_table_local (
@@ -726,13 +724,11 @@ data:
 
     --Alter table to add new columns
     ALTER TABLE flows
-    ADD COLUMN egressName String;
-    ALTER TABLE flows
-    ADD COLUMN egressIP String;
+        ADD COLUMN egressName String,
+        ADD COLUMN egressIP String;
     ALTER TABLE flows_local
-    ADD COLUMN egressName String;
-    ALTER TABLE flows_local
-    ADD COLUMN egressIP String;
+        ADD COLUMN egressName String,
+        ADD COLUMN egressIP String;
   create_table.sh: |
     #!/usr/bin/env bash
 

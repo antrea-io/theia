@@ -5,6 +5,8 @@
 <!-- toc -->
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
+  - [Configuration](#configuration)
+    - [Configuration pre Antrea v1.13](#configuration-pre-antrea-v113)
 - [Theia Installation](#theia-installation)
 - [Features](#features)
   - [Network Flow Visualization and Monitoring](#network-flow-visualization-and-monitoring)
@@ -31,8 +33,47 @@ Theia.
 Theia requires that Antrea v1.7.0 or later is installed in the Kubernetes
 cluster.
 
-For Antrea v1.7, please ensure the Flow Exporter feature of Antrea
-Agent is enabled in the Antrea deployment manifest:
+### Configuration
+
+Please ensure the Flow Exporter feature of Antrea Agent is enabled in the
+Antrea deployment manifest. You need to set both `featureGates.FlowExport`
+flag and `flowExporter.enable` flag to true.
+
+The `antrea-agent` ConfigMap should look like this:
+
+```yaml
+  antrea-agent.conf: |
+    ...
+    featureGates:
+      ...
+      FlowExporter: true
+    flowExporter:
+      ...
+      enable: true
+```
+
+You can also deploy Antrea through Helm by running the following
+commands.
+
+```bash
+helm repo add antrea https://charts.antrea.io
+helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true --set flowExporter.enable=true
+```
+
+This will install the latest available version of Antrea with the Flow Exporter
+feature enabled. You can also install a specific version of Antrea (>= v1.8.0)
+with `--version <TAG>`.
+
+#### Configuration pre Antrea v1.13
+
+Prior to the Antrea v1.13 release, the `flowExporter` option group in the
+Antrea Agent configuration did not exist. To enable the Flow Exporter feature,
+one simply needed to enable the feature gate, and the Flow Exporter related
+configuration could be configured using the (now deprecated)
+`flowCollectorAddr`, `flowPollInterval`, `activeFlowExportTimeout`,
+`idleFlowExportTimeout` parameters.
+
+The `antrea-agent` ConfigMap should look like this:
 
 ```yaml
   antrea-agent.conf: |
@@ -42,17 +83,13 @@ Agent is enabled in the Antrea deployment manifest:
       FlowExporter: true
 ```
 
-From Antrea v1.8, you can deploy Antrea through Helm by running the following
+When deploying Antrea (v1.8 - v1.12) through Helm, you can run the following
 commands:
 
 ```bash
 helm repo add antrea https://charts.antrea.io
-helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true
+helm install antrea antrea/antrea -n kube-system --set featureGates.FlowExporter=true --version <TAG>
 ```
-
-This will install the latest available version of Antrea with the Flow Exporter
-feature enabled. You can also install a specific version of Antrea (>= v1.8.0)
-with `--version <TAG>`.
 
 For more information about Antrea Helm chart, please refer to
 [Antrea Helm chart installation instructions](https://github.com/antrea-io/antrea/blob/main/docs/helm.md).

@@ -313,7 +313,7 @@ function deliver_antrea {
     antrea_yml="antrea.yml"
     # Enable verbose log for troubleshooting.
     sed -i "s/--v=0/--v=4/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
-    perl -i -p0e 's/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: false/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: true/' $TMP_DIR/antrea.yml
+    perl -i -p0e 's/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: false/      # feature, you need to set "enable" to true, and ensure that the FlowExporter\n      # feature gate is also enabled.\n      enable: true/' $GIT_CHECKOUT_DIR/build/yamls/antrea.yml
     sed -i -e "s/flowPollInterval: \"5s\"/flowPollInterval: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
     sed -i -e "s/activeFlowExportTimeout: \"5s\"/activeFlowExportTimeout: \"2s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml
     sed -i -e "s/idleFlowExportTimeout: \"15s\"/idleFlowExportTimeout: \"1s\"/g" $GIT_CHECKOUT_DIR/build/yamls/$antrea_yml

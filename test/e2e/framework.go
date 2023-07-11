@@ -736,7 +736,7 @@ func (data *TestData) PodWaitFor(timeout time.Duration, name, namespace string, 
 	})
 	if err != nil {
 		if err == wait.ErrWaitTimeout && pod != nil {
-			return nil, fmt.Errorf("timed out waiting for the condition, Pod.Status: %s", pod.Status.String())
+			return nil, fmt.Errorf("timed out waiting for the condition, Pod name:%s, Pod.Status: %s", name, pod.Status.String())
 		}
 		return nil, err
 	}

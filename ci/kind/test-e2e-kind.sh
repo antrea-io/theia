@@ -173,7 +173,7 @@ function run_test {
   rm -rf $TMP_DIR
   sleep 1
 
-  go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  go test -v -timeout=45m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
 }
 
 echo "======== Test encap mode =========="

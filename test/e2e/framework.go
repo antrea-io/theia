@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -163,6 +164,7 @@ const (
 var (
 	errConnectionLost = fmt.Errorf("http2: client connection lost")
 	clickHousePodName = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
+	mutex             sync.Mutex
 )
 
 type FlowVisibilitySetUpConfig struct {

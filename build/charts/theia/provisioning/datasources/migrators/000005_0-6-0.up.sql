@@ -137,3 +137,17 @@ ALTER TABLE flows
 ALTER TABLE flows_local
     ADD COLUMN egressName String,
     ADD COLUMN egressIP String;
+ALTER TABLE tadetector
+    ADD COLUMN podNamespace String,
+    ADD COLUMN podLabels String,
+    ADD COLUMN destinationServicePortName String,
+    ADD COLUMN aggType String,
+    ADD COLUMN direction String,
+    ADD COLUMN podName String;
+ALTER TABLE tadetector_local
+    ADD COLUMN podNamespace String,
+    ADD COLUMN podLabels String,
+    ADD COLUMN destinationServicePortName String,
+    ADD COLUMN aggType String,
+    ADD COLUMN direction String,
+    ADD COLUMN podName String;

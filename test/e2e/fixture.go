@@ -288,7 +288,14 @@ func setupTestForFlowVisibility(tb testing.TB, config FlowVisibiltiySetUpConfig)
 	if err != nil {
 		return testData, v4Enabled, v6Enabled, err
 	}
-
+	_, _, _, err = testData.provider.RunCommandOnNode(controlPlaneNodeName(), "kubectl taint nodes --all node-role.kubernetes.io/master:NoSchedule-")
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+	}
+	_, _, _, err = testData.provider.RunCommandOnNode(controlPlaneNodeName(), "kubectl taint nodes --all node.cluster.x-k8s.io/uninitialized-")
+	if err != nil {
+		fmt.Printf("Error: %v", err)
+	}
 	tb.Logf("Applying flow visibility YAML")
 	chSvcIP, err := testData.deployFlowVisibility(config)
 	if err != nil {

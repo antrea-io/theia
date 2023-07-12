@@ -198,3 +198,17 @@ ALTER TABLE flows
 ALTER TABLE flows_local
     DROP COLUMN egressName,
     DROP COLUMN egressIP;
+ALTER TABLE tadetector
+    DROP COLUMN podNamespace,
+    DROP COLUMN podLabels,
+    DROP COLUMN destinationServicePortName,
+    DROP COLUMN aggType,
+    DROP COLUMN direction,
+    DROP COLUMN podName;
+ALTER TABLE tadetector_local
+    DROP COLUMN podNamespace,
+    DROP COLUMN podLabels,
+    DROP COLUMN destinationServicePortName,
+    DROP COLUMN aggType,
+    DROP COLUMN direction,
+    DROP COLUMN podName;

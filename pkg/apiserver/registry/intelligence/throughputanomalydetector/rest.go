@@ -34,6 +34,10 @@ import (
 const (
 	defaultNameSpace     = "flow-visibility"
 	tadQuery         int = iota
+	aggTadExternalQuery
+	aggTadPodLabelQuery
+	aggTadPodNameQuery
+	aggTadSvcQuery
 )
 
 // REST implements rest.Storage for anomalydetector.
@@ -54,7 +58,7 @@ var (
 
 var queryMap = map[int]string{
 	tadQuery: `
-	SELECT 
+	SELECT
 		id,
 		sourceIP,
 		sourceTransportPort,
@@ -63,6 +67,56 @@ var queryMap = map[int]string{
 		flowStartSeconds,
 		flowEndSeconds,
 		throughput,
+		aggType,
+		algoType,
+		algoCalc,
+		anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggTadExternalQuery: `
+	SELECT
+		id,
+		destinationIP,
+		flowEndSeconds,
+		throughput,
+		aggType,
+		algoType,
+		algoCalc,
+		anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggTadPodLabelQuery: `
+	SELECT
+		id,
+		podNamespace,
+		podLabels,
+		direction,
+		flowEndSeconds,
+		throughput,
+		aggType,
+		algoType,
+		algoCalc,
+		anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggTadPodNameQuery: `
+	SELECT
+		id,
+		podNamespace,
+		podName,
+		direction,
+		flowEndSeconds,
+		throughput,
+		aggType,
+		algoType,
+		algoCalc,
+		anomaly
+	FROM tadetector WHERE id = (?);`,
+	aggTadSvcQuery: `
+	SELECT
+		id,
+		destinationServicePortName,
+		flowEndSeconds,
+		throughput,
+		aggType,
+		algoType,
 		algoCalc,
 		anomaly
 	FROM tadetector WHERE id = (?);`,
@@ -102,6 +156,12 @@ func (r *REST) copyThroughputAnomalyDetector(tad *v1alpha1.ThroughputAnomalyDete
 	tad.EndInterval = crd.Spec.EndInterval
 	tad.ExecutorInstances = crd.Spec.ExecutorInstances
 	tad.NSIgnoreList = crd.Spec.NSIgnoreList
+	tad.AggregatedFlow = crd.Spec.AggregatedFlow
+	tad.PodLabel = crd.Spec.PodLabel
+	tad.PodName = crd.Spec.PodName
+	tad.PodNameSpace = crd.Spec.PodNameSpace
+	tad.ExternalIP = crd.Spec.ExternalIP
+	tad.ServicePortName = crd.Spec.ServicePortName
 	tad.DriverCoreRequest = crd.Spec.DriverCoreRequest
 	tad.DriverMemory = crd.Spec.DriverMemory
 	tad.ExecutorCoreRequest = crd.Spec.ExecutorCoreRequest
@@ -170,6 +230,12 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 	job.Spec.DriverMemory = newTAD.DriverMemory
 	job.Spec.ExecutorCoreRequest = newTAD.ExecutorCoreRequest
 	job.Spec.ExecutorMemory = newTAD.ExecutorMemory
+	job.Spec.AggregatedFlow = newTAD.AggregatedFlow
+	job.Spec.PodLabel = newTAD.PodLabel
+	job.Spec.PodName = newTAD.PodName
+	job.Spec.PodNameSpace = newTAD.PodNameSpace
+	job.Spec.ExternalIP = newTAD.ExternalIP
+	job.Spec.ServicePortName = newTAD.ServicePortName
 	_, err := r.ThroughputAnomalyDetectorQuerier.CreateThroughputAnomalyDetector(defaultNameSpace, job)
 	if err != nil {
 		return nil, errors.NewBadRequest(fmt.Sprintf("error when creating ThroughputAnomalyDetection job: %+v, err: %v", job, err))
@@ -179,24 +245,68 @@ func (r *REST) Create(ctx context.Context, obj runtime.Object, createValidation 
 
 func (r *REST) getTADetectorResult(id string, tad *v1alpha1.ThroughputAnomalyDetector) error {
 	var err error
+	query := tadQuery
+	switch tad.AggregatedFlow {
+	case "external":
+		query = aggTadExternalQuery
+	case "pod":
+		if tad.PodName != "" {
+			query = aggTadPodNameQuery
+		} else {
+			query = aggTadPodLabelQuery
+		}
+	case "svc":
+		query = aggTadSvcQuery
+	}
 	if r.clickhouseConnect == nil {
 		r.clickhouseConnect, err = setupClickHouseConnection(nil)
 		if err != nil {
 			return err
 		}
 	}
-	rows, err := r.clickhouseConnect.Query(queryMap[tadQuery], id)
+	rows, err := r.clickhouseConnect.Query(queryMap[query], id)
 	if err != nil {
 		return fmt.Errorf("failed to get Throughput Anomaly Detector results with id %s: %v", id, err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		res := v1alpha1.ThroughputAnomalyDetectorStats{}
-		err := rows.Scan(&res.Id, &res.SourceIP, &res.SourceTransportPort, &res.DestinationIP, &res.DestinationTransportPort, &res.FlowStartSeconds, &res.FlowEndSeconds, &res.Throughput, &res.AlgoCalc, &res.Anomaly)
-		if err != nil {
-			return fmt.Errorf("failed to scan Throughput Anomaly Detector results: %v", err)
+		switch query {
+		case tadQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.SourceIP, &res.SourceTransportPort, &res.DestinationIP, &res.DestinationTransportPort, &res.FlowStartSeconds, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggTadExternalQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.DestinationIP, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector External IP Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggTadPodLabelQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.PodNamespace, &res.PodLabels, &res.Direction, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector Pod Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggTadPodNameQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.PodNamespace, &res.PodName, &res.Direction, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector Pod Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
+		case aggTadSvcQuery:
+			res := v1alpha1.ThroughputAnomalyDetectorStats{}
+			err := rows.Scan(&res.Id, &res.DestinationServicePortName, &res.FlowEndSeconds, &res.Throughput, &res.AggType, &res.AlgoType, &res.AlgoCalc, &res.Anomaly)
+			if err != nil {
+				return fmt.Errorf("failed to scan Throughput Anomaly Detector Service Aggregate results: %v", err)
+			}
+			tad.Stats = append(tad.Stats, res)
 		}
-		tad.Stats = append(tad.Stats, res)
 	}
 	return nil
 }

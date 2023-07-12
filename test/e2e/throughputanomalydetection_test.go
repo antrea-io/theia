@@ -211,14 +211,14 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 			if resultArray[i] != "" {
 				resultArray[i] = strings.ReplaceAll(resultArray[i], "\t", " ")
 				tadoutputArray := strings.Fields(resultArray[i])
-				anomaly_output := tadoutputArray[9]
-				assert.Equal(10, len(tadoutputArray), "tadoutputArray: %s", tadoutputArray)
+				anomaly_output := tadoutputArray[11]
+				assert.Equal(12, len(tadoutputArray), "tadoutputArray: %s", tadoutputArray)
 				switch algo {
 				case "ARIMA":
-					algo_throughput := tadoutputArray[8][:5]
+					algo_throughput := tadoutputArray[10][:5]
 					assert.Equal(result_map["ARIMA"][algo_throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
 				case "EWMA":
-					algo_throughput := tadoutputArray[8][:5]
+					algo_throughput := tadoutputArray[10][:5]
 					assert.Equal(result_map["EWMA"][algo_throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
 				case "DBSCAN":
 					throughput := tadoutputArray[7][:5]

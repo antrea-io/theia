@@ -45,7 +45,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 		filePath         string
 	}{
 		{
-			name: "Valid case",
+			name: "Valid case e2e",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
@@ -57,6 +57,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 							Id:       tadName,
 							Anomaly:  "true",
 							AlgoCalc: "1234567",
+							AggType:  "e2e",
 						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
@@ -64,8 +65,110 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 					json.NewEncoder(w).Encode(tad)
 				}
 			})),
-			tadName:          tadName,
-			expectedMsg:      []string{"1234567\t\ttrue"},
+			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			expectedMsg:      []string{"id                                       sourceIP       sourceTransportPort destinationIP  destinationTransportPort flowStartSeconds flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "e2e                           1234567        true"},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "Valid case agg_type: external",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+					tad := &anomalydetector.ThroughputAnomalyDetector{
+						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+							State: "COMPLETED",
+						},
+						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
+							Id:       "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Anomaly:  "true",
+							AlgoCalc: "1234567",
+							AggType:  "external",
+						}},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(tad)
+				}
+			})),
+			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			expectedMsg:      []string{"id                                       destinationIP  flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "external                      1234567        true"},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "Valid case agg_type: pod podlabels",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+					tad := &anomalydetector.ThroughputAnomalyDetector{
+						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+							State: "COMPLETED",
+						},
+						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
+							Id:        "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Anomaly:   "true",
+							AlgoCalc:  "1234567",
+							AggType:   "pod",
+							PodLabels: "testlabels",
+						}},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(tad)
+				}
+			})),
+			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			expectedMsg:      []string{"id                                       podNamespace   podLabels      direction      flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "pod                           1234567        true"},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "Valid case agg_type: pod podname",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+					tad := &anomalydetector.ThroughputAnomalyDetector{
+						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+							State: "COMPLETED",
+						},
+						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
+							Id:       "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Anomaly:  "true",
+							AlgoCalc: "1234567",
+							AggType:  "pod",
+							PodName:  "testpodname",
+						}},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(tad)
+				}
+			})),
+			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			expectedMsg:      []string{"id                                       podNamespace   podName        direction      flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "pod                           1234567        true"},
+			expectedErrorMsg: "",
+		},
+		{
+			name: "Valid case agg_type: svc",
+			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch strings.TrimSpace(r.URL.Path) {
+				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
+					tad := &anomalydetector.ThroughputAnomalyDetector{
+						Status: anomalydetector.ThroughputAnomalyDetectorStatus{
+							State: "COMPLETED",
+						},
+						Stats: []anomalydetector.ThroughputAnomalyDetectorStats{{
+							Id:       "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+							Anomaly:  "true",
+							AlgoCalc: "1234567",
+							AggType:  "svc",
+						}},
+					}
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(tad)
+				}
+			})),
+			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
+			expectedMsg:      []string{"id                                       destinationServicePortName flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "svc                           1234567        true"},
 			expectedErrorMsg: "",
 		},
 		{

@@ -589,6 +589,20 @@ data:
     ALTER TABLE flows_local
         DROP COLUMN egressName,
         DROP COLUMN egressIP;
+    ALTER TABLE tadetector
+        DROP COLUMN podNamespace,
+        DROP COLUMN podLabels,
+        DROP COLUMN destinationServicePortName,
+        DROP COLUMN aggType,
+        DROP COLUMN direction,
+        DROP COLUMN podName;
+    ALTER TABLE tadetector_local
+        DROP COLUMN podNamespace,
+        DROP COLUMN podLabels,
+        DROP COLUMN destinationServicePortName,
+        DROP COLUMN aggType,
+        DROP COLUMN direction,
+        DROP COLUMN podName;
   000005_0-6-0.up.sql: |
     -- Create underlying tables for Materialized Views to attach data
     CREATE TABLE IF NOT EXISTS pod_view_table_local (
@@ -729,6 +743,20 @@ data:
     ALTER TABLE flows_local
         ADD COLUMN egressName String,
         ADD COLUMN egressIP String;
+    ALTER TABLE tadetector
+        ADD COLUMN podNamespace String,
+        ADD COLUMN podLabels String,
+        ADD COLUMN destinationServicePortName String,
+        ADD COLUMN aggType String,
+        ADD COLUMN direction String,
+        ADD COLUMN podName String;
+    ALTER TABLE tadetector_local
+        ADD COLUMN podNamespace String,
+        ADD COLUMN podLabels String,
+        ADD COLUMN destinationServicePortName String,
+        ADD COLUMN aggType String,
+        ADD COLUMN direction String,
+        ADD COLUMN podName String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -1090,8 +1118,14 @@ data:
             destinationTransportPort UInt16,
             protocolIdentifier UInt16,
             flowStartSeconds DateTime,
+            podNamespace String,
+            podLabels String,
+            podName String,
+            destinationServicePortName String,
+            direction String,
             flowEndSeconds DateTime,
             throughputStandardDeviation Float64,
+            aggType String,
             algoType String,
             algoCalc Float64,
             throughput Float64,

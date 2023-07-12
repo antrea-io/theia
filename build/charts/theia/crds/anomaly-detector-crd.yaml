@@ -33,6 +33,18 @@ spec:
                   type: array
                   items:
                     type: string
+                aggFlow:
+                  type: string
+                podLabel:
+                  type: string
+                externalIp:
+                  type: string
+                podName:
+                  type: string
+                podNameSpace:
+                  type: string
+                servicePortName:
+                  type: string
                 executorInstances:
                   type: integer
                 driverCoreRequest:

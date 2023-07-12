@@ -98,6 +98,12 @@ type ThroughputAnomalyDetectorSpec struct {
 	StartInterval       metav1.Time `json:"startInterval,omitempty"`
 	EndInterval         metav1.Time `json:"endInterval,omitempty"`
 	NSIgnoreList        []string    `json:"nsIgnoreList,omitempty"`
+	AggregatedFlow      string      `json:"aggFlow,omitempty"`
+	PodLabel            string      `json:"podLabel,omitempty"`
+	PodName             string      `json:"podName,omitempty"`
+	PodNameSpace        string      `json:"podNameSpace,omitempty"`
+	ExternalIP          string      `json:"externalIp,omitempty"`
+	ServicePortName     string      `json:"servicePortName,omitempty"`
 	ExecutorInstances   int         `json:"executorInstances,omitempty"`
 	DriverCoreRequest   string      `json:"driverCoreRequest,omitempty"`
 	DriverMemory        string      `json:"driverMemory,omitempty"`

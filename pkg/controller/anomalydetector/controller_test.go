@@ -72,7 +72,7 @@ func newFakeController(t *testing.T) (*fakeController, *sql.DB) {
 	tadController := NewAnomalyDetectorController(crdClient, kubeClient, taDetectorInformer)
 
 	mock.ExpectQuery("SELECT DISTINCT id FROM tadetector;").WillReturnRows(sqlmock.NewRows([]string{}))
-	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[3:]).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("ALTER TABLE tadetector_local ON CLUSTER '{cluster}' DELETE WHERE id = (?);").WithArgs(tadName[4:]).WillReturnResult(sqlmock.NewResult(0, 1))
 	return &fakeController{
 		tadController,
 		crdClient,
@@ -227,68 +227,100 @@ func TestTADetection(t *testing.T) {
 
 	go tadController.Run(stopCh)
 
-	t.Run("NormalAnomalyDetector", func(t *testing.T) {
-		tad := &crdv1alpha1.ThroughputAnomalyDetector{
-			ObjectMeta: metav1.ObjectMeta{Name: tadName, Namespace: testNamespace},
-			Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
-				JobType:             "ARIMA",
-				ExecutorInstances:   1,
-				DriverCoreRequest:   "200m",
-				DriverMemory:        "512M",
-				ExecutorCoreRequest: "200m",
-				ExecutorMemory:      "512M",
-				StartInterval:       metav1.NewTime(time.Now()),
-				EndInterval:         metav1.NewTime(time.Now().Add(time.Second * 100)),
-				NSIgnoreList:        []string{"kube-system", "flow-visibility"},
+	tadtestCases := []struct {
+		name string
+		tad  *crdv1alpha1.ThroughputAnomalyDetector
+	}{
+		{
+			name: "NormalAnomalyDetector agg_type external",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: tadName, Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:             "ARIMA",
+					ExecutorInstances:   1,
+					DriverCoreRequest:   "200m",
+					DriverMemory:        "512M",
+					ExecutorCoreRequest: "200m",
+					ExecutorMemory:      "512M",
+					StartInterval:       metav1.NewTime(time.Now()),
+					EndInterval:         metav1.NewTime(time.Now().Add(time.Second * 100)),
+					NSIgnoreList:        []string{"kube-system", "flow-visibility"},
+					AggregatedFlow:      "external",
+					ExternalIP:          "10.0.0.1",
+				},
+				Status: crdv1alpha1.ThroughputAnomalyDetectorStatus{},
 			},
-			Status: crdv1alpha1.ThroughputAnomalyDetectorStatus{},
-		}
+		},
+		{
+			name: "NormalAnomalyDetector agg_type svc",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: tadName, Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:             "ARIMA",
+					ExecutorInstances:   1,
+					DriverCoreRequest:   "200m",
+					DriverMemory:        "512M",
+					ExecutorCoreRequest: "200m",
+					ExecutorMemory:      "512M",
+					StartInterval:       metav1.NewTime(time.Now()),
+					EndInterval:         metav1.NewTime(time.Now().Add(time.Second * 100)),
+					NSIgnoreList:        []string{"kube-system", "flow-visibility"},
+					AggregatedFlow:      "svc",
+					ServicePortName:     "TestServicePortName",
+				},
+				Status: crdv1alpha1.ThroughputAnomalyDetectorStatus{},
+			},
+		},
+	}
+	for _, tt := range tadtestCases {
+		t.Run(tt.name, func(t *testing.T) {
+			tad, err := tadController.CreateThroughputAnomalyDetector(testNamespace, tt.tad)
+			assert.NoError(t, err)
 
-		tad, err := tadController.CreateThroughputAnomalyDetector(testNamespace, tad)
-		assert.NoError(t, err)
+			serviceCreated := false
+			// The step interval should be larger than resync period to ensure the progress is updated
+			stepInterval := 1 * time.Second
+			timeout := 30 * time.Second
 
-		serviceCreated := false
-		// The step interval should be larger than resync period to ensure the progress is updated
-		stepInterval := 1 * time.Second
-		timeout := 30 * time.Second
+			wait.PollImmediate(stepInterval, timeout, func() (done bool, err error) {
+				tad, err = tadController.GetThroughputAnomalyDetector(testNamespace, tadName)
+				if err != nil {
+					return false, nil
+				}
+				// Mocking Spark Monitor service requires the SparkApplication id.
+				if !serviceCreated {
+					// Create Spark Monitor service
+					err = createFakeSparkApplicationService(tadController.kubeClient, tad.Status.SparkApplication)
+					assert.NoError(t, err)
+					serviceCreated = true
+				}
+				if tad != nil {
+					fakeSAClient.step("tad-"+tad.Status.SparkApplication, testNamespace)
+				}
+				return tad.Status.State == crdv1alpha1.ThroughputAnomalyDetectorStateCompleted, nil
+			})
 
-		wait.PollImmediate(stepInterval, timeout, func() (done bool, err error) {
-			tad, err = tadController.GetThroughputAnomalyDetector(testNamespace, tadName)
-			if err != nil {
-				return false, nil
-			}
-			// Mocking Spark Monitor service requires the SparkApplication id.
-			if !serviceCreated {
-				// Create Spark Monitor service
-				err = createFakeSparkApplicationService(tadController.kubeClient, tad.Status.SparkApplication)
-				assert.NoError(t, err)
-				serviceCreated = true
-			}
-			if tad != nil {
-				fakeSAClient.step("tad-"+tad.Status.SparkApplication, testNamespace)
-			}
-			return tad.Status.State == crdv1alpha1.ThroughputAnomalyDetectorStateCompleted, nil
+			assert.Equal(t, crdv1alpha1.ThroughputAnomalyDetectorStateCompleted, tad.Status.State)
+			assert.Equal(t, 3, tad.Status.CompletedStages)
+			assert.Equal(t, 5, tad.Status.TotalStages)
+			assert.True(t, tad.Status.StartTime.Before(&tad.Status.EndTime))
+
+			tadList, err := tadController.ListThroughputAnomalyDetector(testNamespace)
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(tadList), "Expected exactly one ThroughputAnomalyDetector, got %d", len(tadList))
+			assert.Equal(t, tad, tadList[0])
+
+			err = tadController.DeleteThroughputAnomalyDetector(testNamespace, tadName)
+			assert.NoError(t, err)
 		})
-
-		assert.Equal(t, crdv1alpha1.ThroughputAnomalyDetectorStateCompleted, tad.Status.State)
-		assert.Equal(t, 3, tad.Status.CompletedStages)
-		assert.Equal(t, 5, tad.Status.TotalStages)
-		assert.True(t, tad.Status.StartTime.Before(&tad.Status.EndTime))
-
-		tadList, err := tadController.ListThroughputAnomalyDetector(testNamespace)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(tadList), "Expected exactly one ThroughputAnomalyDetector, got %d", len(tadList))
-		assert.Equal(t, tad, tadList[0])
-
-		err = tadController.DeleteThroughputAnomalyDetector(testNamespace, tadName)
-		assert.NoError(t, err)
-	})
+	}
 
 	testCases := []struct {
 		name             string
 		tadName          string
 		tad              *crdv1alpha1.ThroughputAnomalyDetector
 		expectedErrorMsg string
+		expectedstdout   string
 	}{
 		{
 			name:    "invalid JobType",
@@ -299,7 +331,7 @@ func TestTADetection(t *testing.T) {
 					JobType: "nonexistent-job-type",
 				},
 			},
-			expectedErrorMsg: "invalid request: Throughput Anomaly DetectorQuerier type should be 'EWMA' or 'ARIMA' or 'DBSCAN'",
+			expectedErrorMsg: "invalid request: Throughput Anomaly Detector algorithm type should be 'EWMA' or 'ARIMA' or 'DBSCAN'",
 		},
 		{
 			name:    "invalid EndInterval",
@@ -383,6 +415,33 @@ func TestTADetection(t *testing.T) {
 				},
 			},
 			expectedErrorMsg: "invalid request: ExecutorMemory should conform to the Kubernetes resource quantity convention",
+		},
+		{
+			name:    "invalid Aggregatedflow pod-podNamespace combo",
+			tadName: "tad-invalid-agg-flow-pod-podNamespace-combo",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: "tad-invalid-agg-flow-pod-podNamespace-combo", Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:        "ARIMA",
+					AggregatedFlow: "pod",
+					PodNameSpace:   "podNameSpace",
+					PodName:        "",
+					PodLabel:       "",
+				},
+			},
+			expectedErrorMsg: "invalid request: 'pod-namespace' argument can not be used alone",
+		},
+		{
+			name:    "invalid Aggregatedflow",
+			tadName: "tad-invalid-agg-flow",
+			tad: &crdv1alpha1.ThroughputAnomalyDetector{
+				ObjectMeta: metav1.ObjectMeta{Name: "tad-invalid-agg-flow", Namespace: testNamespace},
+				Spec: crdv1alpha1.ThroughputAnomalyDetectorSpec{
+					JobType:        "ARIMA",
+					AggregatedFlow: "nonexistent-agg-flow",
+				},
+			},
+			expectedErrorMsg: "invalid request: Throughput Anomaly Detector aggregated flow type should be 'pod' or 'external' or 'svc'",
 		},
 	}
 	for _, tc := range testCases {

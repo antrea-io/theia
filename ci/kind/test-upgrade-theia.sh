@@ -255,7 +255,7 @@ popd
 rm -rf $TMP_THEIA_DIR
 
 rc=0
-go test -v -run=TestUpgrade antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --upgrade.toVersion=$CURRENT_VERSION --upgrade.fromVersion=$THEIA_FROM_TAG || rc=$?
+go test -v -timeout=15m -run=TestUpgrade antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --upgrade.toVersion=$CURRENT_VERSION --upgrade.fromVersion=$THEIA_FROM_TAG || rc=$?
 
 $THIS_DIR/kind-setup.sh destroy kind
 

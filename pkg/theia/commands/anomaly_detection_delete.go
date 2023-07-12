@@ -17,6 +17,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -26,13 +27,15 @@ import (
 // anomalyDetectionDeleteCmd represents the anomaly detection delete command
 var anomalyDetectionDeleteCmd = &cobra.Command{
 	Use:     "delete",
-	Short:   "Delete a anomaly detection job",
-	Long:    `Delete a anomaly detection job by Name.`,
+	Short:   "Delete anomaly detection job",
+	Long:    `Delete anomaly detection job by Name.`,
 	Aliases: []string{"del"},
 	Args:    cobra.RangeArgs(0, 1),
 	Example: `
 Delete the anomaly detection job with Name tad-e998433e-accb-4888-9fc8-06563f073e86
 $ theia throughput-anomaly-detection delete tad-e998433e-accb-4888-9fc8-06563f073e86
+Delete multiple anomaly detection jobs using "" with space separated tad ids
+$ theia throughput-anomaly-detection delete "tad-e998433e-accb-4888-9fc8-06563f073e86 tad-1234abcd-1234-abcd-12ab-12345678abcd"
 `,
 	RunE: anomalyDetectionDelete,
 }
@@ -45,7 +48,28 @@ func anomalyDetectionDelete(cmd *cobra.Command, args []string) error {
 	if tadName == "" && len(args) == 1 {
 		tadName = args[0]
 	}
-	err = util.ParseADAlgorithmID(tadName)
+	tadNameList := strings.Fields(tadName)
+	for _, tadName := range tadNameList {
+		err = deleteTADId(cmd, tadName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func init() {
+	throughputanomalyDetectionCmd.AddCommand(anomalyDetectionDeleteCmd)
+	anomalyDetectionDeleteCmd.Flags().StringP(
+		"name",
+		"",
+		"",
+		"Name of the anomaly detection job.",
+	)
+}
+
+func deleteTADId(cmd *cobra.Command, tadName string) error {
+	err := util.ParseADAlgorithmID(tadName)
 	if err != nil {
 		return err
 	}
@@ -71,14 +95,4 @@ func anomalyDetectionDelete(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Successfully deleted anomaly detection job with name: %s\n", tadName)
 	return nil
-}
-
-func init() {
-	throughputanomalyDetectionCmd.AddCommand(anomalyDetectionDeleteCmd)
-	anomalyDetectionDeleteCmd.Flags().StringP(
-		"name",
-		"",
-		"",
-		"Name of the anomaly detection job.",
-	)
 }

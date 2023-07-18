@@ -45,7 +45,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 		filePath         string
 	}{
 		{
-			name: "Valid case e2e",
+			name: "Valid case No agg_type",
 			testServer: httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch strings.TrimSpace(r.URL.Path) {
 				case fmt.Sprintf("/apis/intelligence.theia.antrea.io/v1alpha1/throughputanomalydetectors/%s", tadName):
@@ -57,7 +57,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 							Id:       tadName,
 							Anomaly:  "true",
 							AlgoCalc: "1234567",
-							AggType:  "e2e",
+							AggType:  "None",
 						}},
 					}
 					w.Header().Set("Content-Type", "application/json")
@@ -66,7 +66,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 				}
 			})),
 			tadName:          "tad-1234abcd-1234-abcd-12ab-12345678abcd",
-			expectedMsg:      []string{"id                                       sourceIP       sourceTransportPort destinationIP  destinationTransportPort flowStartSeconds flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "e2e                           1234567        true"},
+			expectedMsg:      []string{"id                                       sourceIP       sourceTransportPort destinationIP  destinationTransportPort flowStartSeconds flowEndSeconds throughput     aggType        algoType       algoCalc       anomaly", "None                          1234567        true"},
 			expectedErrorMsg: "",
 		},
 		{

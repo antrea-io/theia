@@ -69,28 +69,28 @@ $ theia throughput-anomaly-detection run --algo "ARIMA"
 Successfully started Throughput Anomaly Detection job with name tad-1234abcd-1234-abcd-12ab-12345678abcd
 ```
 
-Throughput Anomaly Detection also provide support for aggregated throughput
+Throughput Anomaly Detection also provides support for aggregated throughput
 anomaly detection.
 There are three different types of aggregations that are included.
 
-- `external` : Aggregated flow for inbound traffic to external IP,
+- `external` : Aggregated flows for inbound traffic to external IP,
   user could provide external-IP using `external-ip` argument for further
   filtering.
-- `pod`: Aggregated flow for inbound/outbound pod traffic.
-- `svc`: Aggregated flow for traffic to service port, user could
+- `pod`: Aggregated flows for inbound/outbound pod traffic.
+- `svc`: Aggregated flows for traffic to service port, user could
   provide a destination port name using `svc-name-port` argument for
   further filtering.
 
-For aggregated flow `pod`, user can provide the following filter arguments.
+For aggregated flows `pod`, user can provide the following filter arguments.
 
-- `pod-label`: The argument aggregates inbound/outbound traffic using pod
+- `pod-label`: The argument aggregates inbound/outbound traffic using Pod
   labels.
-- `pod-name`: The argument aggregates inbound/outbound traffic using pod name.
+- `pod-name`: The argument aggregates inbound/outbound traffic using Pod name.
 - `pod-namespace`: The argument aggregates inbound/outbound traffic using
-  podnamespace. However, this argument only works as a combination to any of
+  Pod namespace. However, this argument only works as a combination to any of
   the above two arguments and can not be used alone.
 
-All the above aggregated flow are executed using the following command:
+To start an aggregated throughput anomaly detection, please run the following command:
 
 ```bash
 $ theia throughput-anomaly-detection run --algo "ARIMA" --agg-flow pod --pod-label \"test_key\":\"test_value\"
@@ -139,14 +139,14 @@ in table format, run:
 ```bash
 $ theia throughput-anomaly-detection retrieve tad-1234abcd-1234-abcd-12ab-12345678abcd
 id                                      sourceIP        sourceTransportPort     destinationIP   destinationTransportPort        flowStartSeconds        flowEndSeconds          throughput              aggType         algoType        algoCalc                anomaly
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:06:54Z    4.005703059e+09         e2e             ARIMA           1.0001208441920074e+10  true
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:24:54Z    1.0004969097e+10        e2e             ARIMA           4.006432886406564e+09   true
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:34:54Z    5.0007861276e+10        e2e             ARIMA           3.9735067954945493e+09  true
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:06:54Z    4.005703059e+09         None             ARIMA           1.0001208441920074e+10  true
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:24:54Z    1.0004969097e+10        None             ARIMA           4.006432886406564e+09   true
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:34:54Z    5.0007861276e+10        None             ARIMA           3.9735067954945493e+09  true
 ```
 
-Aggregated Throughput Anomaly Detection has different columns based of the
+Aggregated Throughput Anomaly Detection has different columns based on the
 aggregation type.
-e.g.  agg-type pod output
+e.g. when aggregation type is `svc`, the output is the following
 
 ```bash
 $ theia throughput-anomaly-detection retrieve tad-5ca4413d-6730-463e-8f95-86032ba28a4f

@@ -38,6 +38,8 @@ const (
 	tadretrieveCmd        = "./theia throughput-anomaly-detection retrieve"
 )
 
+var e2eMutex sync.Mutex
+
 func TestAnomalyDetection(t *testing.T) {
 	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     true,
@@ -101,7 +103,7 @@ func prepareFlowTable(t *testing.T, connect *sql.DB) {
 // Example output: Successfully created Throughput Anomaly Detection job with name tad-eec9d1be-7204-4d50-8f57-d9c8757a2668
 func testThroughputAnomalyDetectionAlgo(t *testing.T, data *TestData, connect *sql.DB) {
 	prepareFlowTable(t, connect)
-	stdout, jobName, err := tadrunJob(t, data, "ARIMA", "e2e")
+	stdout, jobName, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, fmt.Sprintf("Successfully started Throughput Anomaly Detection job with name: %s", jobName), "stdout: %s", stdout)
@@ -114,7 +116,7 @@ func testThroughputAnomalyDetectionAlgo(t *testing.T, data *TestData, connect *s
 // Example output: Status of this anomaly detection job is COMPLETED
 func testAnomalyDetectionStatus(t *testing.T, data *TestData, connect *sql.DB) {
 	prepareFlowTable(t, connect)
-	_, jobName, err := tadrunJob(t, data, "ARIMA", "e2e")
+	_, jobName, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
 	stdout, err := tadgetJobStatus(t, data, jobName)
 	require.NoError(t, err)
@@ -133,7 +135,7 @@ func testAnomalyDetectionStatus(t *testing.T, data *TestData, connect *sql.DB) {
 // 2022-06-17 15:03:39   N/A                   tad-c7a9e768-559a-4bfb-b0c8-a0291b4c208c SUBMITTED
 func testAnomalyDetectionList(t *testing.T, data *TestData, connect *sql.DB) {
 	prepareFlowTable(t, connect)
-	_, jobName, err := tadrunJob(t, data, "ARIMA", "e2e")
+	_, jobName, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
 	stdout, err := tadlistJobs(t, data)
 	require.NoError(t, err)
@@ -152,7 +154,7 @@ func testAnomalyDetectionList(t *testing.T, data *TestData, connect *sql.DB) {
 // Example output: Successfully deleted anomaly detection job with name tad-eec9d1be-7204-4d50-8f57-d9c8757a2668
 func testAnomalyDetectionDelete(t *testing.T, data *TestData, connect *sql.DB) {
 	prepareFlowTable(t, connect)
-	_, jobName, err := tadrunJob(t, data, "ARIMA", "e2e")
+	_, jobName, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
 	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
@@ -173,17 +175,17 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 	algoNames := []string{"ARIMA", "EWMA", "DBSCAN"}
 	// agg_type 'podLabel' stands for agg_type 'pod' with pod-label argument
 	// agg_type 'podName' stands for agg_type 'pod' with pod-name argument
-	agg_types := []string{"e2e", "podName", "podLabel", "svc", "external"}
+	agg_types := []string{"None", "podName", "podLabel", "svc", "external"}
 	// Select random algo for the agg_types
-	podname_algo := algoNames[randInt(t, int64(len(algoNames)))]
-	podlabel_algo := algoNames[randInt(t, int64(len(algoNames)))]
-	external_algo := algoNames[randInt(t, int64(len(algoNames)))]
-	svc_algo := algoNames[randInt(t, int64(len(algoNames)))]
+	aggTypeToAlgoNameMap := make(map[string]string)
+	for _, agg_type := range agg_types {
+		aggTypeToAlgoNameMap[agg_type] = algoNames[randInt(t, int64(len(algoNames)))]
+	}
 	// Create a worker pool with maximum size of 3
 	pool := make(chan int, len(algoNames))
 	var (
-		stdout string
-		wg     sync.WaitGroup
+		wg      sync.WaitGroup
+		poolIdx int
 	)
 	prepareFlowTable(t, connect)
 	result_map := map[string]map[string]string{
@@ -218,7 +220,7 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 			"1.630": "true"},
 	}
 	assert_variable_map := map[string]map[string]int{
-		"e2e": {
+		"None": {
 			"tadoutputArray_len": 12,
 			"anomaly_output_idx": 11,
 			"throughput_idx":     7},
@@ -239,64 +241,73 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 			"anomaly_output_idx": 7,
 			"throughput_idx":     3},
 	}
-	for _, agg_type := range agg_types {
-		for idx, algo := range algoNames {
-			if (agg_type == "e2e") || (agg_type == "podName" && algo == podname_algo) || (agg_type == "podLabel" && algo == podlabel_algo) || (agg_type == "external" && algo == external_algo) || (agg_type == "svc" && algo == svc_algo) {
+	poolIdx = 0
+	for agg_type, algoName := range aggTypeToAlgoNameMap {
+		poolIdx += 1
+		if agg_type == "None" {
+			for _, algo := range algoNames {
+				algoName = algo
 				wg.Add(1)
-				pool <- idx
-				go func(t *testing.T, data *TestData, algo, agg_type string) {
-					defer func() {
-						<-pool
-						wg.Done()
-					}()
-					_, jobName, err := tadrunJob(t, data, algo, agg_type)
-					require.NoError(t, err)
-					err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
-					require.NoError(t, err)
-					err = waitTADJobComplete(t, data, jobName, tadjobCompleteTimeout)
-					require.NoError(t, err)
-					stdout, err = tadretrieveJobResult(t, data, jobName)
-					require.NoError(t, err)
-					resultArray := strings.Split(stdout, "\n")
-					assert := assert.New(t)
-					length := len(resultArray)
-					assert.GreaterOrEqualf(length, 3, "stdout: %s", stdout)
-					assert.Containsf(stdout, "throughput", "stdout: %s", stdout)
-					assert.Containsf(stdout, "algoCalc", "stdout: %s", stdout)
-					assert.Containsf(stdout, "anomaly", "stdout: %s", stdout)
-
-					for i := 1; i < length; i++ {
-						// check metrics' value
-						resultArray[i] = strings.TrimSpace(resultArray[i])
-						if resultArray[i] != "" {
-							resultArray[i] = strings.ReplaceAll(resultArray[i], "\t", " ")
-							tadoutputArray := strings.Fields(resultArray[i])
-							anomaly_output := tadoutputArray[assert_variable_map[agg_type]["anomaly_output_idx"]]
-							throughput := tadoutputArray[assert_variable_map[agg_type]["throughput_idx"]][:5]
-							assert.Equal(assert_variable_map[agg_type]["tadoutputArray_len"], len(tadoutputArray), "tadoutputArray: %s", tadoutputArray)
-							switch algo {
-							case "ARIMA":
-								assert.Equal(result_map["ARIMA"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
-							case "EWMA":
-								assert.Equal(result_map["EWMA"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
-							case "DBSCAN":
-								assert.Equal(result_map["DBSCAN"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
-							}
-						}
-					}
-					_, err = taddeleteJob(t, data, jobName)
-					require.NoError(t, err)
-				}(t, data, algo, agg_type)
+				pool <- poolIdx
+				go executeRetrieveTest(t, data, algoName, agg_type, result_map, assert_variable_map, pool, &wg)
 			}
+		} else {
+			wg.Add(1)
+			pool <- poolIdx
+			go executeRetrieveTest(t, data, algoName, agg_type, result_map, assert_variable_map, pool, &wg)
 		}
 	}
 	wg.Wait()
 }
 
+func executeRetrieveTest(t *testing.T, data *TestData, algo, agg_type string, result_map map[string]map[string]string, assert_variable_map map[string]map[string]int, pool chan int, wg *sync.WaitGroup) {
+	var stdout string
+	defer func() {
+		<-pool
+		wg.Done()
+	}()
+	_, jobName, err := tadrunJob(t, data, algo, agg_type)
+	require.NoError(t, err)
+	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
+	require.NoError(t, err)
+	err = waitTADJobComplete(t, data, jobName, tadjobCompleteTimeout)
+	require.NoError(t, err)
+	stdout, err = tadretrieveJobResult(t, data, jobName)
+	require.NoError(t, err)
+	resultArray := strings.Split(stdout, "\n")
+	assert := assert.New(t)
+	length := len(resultArray)
+	assert.GreaterOrEqualf(length, 3, "stdout: %s", stdout)
+	assert.Containsf(stdout, "throughput", "stdout: %s", stdout)
+	assert.Containsf(stdout, "algoCalc", "stdout: %s", stdout)
+	assert.Containsf(stdout, "anomaly", "stdout: %s", stdout)
+	for i := 1; i < length; i++ {
+		// check metrics' value
+		resultArray[i] = strings.TrimSpace(resultArray[i])
+		if resultArray[i] != "" {
+			resultArray[i] = strings.ReplaceAll(resultArray[i], "\t", " ")
+			tadoutputArray := strings.Fields(resultArray[i])
+			anomaly_output := tadoutputArray[assert_variable_map[agg_type]["anomaly_output_idx"]]
+			throughput := tadoutputArray[assert_variable_map[agg_type]["throughput_idx"]][:5]
+			assert.Equal(assert_variable_map[agg_type]["tadoutputArray_len"], len(tadoutputArray), "tadoutputArray: %s", tadoutputArray)
+			switch algo {
+			case "ARIMA":
+				assert.Equal(result_map["ARIMA"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
+			case "EWMA":
+				assert.Equal(result_map["EWMA"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
+			case "DBSCAN":
+				assert.Equal(result_map["DBSCAN"][throughput], anomaly_output, "Anomaly outputs dont match in tadoutputArray: %s", tadoutputArray)
+			}
+		}
+	}
+	_, err = taddeleteJob(t, data, jobName)
+	require.NoError(t, err)
+}
+
 // waitJobComplete waits for the anomaly detection Spark job completes
 func waitTADJobComplete(t *testing.T, data *TestData, jobName string, timeout time.Duration) error {
-	mutex.Lock()
-	defer mutex.Unlock()
+	e2eMutex.Lock()
+	defer e2eMutex.Unlock()
 	stdout := ""
 	err := wait.PollImmediate(defaultInterval, timeout, func() (bool, error) {
 		stdout, err := tadgetJobStatus(t, data, jobName)
@@ -322,27 +333,25 @@ func waitTADJobComplete(t *testing.T, data *TestData, jobName string, timeout ti
 }
 
 func tadrunJob(t *testing.T, data *TestData, algotype, agg_type string) (stdout string, jobName string, err error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	e2eMutex.Lock()
+	defer e2eMutex.Unlock()
+	var agg_flow_ext, ext string
 	newjobcmd := tadstartCmd + " --algo " + algotype + " --driver-memory 1G --start-time 2022-08-11T06:26:50 --end-time 2022-08-12T08:26:54"
 	switch agg_type {
 	case "podName":
-		agg_flow_ext := " --agg-flow pod"
-		ext := " --pod-name test_podName"
-		newjobcmd = newjobcmd + agg_flow_ext + ext
+		agg_flow_ext = " --agg-flow pod"
+		ext = " --pod-name test_podName"
 	case "podLabel":
-		agg_flow_ext := " --agg-flow pod"
-		ext := " --pod-label \"test_key\":\"test_value\""
-		newjobcmd = newjobcmd + agg_flow_ext + ext
+		agg_flow_ext = " --agg-flow pod"
+		ext = " --pod-label \"test_key\":\"test_value\""
 	case "external":
-		agg_flow_ext := fmt.Sprintf(" --agg-flow %s", agg_type)
-		ext := " --external-ip 10.10.1.33"
-		newjobcmd = newjobcmd + agg_flow_ext + ext
+		agg_flow_ext = fmt.Sprintf(" --agg-flow %s", agg_type)
+		ext = " --external-ip 10.10.1.33"
 	case "svc":
-		agg_flow_ext := fmt.Sprintf(" --agg-flow %s", agg_type)
-		ext := " --svc-port-name test_serviceportname"
-		newjobcmd = newjobcmd + agg_flow_ext + ext
+		agg_flow_ext = fmt.Sprintf(" --agg-flow %s", agg_type)
+		ext = " --svc-port-name test_serviceportname"
 	}
+	newjobcmd = newjobcmd + agg_flow_ext + ext
 	stdout, jobName, err = RunJob(t, data, newjobcmd)
 	if err != nil {
 		return "", "", err
@@ -368,8 +377,8 @@ func tadlistJobs(t *testing.T, data *TestData) (stdout string, err error) {
 }
 
 func taddeleteJob(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	e2eMutex.Lock()
+	defer e2eMutex.Unlock()
 	cmd := fmt.Sprintf("%s %s", taddeleteCmd, jobName)
 	stdout, err = DeleteJob(t, data, cmd)
 	if err != nil {
@@ -379,8 +388,8 @@ func taddeleteJob(t *testing.T, data *TestData, jobName string) (stdout string, 
 }
 
 func tadretrieveJobResult(t *testing.T, data *TestData, jobName string) (stdout string, err error) {
-	mutex.Lock()
-	defer mutex.Unlock()
+	e2eMutex.Lock()
+	defer e2eMutex.Unlock()
 	cmd := fmt.Sprintf("%s %s", tadretrieveCmd, jobName)
 	stdout, err = RetrieveJobResult(t, data, cmd)
 	if err != nil {
@@ -520,9 +529,9 @@ func populateFlowTable(t *testing.T, connect *sql.DB) {
 }
 
 func testTADCleanAfterTheiaMgrResync(t *testing.T, data *TestData) {
-	_, jobName1, err := tadrunJob(t, data, "ARIMA", "e2e")
+	_, jobName1, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
-	_, jobName2, err := tadrunJob(t, data, "ARIMA", "e2e")
+	_, jobName2, err := tadrunJob(t, data, "ARIMA", "None")
 	require.NoError(t, err)
 
 	err = TheiaManagerRestart(t, data, jobName1, "tad")

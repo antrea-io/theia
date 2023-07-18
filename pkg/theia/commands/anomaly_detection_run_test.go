@@ -129,7 +129,7 @@ func TestAnomalyDetectionRun(t *testing.T) {
 			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
 			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
 			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
-			cmd.Flags().String("agg-flow", "pod", "")
+			cmd.Flags().String("agg-flow", "external", "")
 			cmd.Flags().String("pod-label", "app:label1", "")
 			cmd.Flags().String("pod-name", "testpodname", "")
 			cmd.Flags().String("pod-namespace", "testpodnamespace", "")
@@ -235,6 +235,38 @@ func TestThroughputAnomalyDetectionAlgo(t *testing.T) {
 		{
 			name:             "Invalid executor-memory",
 			expectedErrorMsg: "executor-memory should conform to the Kubernetes resource quantity convention",
+		},
+		{
+			name:             "Unspecified agg-flow",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified pod-label",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified pod-name",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified pod-namespace",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Invalid pod-namespace",
+			expectedErrorMsg: "argument can not be used alone",
+		},
+		{
+			name:             "Unspecified external-ip",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Unspecified svc-port-name",
+			expectedErrorMsg: ErrorMsgUnspecifiedCase,
+		},
+		{
+			name:             "Invalid agg-flow",
+			expectedErrorMsg: "aggregated flow type should be 'pod' or 'external' or 'svc'",
 		},
 		{
 			name:             "Unspecified use-cluster-ip",
@@ -346,6 +378,99 @@ func TestThroughputAnomalyDetectionAlgo(t *testing.T) {
 			cmd.Flags().String("driver-memory", "1m", "")
 			cmd.Flags().String("executor-core-request", "1", "")
 			cmd.Flags().String("executor-memory", "mock_executor-memory", "")
+		case "Unspecified agg-flow":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+		case "Unspecified pod-label":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "pod", "")
+		case "Unspecified pod-name":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "pod", "")
+			cmd.Flags().String("pod-label", "mock_pod-label", "")
+		case "Unspecified pod-namespace":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "pod", "")
+			cmd.Flags().String("pod-label", "mock_pod_label", "")
+			cmd.Flags().String("pod-name", "mock_pod-name", "")
+		case "Invalid pod-namespace":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "pod", "")
+			cmd.Flags().String("pod-label", "", "")
+			cmd.Flags().String("pod-name", "", "")
+			cmd.Flags().String("pod-namespace", "mock_pod-namespace", "")
+		case "Unspecified external-ip":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "external", "")
+		case "Unspecified svc-port-name":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "svc", "")
+		case "Invalid agg-flow":
+			cmd.Flags().String("algo", "ARIMA", "")
+			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
+			cmd.Flags().String("end-time", "2006-01-03 16:04:05", "")
+			cmd.Flags().String("ns-ignore-list", "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\"]", "")
+			cmd.Flags().Int32("executor-instances", 1, "")
+			cmd.Flags().String("driver-core-request", "1", "")
+			cmd.Flags().String("driver-memory", "1m", "")
+			cmd.Flags().String("executor-core-request", "1", "")
+			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "mock_agg-flow", "")
 		case "Unspecified use-cluster-ip":
 			cmd.Flags().String("algo", "ARIMA", "")
 			cmd.Flags().String("start-time", "2006-01-02 15:04:05", "")
@@ -356,6 +481,8 @@ func TestThroughputAnomalyDetectionAlgo(t *testing.T) {
 			cmd.Flags().String("driver-memory", "1m", "")
 			cmd.Flags().String("executor-core-request", "1", "")
 			cmd.Flags().String("executor-memory", "1m", "")
+			cmd.Flags().String("agg-flow", "svc", "")
+			cmd.Flags().String("svc-port-name", "mock_svc_name", "")
 		}
 		err := throughputAnomalyDetectionAlgo(cmd, []string{})
 		if tt.expectedErrorMsg == "" {

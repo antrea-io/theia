@@ -80,7 +80,7 @@ Kubernetes: `>= 1.16.0-0`
 | theiaManager.apiServer.selfSignedCert | bool | `true` | Indicates whether to use auto-generated self-signed TLS certificates. If false, a Secret named "theia-manager-tls" must be provided with the following keys: ca.crt, tls.crt, tls.key. |
 | theiaManager.apiServer.tlsCipherSuites | string | `""` | Comma-separated list of cipher suites that will be used by the Theia Manager APIservers. If empty, the default Go Cipher Suites will be used. |
 | theiaManager.apiServer.tlsMinVersion | string | `""` | TLS min version from: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13. |
-| theiaManager.enable | bool | `true` | Determine whether to install Theia Manager. |
+| theiaManager.enable | bool | `false` | Determine whether to install Theia Manager. |
 | theiaManager.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-manager","tag":""}` | Container image used by Theia Manager. |
 | theiaManager.logVerbosity | int | `0` | Log verbosity switch for Theia Manager. |
 

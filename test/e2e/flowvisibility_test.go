@@ -140,7 +140,7 @@ type testFlow struct {
 }
 
 func TestFlowVisibility(t *testing.T) {
-	config := FlowVisibiltiySetUpConfig{
+	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     false,
 		withGrafana:           true,
 		withClickHouseLocalPv: false,
@@ -1280,7 +1280,7 @@ type ClickHouseFullRow struct {
 }
 
 func failOnError(err error, t *testing.T, data *TestData) {
-	config := FlowVisibiltiySetUpConfig{
+	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     false,
 		withGrafana:           true,
 		withClickHouseLocalPv: false,

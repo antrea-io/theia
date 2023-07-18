@@ -165,7 +165,7 @@ var (
 	clickHousePodName = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 )
 
-type FlowVisibiltiySetUpConfig struct {
+type FlowVisibilitySetUpConfig struct {
 	withSparkOperator     bool
 	withGrafana           bool
 	withClickHouseLocalPv bool
@@ -246,11 +246,11 @@ func (p PodIPs) String() string {
 func (data *TestData) deployAntreaCommon(yamlFile string, extraOptions string, waitForAgentRollout bool) error {
 	// TODO: use the K8s apiserver when server side apply is available?
 	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#server-side-apply
-	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply %s -f %s", extraOptions, yamlFile))
+	rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl apply %s -f %s", extraOptions, yamlFile))
 	if err != nil || rc != 0 {
-		return fmt.Errorf("error when deploying Antrea; is %s available on the control-plane Node?", yamlFile)
+		return fmt.Errorf("error when deploying Antrea; is %s available on the control-plane Node? - rc: %v - stdout: %v - stderr: %v - err: %v", yamlFile, rc, stdout, stderr, err)
 	}
-	rc, stdout, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s rollout status deploy/%s --timeout=%v", antreaNamespace, antreaDeployment, defaultTimeout))
+	rc, stdout, stderr, err = data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s rollout status deploy/%s --timeout=%v", antreaNamespace, antreaDeployment, defaultTimeout))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when waiting for antrea-controller rollout to complete - rc: %v - stdout: %v - stderr: %v - err: %v", rc, stdout, stderr, err)
 	}
@@ -1175,7 +1175,7 @@ func (data *TestData) createTestNamespace() error {
 
 // deployFlowVisibility deploys ClickHouse Operator and DB.
 // Other applications will be deployed according to config.
-func (data *TestData) deployFlowVisibility(config FlowVisibiltiySetUpConfig) (chSvcIP string, err error) {
+func (data *TestData) deployFlowVisibility(config FlowVisibilitySetUpConfig) (chSvcIP string, err error) {
 	if config.withClickHouseLocalPv {
 		// Label one of the worker Node to fulfill the Local PersistentVolume affinity requirement.
 		node, err := data.clientset.CoreV1().Nodes().Get(context.TODO(), workerNodeName(1), metav1.GetOptions{})
@@ -1392,7 +1392,7 @@ func (data *TestData) deleteClickHouseOperator(chOperatorYML string) error {
 	return nil
 }
 
-func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibiltiySetUpConfig) {
+func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig) {
 	if config.withFlowAggregator {
 		if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
 			tb.Logf("Error when tearing down flow aggregator: %v", err)
@@ -1406,7 +1406,7 @@ func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibiltiy
 	}
 }
 
-func (data *TestData) deleteFlowVisibility(config FlowVisibiltiySetUpConfig) error {
+func (data *TestData) deleteFlowVisibility(config FlowVisibilitySetUpConfig) error {
 	var flowVisibilityManifest string
 	if !config.withGrafana && !config.withSparkOperator {
 		flowVisibilityManifest = flowVisibilityChOnlyYML
@@ -1529,7 +1529,7 @@ func (data *TestData) Cleanup(namespaces []string) {
 	}
 }
 
-func flowVisibilityCleanup(tb testing.TB, data *TestData, config FlowVisibiltiySetUpConfig) {
+func flowVisibilityCleanup(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig) {
 	teardownTest(tb, data)
 	teardownFlowVisibility(tb, data, config)
 }

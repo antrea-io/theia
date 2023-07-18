@@ -24,12 +24,12 @@ THEIA_FROM_TAG=
 FROM_VERSION_N_MINUS=
 
 _usage="Usage: $0 [--from-tag <TAG>] [--from-version-n-minus <COUNT>]
-Perform some basic tests to make sure that Theia can be upgraded from the provided version to the
+Perform some basic tests to make sure that Theia can be migrated from the provided version to the
 current checked-out version. One of [--from-tag <TAG>] or [--from-version-n-minus <COUNT>] must be
 provided.
-        --from-tag <TAG>                Upgrade from this version of Theia (pulled from upstream
+        --from-tag <TAG>                Migrate from this version of Theia (pulled from upstream
                                         Antrea) to the current version.
-        --from-version-n-minus <COUNT>  Get all the released versions of Theia and run the upgrade
+        --from-version-n-minus <COUNT>  Get all the released versions of Theia and run the migrate
                                         test from the latest bug fix release for *minor* version
                                         N-{COUNT}. N-1 designates the latest minor release. If this
                                         script is run from a release branch, it will only consider
@@ -96,8 +96,8 @@ fi
 
 function version_lt() { test "$(printf '%s\n' "$@" | sort -rV | head -n 1)" != "$1"; }
 
-# We want to ignore all minor versions greater than the current version, as an upgrade test implies
-# that we are upgrading from an *older* version. This is useful when running this script from a
+# We want to ignore all minor versions greater than the current version, as an migrate test implies
+# that we are migrating from an *older* version. This is useful when running this script from a
 # release branch (e.g. when testing patch release candidates).
 CURRENT_VERSION=$(head -n1 $ROOT_DIR/VERSION)
 CURRENT_VERSION=${CURRENT_VERSION:1} # strip leading 'v'
@@ -140,7 +140,7 @@ else # Set THEIA_FROM_TAG using the provided FROM_VERSION_N_MINUS value
     fi
 fi
 
-echo "Running upgrade test for tag $THEIA_FROM_TAG"
+echo "Running migrate test for tag $THEIA_FROM_TAG"
 ANTREA_FROM_TAG=$(grep "$THEIA_FROM_TAG"  < $ROOT_DIR/VERSION_MAP | awk '{print $2}')
 
 # From v0.3.0, ClickHouse Image is labeled with Theia version
@@ -151,7 +151,7 @@ else
 fi
 
 # theiaTagArray and chOperatorTagArray are expected to be updated together
-# when we upgrade ClickHouse Operator version
+# when we migrate ClickHouse Operator version
 declare -a theiaTagArray=(
 [0]="0.1.0"
 [1]="0.7.0"
@@ -248,14 +248,14 @@ export IMG_TAG=$THEIA_FROM_TAG
 if [[ $THEIA_FROM_TAG == "v0.1.0" ]]; then
     cp $ROOT_DIR/hack/generate-manifest.sh hack/generate-manifest.sh
 fi
-docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 ./hack/generate-manifest.sh --mode release --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
+docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 
 popd
 rm -rf $TMP_THEIA_DIR
 
 rc=0
-go test -v -timeout=15m -run=TestUpgrade antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --upgrade.toVersion=$CURRENT_VERSION || rc=$?
+go test -v -timeout=15m -run=TestMigrate antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --migrate.toVersion=$CURRENT_VERSION --migrate.fromVersion=$THEIA_FROM_TAG || rc=$?
 
 $THIS_DIR/kind-setup.sh destroy kind
 

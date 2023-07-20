@@ -249,7 +249,7 @@ if [[ $THEIA_FROM_TAG == "v0.1.0" ]]; then
 fi
 # In Theia v0.7.0, we support --ch-only option when generating manifest,
 # which is not present in earlier versions 
-# Copy the latest script for release v0.1.0 to generate manifest.
+# Copy the latest script for release < v0.7.0 to generate manifest.
 export RELEASE_VERSION=${THEIA_FROM_TAG#"v"}
 export RELEASE_VERSION_NUMBER=$(echo "$RELEASE_VERSION" | awk -F '.' '{printf "%.1f", $1 + $2/10 + $3/100}')
 if (( $(echo "$RELEASE_VERSION_NUMBER < 0.7" | bc -l) )); then

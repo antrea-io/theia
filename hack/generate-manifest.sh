@@ -30,7 +30,7 @@ Kustomize, and print it to stdout.
         --spark-operator                    Generate a manifest with Spark Operator enabled.
         --theia-manager                     Generate a manifest with Theia Manager enabled.
         --no-grafana                        Generate a manifest with Grafana disabled.
-        --ch-only                           Generate a minfest with ClickHouse only
+        --ch-only                           Generate a manifest with ClickHouse only.
         --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
                                             plain integer or as a fixed-point number using one of these quantity
                                             suffixes: E, P, T, G, M, K. Or the power-of-two equivalents:

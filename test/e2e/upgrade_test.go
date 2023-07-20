@@ -16,33 +16,17 @@ package e2e
 
 import (
 	"flag"
-	"fmt"
-	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	networkingv1 "k8s.io/api/networking/v1"
-	"sigs.k8s.io/yaml"
-
-	antreav1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
-	antreav1alpha2 "antrea.io/antrea/pkg/apis/crd/v1alpha2"
 )
 
 var (
-	upgradeToVersion   = flag.String("upgrade.toVersion", "", "Version updated to")
-	upgradeFromVersion = flag.String("upgrade.fromVersion", "", "Version updated from")
+	upgradeToVersion = flag.String("upgrade.toVersion", "", "Version updated to")
 )
 
 const (
-	upgradeFromAntreaYML         = "antrea.yml"
-	upgradeFromFlowVisibilityYML = "flow-visibility-ch-only.yml"
-	upgradeFromChOperatorYML     = "clickhouse-operator-install-bundle.yaml"
-	upgradeToAntreaYML           = "antrea-new.yml"
-	upgradeToFlowVisibilityYML   = "flow-visibility-new.yml"
-	upgradeToChOperatorYML       = "clickhouse-operator-install-bundle-new.yaml"
-	id1                          = "86b1f47b-7864-4351-bb73-1ffb8bacb2e7"
-	id2                          = "13465fa5-99d7-430b-91df-272ce6b9704c"
+	upgradeToAntreaYML         = "antrea-new.yml"
+	upgradeToFlowVisibilityYML = "flow-visibility-new.yml"
+	upgradeToChOperatorYML     = "clickhouse-operator-install-bundle-new.yaml"
 )
 
 func skipIfNotUpgradeTest(t *testing.T) {
@@ -60,9 +44,9 @@ func skipIfNotUpgradeTest(t *testing.T) {
 // To run the test, provide the -upgrade.toVersion flag.
 func TestUpgrade(t *testing.T) {
 	skipIfNotUpgradeTest(t)
-	config := FlowVisibiltiySetUpConfig{
-		withSparkOperator:     false,
-		withGrafana:           false,
+	config := FlowVisibilitySetUpConfig{
+		withSparkOperator:     true,
+		withGrafana:           true,
 		withClickHouseLocalPv: true,
 		withFlowAggregator:    false,
 	}
@@ -75,127 +59,6 @@ func TestUpgrade(t *testing.T) {
 		teardownFlowVisibility(t, data, config)
 		data.deleteClickHouseOperator(upgradeToChOperatorYML)
 	}()
-	checkClickHouseVersionTable(t, data, *upgradeFromVersion)
-	if needCheckRecommendationsSchema(*upgradeFromVersion) {
-		insertRecommendations(t, data)
-	}
 	// upgrade and check
-	applyNewVersion(t, data, upgradeToAntreaYML, upgradeToChOperatorYML, upgradeToFlowVisibilityYML)
-	checkClickHouseVersionTable(t, data, *upgradeToVersion)
-	// This check only works when upgrading from v0.3.0 to v0.4.0 for now
-	// as the recommendations schema only changes between these 2 version.
-	// More versions can be added when we add other changes to recommendations
-	// table.
-	if needCheckRecommendationsSchema(*upgradeFromVersion) {
-		checkRecommendations(t, data, *upgradeToVersion)
-	}
-	// downgrade and check
-	applyNewVersion(t, data, upgradeFromAntreaYML, upgradeFromChOperatorYML, upgradeFromFlowVisibilityYML)
-	checkClickHouseVersionTable(t, data, *upgradeFromVersion)
-	if needCheckRecommendationsSchema(*upgradeFromVersion) {
-		checkRecommendations(t, data, *upgradeFromVersion)
-	}
-}
-
-func applyNewVersion(t *testing.T, data *TestData, antreaYML, chOperatorYML, flowVisibilityYML string) {
-	t.Logf("Changing Antrea YAML to %s", antreaYML)
-	// Do not wait for agent rollout as its updateStrategy is set to OnDelete for upgrade test.
-	if err := data.deployAntreaCommon(antreaYML, "", false); err != nil {
-		t.Fatalf("Error upgrading Antrea: %v", err)
-	}
-	t.Logf("Restarting all Antrea DaemonSet Pods")
-	if err := data.restartAntreaAgentPods(defaultTimeout); err != nil {
-		t.Fatalf("Error when restarting Antrea: %v", err)
-	}
-
-	t.Logf("Changing ClickHouse Operator YAML to %s,\nFlow Visibility YAML to %s", chOperatorYML, flowVisibilityYML)
-	if err := data.deployFlowVisibilityCommon(chOperatorYML, flowVisibilityYML); err != nil {
-		t.Fatalf("Error upgrading Flow Visibility: %v", err)
-	}
-	t.Logf("Waiting for the ClickHouse Pod restarting")
-	if err := data.waitForClickHousePod(); err != nil {
-		t.Fatalf("Error when waiting for the ClickHouse Pod restarting: %v", err)
-	}
-}
-
-func checkClickHouseVersionTable(t *testing.T, data *TestData, version string) {
-	queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SHOW TABLES\""})
-	require.NoErrorf(t, err, "Fail to get tables from ClickHouse: %v", stderr)
-	if version != "v0.1.0" {
-		require.Contains(t, queryOutput, "flows")
-		require.Contains(t, queryOutput, "flows_local")
-		if version == "v0.2.0" {
-			require.Contains(t, queryOutput, "migrate_version")
-			queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT version FROM migrate_version\""})
-			require.NoErrorf(t, err, "Fail to get version from ClickHouse: %v", stderr)
-			// strip leading 'v'
-			assert.Contains(t, queryOutput, version[1:])
-		} else {
-			require.Contains(t, queryOutput, "schema_migrations")
-		}
-	}
-}
-
-func needCheckRecommendationsSchema(fromVersion string) bool {
-	return fromVersion == "v0.3.0"
-}
-
-func insertRecommendations(t *testing.T, data *TestData) {
-	command := fmt.Sprintf("clickhouse client -q \"INSERT INTO recommendations (id, yamls) VALUES ('%s', '%s'), ('%s', '%s')\"",
-		id1, strings.Join([]string{getNetowrkPolicyYaml("knp"), getNetowrkPolicyYaml("anp")}, "\n---\n"),
-		id2, strings.Join([]string{getNetowrkPolicyYaml("acg"), getNetowrkPolicyYaml("acnp")}, "\n---\n"),
-	)
-	stdout, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", command})
-	require.NoErrorf(t, err, "Fail to get tables from ClickHouse, stdout: %v, stderr: %v", stdout, stderr)
-}
-
-func checkRecommendations(t *testing.T, data *TestData, version string) {
-	if version == "v0.3.0" {
-		checkRecommendationsVersion3(t, data, id1, []string{"knp", "anp"})
-		checkRecommendationsVersion3(t, data, id2, []string{"acnp", "acg"})
-	} else if version == "v0.4.0" {
-		checkRecommendationsVersion4(t, data, id1, "knp")
-		checkRecommendationsVersion4(t, data, id1, "anp")
-		checkRecommendationsVersion4(t, data, id2, "acnp")
-		checkRecommendationsVersion4(t, data, id2, "acg")
-	}
-}
-
-func checkRecommendationsVersion3(t *testing.T, data *TestData, id string, kinds []string) {
-	// Get the recommendationed policy and check if it is equal to the original yaml
-	command := fmt.Sprintf("clickhouse client -q \"select yamls from recommendations where id='%s'\"", id)
-	queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", command})
-	require.NoErrorf(t, err, "Fail to get recommendations from ClickHouse, stderr: %v", stderr)
-	queryOutput = strings.ReplaceAll(queryOutput, "\\n", "\n")
-	for _, kind := range kinds {
-		assert.Contains(t, queryOutput, getNetowrkPolicyYaml(kind))
-	}
-}
-
-func checkRecommendationsVersion4(t *testing.T, data *TestData, id string, kind string) {
-	// Get the recommendationed policy and check if it is equal to the original yaml
-	command := fmt.Sprintf("clickhouse client -q \"select policy from recommendations where id='%s' and kind='%s'\"", id, kind)
-	queryOutput, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", command})
-	require.NoErrorf(t, err, "Fail to get recommendations from ClickHouse, stderr: %v", stderr)
-	queryOutput = strings.ReplaceAll(queryOutput, "\\n", "\n")
-	assert.Contains(t, queryOutput, getNetowrkPolicyYaml(kind))
-	// Parse the recommendationed policy to corresponding type to verify there is no error
-	switch kind {
-	case "acnp":
-		var acnp antreav1alpha1.ClusterNetworkPolicy
-		err = yaml.Unmarshal([]byte(queryOutput), &acnp)
-		require.NoErrorf(t, err, "failed to parse the policy with kind acnp, yaml: %s", queryOutput)
-	case "anp":
-		var anp antreav1alpha1.NetworkPolicy
-		err = yaml.Unmarshal([]byte(queryOutput), &anp)
-		require.NoErrorf(t, err, "failed to parse the policy with kind anp, yaml: %s", queryOutput)
-	case "acg":
-		var acg antreav1alpha2.ClusterGroup
-		err = yaml.Unmarshal([]byte(queryOutput), &acg)
-		require.NoErrorf(t, err, "failed to parse the policy with kind acg, yaml: %s", queryOutput)
-	case "knp":
-		var knp networkingv1.NetworkPolicy
-		err = yaml.Unmarshal([]byte(queryOutput), &knp)
-		require.NoErrorf(t, err, "failed to parse the policy with kind knp, yaml: %s", queryOutput)
-	}
+	ApplyNewVersion(t, data, upgradeToAntreaYML, upgradeToChOperatorYML, upgradeToFlowVisibilityYML)
 }

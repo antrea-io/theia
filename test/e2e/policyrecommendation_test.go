@@ -42,7 +42,7 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
-	config := FlowVisibiltiySetUpConfig{
+	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     true,
 		withGrafana:           false,
 		withClickHouseLocalPv: false,

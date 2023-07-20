@@ -30,6 +30,7 @@ Kustomize, and print it to stdout.
         --spark-operator                    Generate a manifest with Spark Operator enabled.
         --theia-manager                     Generate a manifest with Theia Manager enabled.
         --no-grafana                        Generate a manifest with Grafana disabled.
+        --ch-only                           Generate a manifest with ClickHouse only.
         --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
                                             plain integer or as a fixed-point number using one of these quantity
                                             suffixes: E, P, T, G, M, K. Or the power-of-two equivalents:
@@ -56,6 +57,7 @@ MODE="dev"
 SPARK_OP=false
 THEIA_MANAGER=false
 GRAFANA=true
+CH_ONLY=false
 CH_SIZE="8Gi"
 CH_THRESHOLD=0.5
 LOCALPATH=""
@@ -79,6 +81,10 @@ case $key in
     ;;
     --no-grafana)
     GRAFANA=false
+    shift 1
+    ;;
+    --ch-only)
+    CH_ONLY=true
     shift 1
     ;;
     --ch-size)
@@ -160,6 +166,9 @@ if $THEIA_MANAGER; then
 fi
 if [ "$GRAFANA" == false ]; then
     HELM_VALUES+=("grafana.enable=false")
+fi
+if [ "$CH_ONLY" == true ]; then
+    HELM_VALUES+=("grafana.enable=false" "theiaManager.enable=false" "sparkOperator.enable=false" "clickhouse.monitor.enable=true")
 fi
 if [[ $LOCALPATH != "" ]]; then
     HELM_VALUES+=("clickhouse.storage.createPersistentVolume.type=Local" "clickhouse.storage.createPersistentVolume.local.path=$LOCALPATH")

@@ -281,7 +281,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	return testData, nil
 }
 
-func setupTestForFlowVisibility(tb testing.TB, config FlowVisibiltiySetUpConfig) (*TestData, bool, bool, error) {
+func setupTestForFlowVisibility(tb testing.TB, config FlowVisibilitySetUpConfig) (*TestData, bool, bool, error) {
 	v4Enabled := clusterInfo.podV4NetworkCIDR != ""
 	v6Enabled := clusterInfo.podV6NetworkCIDR != ""
 	testData, err := setupTest(tb)

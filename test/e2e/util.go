@@ -49,6 +49,8 @@ const (
 	nodeToNodeDashboardUid             = "1F56RJh7z"
 	networkPolicyDashboardUid          = "KJNMOwQnk"
 	networkTopologyDashboardUid        = "yRVDEad4k"
+	id1                                = "abcd1234-abcd-1234-ab12-abcd12345678"
+	id2                                = "1234abcd-1234-abcd-12ab-12345678abcd"
 )
 
 var (
@@ -337,7 +339,7 @@ var grafanaTestCases = []struct {
 	},
 }
 
-func getNetowrkPolicyYaml(kind string) string {
+func getNetworkPolicyYaml(kind string) string {
 	switch kind {
 	case "acnp":
 		return `
@@ -544,4 +546,25 @@ func VerifyJobCleaned(t *testing.T, data *TestData, jobName string, tablename st
 		return fmt.Errorf("stale resources expected to be deleted, but got stdout: %s, stderr: %s, ClickHouse query result expected to be 0, got: %s", stdout, stderr, queryOutput)
 	}
 	return nil
+}
+
+func ApplyNewVersion(t *testing.T, data *TestData, antreaYML, chOperatorYML, flowVisibilityYML string) {
+	t.Logf("Changing Antrea YAML to %s", antreaYML)
+	// Do not wait for agent rollout as its updateStrategy is set to OnDelete for upgrade test.
+	if err := data.deployAntreaCommon(antreaYML, "", false); err != nil {
+		t.Fatalf("Error upgrading Antrea: %v", err)
+	}
+	t.Logf("Restarting all Antrea DaemonSet Pods")
+	if err := data.restartAntreaAgentPods(defaultTimeout); err != nil {
+		t.Fatalf("Error when restarting Antrea: %v", err)
+	}
+
+	t.Logf("Changing ClickHouse Operator YAML to %s,\nFlow Visibility YAML to %s", chOperatorYML, flowVisibilityYML)
+	if err := data.deployFlowVisibilityCommon(chOperatorYML, flowVisibilityYML); err != nil {
+		t.Fatalf("Error upgrading Flow Visibility: %v", err)
+	}
+	t.Logf("Waiting for the ClickHouse Pod restarting")
+	if err := data.waitForClickHousePod(); err != nil {
+		t.Fatalf("Error when waiting for the ClickHouse Pod restarting: %v", err)
+	}
 }

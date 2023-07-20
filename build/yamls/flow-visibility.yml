@@ -18,6 +18,22 @@ metadata:
   name: grafana
   namespace: flow-visibility
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+  namespace: flow-visibility
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager
+  namespace: flow-visibility
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -36,6 +52,144 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+rules:
+- apiGroups:
+  - intelligence.theia.antrea.io
+  resources:
+  - networkpolicyrecommendations
+  - throughputanomalydetectors
+  verbs:
+  - get
+  - list
+  - create
+  - delete
+- apiGroups:
+  - stats.theia.antrea.io
+  resources:
+  - clickhouse
+  verbs:
+  - get
+- apiGroups:
+  - system.theia.antrea.io
+  resources:
+  - supportbundles
+  verbs:
+  - get
+  - create
+  - delete
+- apiGroups:
+  - system.theia.antrea.io
+  resources:
+  - supportbundles/download
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - theia-ca
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - extension-apiserver-authentication
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - crd.theia.antrea.io
+  resources:
+  - networkpolicyrecommendations
+  - recommendednetworkpolicies
+  - throughputanomalydetectors
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - crd.theia.antrea.io
+  resources:
+  - networkpolicyrecommendations/status
+  - throughputanomalydetectors/status
+  verbs:
+  - update
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods/exec
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
@@ -49,6 +203,36 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: grafana
+  namespace: flow-visibility
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: theia-cli
+  name: theia-cli
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: theia-cli
+subjects:
+- kind: ServiceAccount
+  name: theia-cli
+  namespace: flow-visibility
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: theia-manager-role
+subjects:
+- kind: ServiceAccount
+  name: theia-manager
   namespace: flow-visibility
 ---
 apiVersion: v1
@@ -6465,6 +6649,36 @@ metadata:
   namespace: flow-visibility
 ---
 apiVersion: v1
+data:
+  theia-manager.conf: |
+    # apiServer contains APIServer related configuration options.
+    apiServer:
+      # The port for the theia-manager APIServer to serve on.
+      apiPort: 11347
+
+      # Indicates whether to use auto-generated self-signed TLS certificate.
+      # If false, a Secret named "theia-manager-tls" must be provided with the following keys:
+      #   ca.crt: <CA certificate>
+      #   tls.crt: <TLS certificate>
+      #   tls.key: <TLS private key>
+      selfSignedCert: true
+
+      # Comma-separated list of Cipher Suites. If omitted, the default Go Cipher Suites will be used.
+      # https://golang.org/pkg/crypto/tls/#pkg-constants
+      # Note that TLS1.3 Cipher Suites cannot be added to the list. But the apiserver will always
+      # prefer TLS1.3 Cipher Suites whenever possible.
+      tlsCipherSuites: ""
+
+      # TLS min version from: VersionTLS10, VersionTLS11, VersionTLS12, VersionTLS13.
+      tlsMinVersion: ""
+kind: ConfigMap
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager-configmap
+  namespace: flow-visibility
+---
+apiVersion: v1
 kind: Secret
 metadata:
   name: clickhouse-secret
@@ -6487,6 +6701,15 @@ stringData:
 type: Opaque
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: theia-cli
+  name: theia-cli-account-token
+  namespace: flow-visibility
+type: kubernetes.io/service-account-token
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: grafana
@@ -6500,6 +6723,21 @@ spec:
     app: grafana
   sessionAffinity: None
   type: NodePort
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager
+  namespace: flow-visibility
+spec:
+  ports:
+  - port: 11347
+    protocol: TCP
+    targetPort: theia-api-http
+  selector:
+    app: theia-manager
 ---
 apiVersion: v1
 kind: Service
@@ -6691,6 +6929,85 @@ spec:
       - configMap:
           name: grafana-dashboard-config
         name: grafana-dashboard-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: theia-manager
+  name: theia-manager
+  namespace: flow-visibility
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: theia-manager
+  template:
+    metadata:
+      labels:
+        app: theia-manager
+    spec:
+      containers:
+      - args:
+        - --config
+        - /etc/theia-manager/theia-manager.conf
+        - --logtostderr=false
+        - --log_dir=/var/log/antrea/theia-manager
+        - --alsologtostderr
+        - --log_file_max_size=100
+        - --log_file_max_num=4
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CLICKHOUSE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              key: username
+              name: clickhouse-secret
+        - name: CLICKHOUSE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: clickhouse-secret
+        - name: CLICKHOUSE_URL
+          value: tcp://clickhouse-clickhouse.flow-visibility.svc:9000
+        image: projects.registry.vmware.com/antrea/theia-manager:latest
+        imagePullPolicy: IfNotPresent
+        name: theia-manager
+        ports:
+        - containerPort: 11347
+          name: theia-api-http
+        volumeMounts:
+        - mountPath: /etc/theia-manager
+          name: theia-manager-config
+          readOnly: true
+        - mountPath: /var/run/theia/theia-manager-tls
+          name: theia-manager-tls
+        - mountPath: /var/log/antrea/theia-manager
+          name: host-var-log-antrea-theia-manager
+      nodeSelector:
+        kubernetes.io/arch: amd64
+        kubernetes.io/os: linux
+      serviceAccountName: theia-manager
+      volumes:
+      - configMap:
+          name: theia-manager-configmap
+        name: theia-manager-config
+      - name: theia-manager-tls
+        secret:
+          defaultMode: 256
+          optional: true
+          secretName: theia-manager-tls
+      - hostPath:
+          path: /var/log/antrea/theia-manager
+          type: DirectoryOrCreate
+        name: host-var-log-antrea-theia-manager
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -6965,7 +7282,7 @@ spec:
             value: 1m
           - name: SKIP_ROUNDS_NUM
             value: "3"
-          image: projects.registry.vmware.com/antrea/antrea-ubuntu:latest
+          image: projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           imagePullPolicy: IfNotPresent
           name: clickhouse-monitor
         volumes:

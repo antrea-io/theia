@@ -185,7 +185,6 @@ DOCKER_IMAGES=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/clickhouse-operator:0.21.0" \
                 "projects.registry.vmware.com/antrea/metrics-exporter:0.21.0" \
                 "projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0" \
-                "projects.registry.vmware.com/antrea/theia-grafana:8.3.3" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$THEIA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-server:$CLICKHOUSE_FROM_TAG" \
@@ -221,7 +220,7 @@ sed -i -e "s|image: \"projects.registry.vmware.com/antrea/antrea-ubuntu:latest\"
 sed -i -e "s|type: RollingUpdate|type: OnDelete|g" $TMP_DIR/antrea.yml
 # Load latest Theia yaml files
 docker exec -i kind-control-plane dd of=/root/antrea-new.yml < $TMP_DIR/antrea.yml
-$ROOT_DIR/hack/generate-manifest.sh --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-new.yml
+$ROOT_DIR/hack/generate-manifest.sh --local /data/clickhouse --ch-only | docker exec -i kind-control-plane dd of=/root/flow-visibility-new.yml
 docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle-new.yaml < $ROOT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 rm -rf $TMP_DIR
 
@@ -248,7 +247,15 @@ export IMG_TAG=$THEIA_FROM_TAG
 if [[ $THEIA_FROM_TAG == "v0.1.0" ]]; then
     cp $ROOT_DIR/hack/generate-manifest.sh hack/generate-manifest.sh
 fi
-./hack/generate-manifest.sh --mode release --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
+# In Theia v0.7.0, we support --ch-only option when generating manifest,
+# which is not present in earlier versions 
+# Copy the latest script for release v0.1.0 to generate manifest.
+export RELEASE_VERSION=${THEIA_FROM_TAG#"v"}
+export RELEASE_VERSION_NUMBER=$(echo "$RELEASE_VERSION" | awk -F '.' '{printf "%.1f", $1 + $2/10 + $3/100}')
+if (( $(echo "$RELEASE_VERSION_NUMBER < 0.7" | bc -l) )); then
+    cp $ROOT_DIR/hack/generate-manifest.sh hack/generate-manifest.sh
+fi 
+./hack/generate-manifest.sh --mode release --local /data/clickhouse --ch-only | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
 docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 
 popd

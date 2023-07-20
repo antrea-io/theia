@@ -45,8 +45,8 @@ func skipIfNotUpgradeTest(t *testing.T) {
 func TestUpgrade(t *testing.T) {
 	skipIfNotUpgradeTest(t)
 	config := FlowVisibilitySetUpConfig{
-		withSparkOperator:     false,
-		withGrafana:           false,
+		withSparkOperator:     true,
+		withGrafana:           true,
 		withClickHouseLocalPv: true,
 		withFlowAggregator:    false,
 	}

@@ -268,7 +268,7 @@ jobs:
       - name: Run migrate test
         run: |
           mkdir log
-          ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-clickhouse-migrate.sh  --from-version-n-minus 1
+          ANTREA_LOG_DIR=$PWD/log ./ci/kind/test-migrate-clickhouse.sh  --from-version-n-minus 1
       - name: Tar log files
         if: ${{ failure() }}
         run: tar -czf log.tar.gz log

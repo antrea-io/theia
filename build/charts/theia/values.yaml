@@ -249,7 +249,7 @@ sparkOperator:
     tag: "v1beta2-1.3.3-3.1.1"
 theiaManager:
   # -- Determine whether to install Theia Manager.
-  enable: false
+  enable: true
   # -- Container image used by Theia Manager.
   image:
     repository: "projects.registry.vmware.com/antrea/theia-manager"

@@ -221,7 +221,7 @@ sed -i -e "s|image: \"projects.registry.vmware.com/antrea/antrea-ubuntu:latest\"
 sed -i -e "s|type: RollingUpdate|type: OnDelete|g" $TMP_DIR/antrea.yml
 # Load latest Theia yaml files
 docker exec -i kind-control-plane dd of=/root/antrea-new.yml < $TMP_DIR/antrea.yml
-$ROOT_DIR/hack/generate-manifest.sh --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-new.yml
+$ROOT_DIR/hack/generate-manifest.sh --local /data/clickhouse --spark-operator --theia-manager | docker exec -i kind-control-plane dd of=/root/flow-visibility-new.yml
 docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle-new.yaml < $ROOT_DIR/build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
 rm -rf $TMP_DIR
 
@@ -249,7 +249,7 @@ if [[ $THEIA_FROM_TAG == "v0.1.0" ]]; then
     cp $ROOT_DIR/hack/generate-manifest.sh hack/generate-manifest.sh
 fi
 docker exec -i kind-control-plane dd of=/root/clickhouse-operator-install-bundle.yaml < build/charts/theia/crds/clickhouse-operator-install-bundle.yaml
-./hack/generate-manifest.sh --mode release --local /data/clickhouse --no-grafana | docker exec -i kind-control-plane dd of=/root/flow-visibility-ch-only.yml
+./hack/generate-manifest.sh --mode release --local /data/clickhouse --spark-operator --theia-manager | docker exec -i kind-control-plane dd of=/root/flow-visibility-with-spark.yml
 
 popd
 rm -rf $TMP_THEIA_DIR

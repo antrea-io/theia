@@ -69,6 +69,34 @@ $ theia throughput-anomaly-detection run --algo "ARIMA"
 Successfully started Throughput Anomaly Detection job with name tad-1234abcd-1234-abcd-12ab-12345678abcd
 ```
 
+Throughput Anomaly Detection also provides support for aggregated throughput
+anomaly detection.
+There are three different types of aggregations that are included.
+
+- `external` : Aggregated flows for inbound traffic to external IP,
+  user could provide external-IP using `external-ip` argument for further
+  filtering.
+- `pod`: Aggregated flows for inbound/outbound pod traffic.
+- `svc`: Aggregated flows for traffic to service port, user could
+  provide a destination port name using `svc-name-port` argument for
+  further filtering.
+
+For aggregated flows `pod`, user can provide the following filter arguments.
+
+- `pod-label`: The argument aggregates inbound/outbound traffic using Pod
+  labels.
+- `pod-name`: The argument aggregates inbound/outbound traffic using Pod name.
+- `pod-namespace`: The argument aggregates inbound/outbound traffic using
+  Pod namespace. However, this argument only works as a combination to any of
+  the above two arguments and can not be used alone.
+
+To start an aggregated throughput anomaly detection, please run the following command:
+
+```bash
+$ theia throughput-anomaly-detection run --algo "ARIMA" --agg-flow pod --pod-label \"test_key\":\"test_value\"
+Successfully started Throughput Anomaly Detection job with name tad-1234abcd-1234-abcd-12ab-12345678abcd
+```
+
 The name of the Throughput Anomaly Detection job contains a universally
 unique identifier ([UUID](
 https://en.wikipedia.org/wiki/Universally_unique_identifier)) that is
@@ -110,13 +138,24 @@ in table format, run:
 
 ```bash
 $ theia throughput-anomaly-detection retrieve tad-1234abcd-1234-abcd-12ab-12345678abcd
-id                                      sourceIP        sourceTransportPort     destinationIP   destinationTransportPort        flowStartSeconds        flowEndSeconds          throughput                     algoCalc            anomaly
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11 08:24:54     10004969097.000000000000000000  4.0063773860532994E9        true
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11 08:06:54     4005703059.000000000000000000   1.0001208294655691E10       true
-1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11 08:34:54     50007861276.000000000000000000  3.9735065921281104E9        true
+id                                      sourceIP        sourceTransportPort     destinationIP   destinationTransportPort        flowStartSeconds        flowEndSeconds          throughput              aggType         algoType        algoCalc                anomaly
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:06:54Z    4.005703059e+09         None             ARIMA           1.0001208441920074e+10  true
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:24:54Z    1.0004969097e+10        None             ARIMA           4.006432886406564e+09   true
+1234abcd-1234-abcd-12ab-12345678abcd    10.10.1.25      58076                   10.10.1.33      5201                            2022-08-11T06:26:54Z    2022-08-11T08:34:54Z    5.0007861276e+10        None             ARIMA           3.9735067954945493e+09  true
 ```
 
-User may also save the result in an output file in json format
+Aggregated Throughput Anomaly Detection has different columns based on the
+aggregation type.
+e.g. when aggregation type is `svc`, the output is the following
+
+```bash
+$ theia throughput-anomaly-detection retrieve tad-5ca4413d-6730-463e-8f95-86032ba28a4f
+id                                   destinationServicePortName flowEndSeconds       throughput       aggType        algoType       algoCalc               anomaly
+5ca4413d-6730-463e-8f95-86032ba28a4f test_serviceportname       2022-08-11T08:24:54Z 5.0024845485e+10 svc            ARIMA          2.0863933021708477e+10 true
+5ca4413d-6730-463e-8f95-86032ba28a4f test_serviceportname       2022-08-11T08:34:54Z 2.5003930638e+11 svc            ARIMA          1.9138281301304165e+10 true
+```
+
+User may also save the result in an output file in json format.
 
 ### List all throughput anomaly detection jobs
 

@@ -395,7 +395,7 @@ def filter_df_with_true_anomalies(
     if ret_plot.count() == 0:
         ret_plot = ret_plot.collect()
         if agg_flow == "":
-            agg_type = "e2e"
+            agg_type = "None"
         else:
             agg_type = agg_flow
         ret_plot.append({
@@ -624,7 +624,7 @@ def assign_flow_type(prepared_DF, agg_flow=None, direction=None):
     elif agg_flow == "pod":
         prepared_DF = prepared_DF.withColumn('aggType', f.lit("pod"))
     else:
-        prepared_DF = prepared_DF.withColumn('aggType', f.lit("e2e"))
+        prepared_DF = prepared_DF.withColumn('aggType', f.lit("None"))
     return prepared_DF
 
 

@@ -106,7 +106,7 @@ func throughputAnomalyDetectionRetrieve(cmd *cobra.Command, args []string) error
 	} else {
 		var result [][]string
 		switch tad.Stats[0].AggType {
-		case "e2e":
+		case "None":
 			result = append(result, []string{"id", "sourceIP", "sourceTransportPort", "destinationIP", "destinationTransportPort", "flowStartSeconds", "flowEndSeconds", "throughput", "aggType", "algoType", "algoCalc", "anomaly"})
 			for _, p := range tad.Stats {
 				result = append(result, []string{p.Id, p.SourceIP, p.SourceTransportPort, p.DestinationIP, p.DestinationTransportPort, p.FlowStartSeconds, p.FlowEndSeconds, p.Throughput, p.AggType, p.AlgoType, p.AlgoCalc, p.Anomaly})

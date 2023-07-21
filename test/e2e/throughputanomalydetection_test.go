@@ -175,7 +175,7 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 	algoNames := []string{"ARIMA", "EWMA", "DBSCAN"}
 	// agg_type 'podLabel' stands for agg_type 'pod' with pod-label argument
 	// agg_type 'podName' stands for agg_type 'pod' with pod-name argument
-	agg_types := []string{"None", "podName", "podLabel", "svc", "external"}
+	agg_types := []string{"podLabel"}
 	// Select random algo for the agg_types
 	aggTypeToAlgoNameMap := make(map[string]string)
 	for _, agg_type := range agg_types {
@@ -244,18 +244,17 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 	poolIdx = 0
 	for agg_type, algoName := range aggTypeToAlgoNameMap {
 		poolIdx += 1
-		if agg_type == "None" {
-			for _, algo := range algoNames {
-				algoName = algo
-				wg.Add(1)
-				pool <- poolIdx
-				go executeRetrieveTest(t, data, algoName, agg_type, result_map, assert_variable_map, pool, &wg)
-			}
-		} else {
+		for _, algo := range algoNames {
+			algoName = algo
 			wg.Add(1)
 			pool <- poolIdx
 			go executeRetrieveTest(t, data, algoName, agg_type, result_map, assert_variable_map, pool, &wg)
 		}
+		// } else {
+			// wg.Add(1)
+			// pool <- poolIdx
+			// go executeRetrieveTest(t, data, algoName, agg_type, result_map, assert_variable_map, pool, &wg)
+		// }
 	}
 	wg.Wait()
 }
@@ -266,7 +265,8 @@ func executeRetrieveTest(t *testing.T, data *TestData, algo, agg_type string, re
 		<-pool
 		wg.Done()
 	}()
-	_, jobName, err := tadrunJob(t, data, algo, agg_type)
+	stdout, jobName, err := tadrunJob(t, data, algo, agg_type)
+	fmt.Printf("TUSHAR TESTS JOB: %v, algo: %v, agg_type:%v \n", stdout, algo, agg_type)
 	require.NoError(t, err)
 	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)

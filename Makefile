@@ -96,9 +96,8 @@ add-copyright:
 .linux-test-unit: .coverage
 	@echo
 	@echo "==> Running unit tests <=="
-	$(GO) test -race -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...  \
-	  -coverprofile=.coverage/coverage-unit.txt -covermode=atomic \
-	  antrea.io/theia/plugins/... antrea.io/theia/pkg/... 
+	$(GO) test -race -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...,antrea.io/theia/cmd/...,antrea.io/theia/snowflake/cmd/...,antrea.io/theia/snowflake/pkg/...\
+	  -coverprofile=.coverage/coverage-unit.txt -covermode=atomic 
 
 .PHONY: tidy
 tidy:

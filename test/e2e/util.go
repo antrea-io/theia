@@ -440,6 +440,7 @@ func RunJob(t *testing.T, data *TestData, jobcmd string) (stdout string, jobName
 	stdout = strings.TrimSuffix(stdout, "\n")
 	stdoutSlice := strings.Split(stdout, " ")
 	jobName = stdoutSlice[len(stdoutSlice)-1]
+	
 	return stdout, jobName, nil
 }
 

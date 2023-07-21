@@ -266,7 +266,8 @@ func executeRetrieveTest(t *testing.T, data *TestData, algo, agg_type string, re
 		<-pool
 		wg.Done()
 	}()
-	_, jobName, err := tadrunJob(t, data, algo, agg_type)
+	stdout, jobName, err := tadrunJob(t, data, algo, agg_type)
+	fmt.Printf("TUSHAR TESTS JOB: %v, algo: %v, agg_type:%v ", stdout, algo, agg_type)
 	require.NoError(t, err)
 	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)

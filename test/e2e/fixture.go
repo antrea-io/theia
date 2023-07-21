@@ -27,7 +27,6 @@ import (
 )
 
 func ensureAntreaRunning(data *TestData) error {
-	// TUSHAR PLACEHOLDER FOR TESTING CODECOV
 	log.Println("Applying Antrea YAML")
 	if err := data.deployAntrea(); err != nil {
 		return err

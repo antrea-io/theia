@@ -10,6 +10,7 @@
 - [Theia Installation](#theia-installation)
 - [Features](#features)
   - [Network Flow Visualization and Monitoring](#network-flow-visualization-and-monitoring)
+  - [Multi-Cluster Monitoring](#multi-cluster-monitoring)
   - [NetworkPolicy Recommendation](#networkpolicy-recommendation)
   - [Throughput Anomaly Detection](#throughput-anomaly-detection)
 - [Additional Information](#additional-information)
@@ -166,6 +167,13 @@ and log in with username: `admin` and password: `admin`. Navigate to the [Theia
 dashboards](network-flow-visibility.md#grafana-dashboards) to view the network
 flows in the cluster.
 
+### Multi-Cluster Monitoring
+
+Theia facilitates multi-cluster monitoring, allowing administrators to
+simultaneously supervise network operations across Antrea clusters.
+For guidance on exposing Theia across multiple clusters and enabling
+secure connections, refer to the instructions in [clickhouse-ingress](clickhouse-ingress.md)
+
 ### NetworkPolicy Recommendation
 
 Please follow the instructions in the [NetworkPolicy Recommendation](networkpolicy-recommendation.md)
@@ -186,3 +194,6 @@ and their advanced configurations.
 For more information about Grafana Flow Collector installation and
 customization, please refer to Grafana Flow Collector [Deployment Steps](network-flow-visibility.md#deployment-steps),
 and [Configuration](network-flow-visibility.md#configuration).
+
+If you are interested in using Ingress to set up ClickHouse server, please refer
+to [ClickHouse Ingress](clickhouse-ingress.md) for more information.

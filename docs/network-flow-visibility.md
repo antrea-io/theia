@@ -292,11 +292,16 @@ PV creation, you can configure a customized `StorageClass` in
 
 ##### Secure Connection
 
+For a secure ClickHouse server setup, consider leveraging Kubernetes Ingress.
+By deploying ClickHouse within Kubernetes and configuring Ingress, you ensure
+encrypted traffic with SSL certificates. Please refer to
+[ClickHouse Ingress](clickhouse-ingress.md) for more information.
+
 From Theia 0.8, we support TLS connection option in ClickHouse server. To
 enable TLS connection, please set `clickhouse.service.secureConnection.enable`
 to true.
 
-Currently ClickHouse Operator does not support cert-manager, which means users
+Currently, ClickHouse Operator does not support cert-manager, which means users
 need to manually do the certs rotation when using this ClickHouse server TLS
 option. You can set `clickhouse.service.secureConnection.selfSignedCert` to
 true to use the default certs. Please ensure that you have set the subject's

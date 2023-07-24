@@ -97,7 +97,8 @@ add-copyright:
 	@echo
 	@echo "==> Running unit tests <=="
 	$(GO) test -race -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...,antrea.io/theia/cmd/...,antrea.io/theia/snowflake/cmd/...,antrea.io/theia/snowflake/pkg/...\
-	  -coverprofile=.coverage/coverage-unit.txt -covermode=atomic 
+	  -coverprofile=.coverage/coverage-unit.txt -covermode=atomic \
+	  antrea.io/theia/plugins/... antrea.io/theia/pkg/... antrea.io/theia/cmd/... antrea.io/theia/snowflake/cmd/... antrea.io/theia/snowflake/pkg/...
 
 .PHONY: tidy
 tidy:

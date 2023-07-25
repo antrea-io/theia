@@ -15,9 +15,10 @@
 package e2e
 
 import (
+	"crypto/rand"
 	"fmt"
 	"io"
-	"math/rand"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -83,8 +84,8 @@ func randSeq(n int) string {
 	b := make([]rune, n)
 	for i := range b {
 		// #nosec G404: random number generator not used for security purposes
-		randIdx := rand.Intn(len(lettersAndDigits))
-		b[i] = lettersAndDigits[randIdx]
+		randIdx, _ := rand.Int(rand.Reader, big.NewInt(int64(len(lettersAndDigits))))
+		b[i] = lettersAndDigits[randIdx.Int64()]
 	}
 	return string(b)
 }

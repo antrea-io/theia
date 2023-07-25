@@ -52,6 +52,8 @@ spec:
                   key: password
             - name: CLICKHOUSE_URL
               value: "tcp://clickhouse-clickhouse.{{ .Release.Namespace }}.svc:{{ .Values.clickhouse.service.tcpPort }}"
+            - name: GOCOVERDIR
+              value: "/theia-manager-coverage"
           ports:
             - name: "theia-api-http"
               containerPort: {{ .Values.theiaManager.apiServer.apiPort }}
@@ -63,6 +65,8 @@ spec:
               name: theia-manager-tls
             - mountPath: /var/log/antrea/theia-manager
               name: host-var-log-antrea-theia-manager
+            - mountPath: /theia-manager-coverage
+              name: theia-manager-coverage
       nodeSelector:
         kubernetes.io/os: linux
         kubernetes.io/arch: amd64
@@ -80,5 +84,9 @@ spec:
         - name: host-var-log-antrea-theia-manager
           hostPath:
             path: /var/log/antrea/theia-manager
+            type: DirectoryOrCreate
+        - name: theia-manager-coverage
+          hostPath:
+            path: /var/log/tm-coverage
             type: DirectoryOrCreate
 {{- end }}

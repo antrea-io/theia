@@ -4,6 +4,9 @@
 - name: clickhouse-monitor
   image: {{ include "clickHouseMonitorImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.monitor.image.pullPolicy }}
+  volumeMounts:
+    - name: clickhouse-monitor-coverage
+      mountPath: /clickhouse-monitor-coverage
   env:
     - name: CLICKHOUSE_USERNAME
       valueFrom:
@@ -31,6 +34,8 @@
       value: {{ $clickhouse.monitor.execInterval }}
     - name: SKIP_ROUNDS_NUM
       value: {{ $clickhouse.monitor.skipRoundsNum | quote }}
+    - name: GOCOVERDIR
+      value: "/clickhouse-monitor-coverage"
 {{- end }}
 
 {{- define "clickhouse.server.container" }}
@@ -88,6 +93,10 @@
     medium: Memory
     sizeLimit: {{ $clickhouse.storage.size }}
 {{- end }}
+- hostPath:
+    path: /var/log/cm-coverage
+    type: DirectoryOrCreate
+  name: clickhouse-monitor-coverage
 {{- end }}
 
 

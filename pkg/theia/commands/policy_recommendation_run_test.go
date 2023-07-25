@@ -141,11 +141,11 @@ func TestPolicyRecommendationRun(t *testing.T) {
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			defer func() { os.Stdout = orig }()
 			err := policyRecommendationRun(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)
-				os.Stdout = orig
 				for _, msg := range tt.expectedMsg {
 					assert.Contains(t, outcome, msg)
 				}

@@ -93,6 +93,8 @@ const (
 	antreaPodLabel             string = "app=antrea,component=antrea-agent"
 	clickHouseLocalPvLabel     string = "antrea.io/clickhouse-data-node"
 	clickHouseLocalPvPath      string = "/data/clickhouse"
+	clickHouseMonitorContName  string = "clickhouse-monitor"
+	theiaManagerContName       string = "theia-manager"
 
 	agnhostImage  = "registry.k8s.io/e2e-test-images/agnhost:2.29"
 	busyboxImage  = "projects.registry.vmware.com/antrea/busybox"
@@ -1392,7 +1394,44 @@ func (data *TestData) deleteClickHouseOperator(chOperatorYML string) error {
 	return nil
 }
 
+func (data *TestData) killProcesses(namespace, podName, containerName, processName string) error {
+	cmds := []string{"pgrep", "-f", processName}
+	stdout, stderr, err := data.RunCommandFromPod(namespace, podName, containerName, cmds)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not have a host assigned") {
+			return nil
+		}
+		return fmt.Errorf("error when getting pid of '%s', stderr: <%v>, err: <%v>", processName, stderr, err)
+	}
+	cmds = []string{"kill", "-SIGINT", strings.TrimSpace(stdout)}
+	_, stderr, err = data.RunCommandFromPod(namespace, podName, containerName, cmds)
+	if err != nil {
+		return fmt.Errorf("error when sending SIGINT signal to '%s', stderr: <%v>, err: <%v>", processName, stderr, err)
+	}
+	return nil
+}
+
+func (data *TestData) killProcessesOnPods() error {
+	pods, err := data.clientset.CoreV1().Pods(flowVisibilityNamespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to list flow-visibility pods: %v", err)
+	}
+	for _, pod := range pods.Items {
+		podName := pod.Name
+		if strings.Contains(podName, "chi-clickhouse-clickhouse") {
+			err = data.killProcesses("flow-visibility", podName, clickHouseMonitorContName, clickHouseMonitorContName)
+		} else if strings.Contains(podName, theiaManagerContName) {
+			err = data.killProcesses("flow-visibility", podName, theiaManagerContName, theiaManagerContName)
+		}
+		if err != nil {
+			return fmt.Errorf("error when killing processes on pod: %v", err)
+		}
+	}
+	return nil
+}
+
 func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig) {
+	data.killProcessesOnPods()
 	if config.withFlowAggregator {
 		if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
 			tb.Logf("Error when tearing down flow aggregator: %v", err)

@@ -219,11 +219,11 @@ func TestGetStatus(t *testing.T) {
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			defer func() { os.Stdout = orig }()
 			err := getStatus(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)
-				os.Stdout = orig
 				for _, msg := range tt.expectedMsg {
 					assert.Contains(t, outcome, msg)
 				}

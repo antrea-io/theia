@@ -5,6 +5,7 @@ COPY . /theia
 WORKDIR /theia
 
 RUN make theia-manager-bin
+RUN mkdir theia-manager-coverage
 
 # Chose this base image so that a shell is available for users to exec into the container
 FROM ubuntu:23.04

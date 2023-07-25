@@ -17,10 +17,8 @@ package e2e
 import (
 	"flag"
 	"log"
-	"math/rand"
 	"os"
 	"testing"
-	"time"
 )
 
 // setupLogging creates a temporary directory to export the test logs if necessary. If a directory
@@ -103,7 +101,6 @@ func testMain(m *testing.M) int {
 	if err != nil {
 		log.Fatalf("Error when getting antrea-config configmap: %v", err)
 	}
-	rand.Seed(time.Now().UnixNano())
 	ret := m.Run()
 	return ret
 }

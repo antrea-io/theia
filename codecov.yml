@@ -33,6 +33,16 @@ coverage:
         threshold: 1%
         flags:
           - unit-tests
+      theia-kind-e2e-tests:
+        target: 60%
+        threshold: 1%
+        flags:
+          - kind-e2e-tests
+      python-unit-tests:
+        target: 50%
+        threshold: 1%
+        flags:
+          - python-coverage
 
 flag_management:
   default_rules:
@@ -45,3 +55,4 @@ ignore:
   - "**/pkg/client"
   - "third_party"
   - "pkg/api"
+  - "snowflake"

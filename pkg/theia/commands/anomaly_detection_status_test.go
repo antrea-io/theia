@@ -181,6 +181,7 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			defer func() { os.Stdout = orig }()
 			if tt.name == "Valid case with args" {
 				err = anomalyDetectionStatus(cmd, []string{tadName})
 			} else {
@@ -189,7 +190,6 @@ func TestAnomalyDetectorStatus(t *testing.T) {
 			if tt.expectedErrorMsg == "" {
 				assert.NoError(t, err)
 				outcome := readStdout(t, r, w)
-				os.Stdout = orig
 				for _, msg := range tt.expectedMsg {
 					assert.Contains(t, outcome, msg)
 				}

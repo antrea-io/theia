@@ -32,7 +32,7 @@ func TestMonitorWithMockDB(t *testing.T) {
 	defer db.Close()
 	initEnv()
 
-	foreverRun = func(f func(), period time.Duration) {
+	runUntil = func(f func(), period time.Duration, stopCh <-chan struct{}) {
 		f()
 	}
 

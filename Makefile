@@ -44,7 +44,7 @@ trivy-scan: .trivy-bin check-TRIVY_TARGET_IMAGE
 
 .PHONY: .coverage
 .coverage:
-	mkdir -p $(CURDIR)/.coverage
+	mkdir -p $(CURDIR)/.coverage/unit
 
 .PHONY: test-unit
 ifeq ($(UNAME_S),Linux)
@@ -72,7 +72,7 @@ DOCKER_ENV := \
 		-v $(DOCKER_CACHE)/gopath:/tmp/gopath \
 		-v $(DOCKER_CACHE)/gocache:/tmp/gocache \
 		-v $(CURDIR):/usr/src/antrea.io/theia \
-		golang:1.19
+		golang:1.20
 
 .PHONY: docker-test-unit
 docker-test-unit: $(DOCKER_CACHE)
@@ -96,9 +96,9 @@ add-copyright:
 .linux-test-unit: .coverage
 	@echo
 	@echo "==> Running unit tests <=="
-	$(GO) test -race -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...  \
-	  -coverprofile=.coverage/coverage-unit.txt -covermode=atomic \
-	  antrea.io/theia/plugins/... antrea.io/theia/pkg/... 
+	$(GO) test -race -coverpkg=antrea.io/theia/plugins/...,antrea.io/theia/pkg/...,antrea.io/theia/cmd/...  \
+	  -coverprofile=.coverage/unit/coverage-unit.txt -covermode=atomic \
+	  antrea.io/theia/plugins/... antrea.io/theia/pkg/... antrea.io/theia/cmd/... \
 
 .PHONY: tidy
 tidy:
@@ -118,7 +118,7 @@ fmt:
 
 .golangci-bin:
 	@echo "===> Installing Golangci-lint <==="
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.50.0
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.52.2
 
 .PHONY: golangci
 golangci: .golangci-bin
@@ -187,7 +187,7 @@ clickhouse-monitor:
 .PHONY: clickhouse-monitor-plugin
 clickhouse-monitor-plugin:
 	@mkdir -p $(BINDIR)
-	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-monitor
+	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -cover -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-monitor
 
 .PHONY: theia-manager
 theia-manager:
@@ -200,7 +200,7 @@ theia-manager:
 .PHONY: theia-manager-bin
 theia-manager-bin:
 	@mkdir -p $(BINDIR)
-	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/cmd/theia-manager
+	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -cover -ldflags '$(LDFLAGS)' antrea.io/theia/cmd/theia-manager
 
 .PHONY: clickhouse-server
 clickhouse-server:
@@ -218,7 +218,7 @@ clickhouse-server-multi-arch:
 .PHONY: clickhouse-schema-management-plugin
 clickhouse-schema-management-plugin:
 	@mkdir -p $(BINDIR)
-	GOOS=linux $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-schema-management
+	GOOS=linux CGO_ENABLED=0 $(GO) build -o $(BINDIR) $(GOFLAGS) -ldflags '$(LDFLAGS)' antrea.io/theia/plugins/clickhouse-schema-management
 
 # Theia currently supports two spark jobs, Throughput Anomaly Detection and Policy Recommendation.
 # This Dockerfile helps create unified dockerfile for both the spark jobs.

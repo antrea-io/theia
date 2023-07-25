@@ -28,6 +28,7 @@ _usage="Usage: $0 [--ip-family <v4|v6>] [--help|-h]
         --setup-only                  Only perform setting up the cluster and run test.
         --cleanup-only                Only perform cleaning up the cluster.
         --test-only                   Only run test on current cluster. Not set up/clean up the cluster.
+        --coverage                    Collect coverage data while running test.
         --help, -h                    Print this message and exit.
 "
 
@@ -60,6 +61,7 @@ skiplist=""
 setup_only=false
 cleanup_only=false
 test_only=false
+coverage=false
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -85,6 +87,10 @@ case $key in
     test_only=true
     shift
     ;;
+    --coverage)
+    coverage=true
+    shift
+    ;;
     -h|--help)
     print_usage
     exit 0
@@ -99,6 +105,11 @@ done
 if [[ $cleanup_only == "true" ]];then
   $TESTBED_CMD destroy kind
   exit 0
+fi
+if [[ $coverage == "true" ]];then
+  mkdir -p .coverage/clickhouse-monitor-coverage/
+  mkdir -p .coverage/theia-manager-coverage/
+  mkdir -p .coverage/merged/
 fi
 
 trap "quit" INT EXIT
@@ -173,7 +184,24 @@ function run_test {
   rm -rf $TMP_DIR
   sleep 1
 
-  go test -v -timeout=45m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  if $coverage; then
+    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR -cover -covermode=atomic --skip=$skiplist
+  else
+    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+  fi
+
+}
+
+function coverage_and_cleanup_test {
+  if $coverage; then
+    COVERAGE=true go test -v -timeout=10m -run=TestCoverageAndCleanup antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+    touch .coverage/complete-kind-e2e-coverage.txt
+    go tool covdata merge -i=.coverage/clickhouse-monitor-coverage,.coverage/theia-manager-coverage -o .coverage/merged
+    go tool covdata textfmt -i=.coverage/merged -o .coverage/complete-kind-e2e-coverage.txt
+    rm -rf .coverage/clickhouse-monitor-coverage
+    rm -rf .coverage/theia-manager-coverage
+    rm -rf .coverage/merged
+  fi
 }
 
 echo "======== Test encap mode =========="
@@ -181,6 +209,7 @@ if [[ $test_only == "false" ]];then
   setup_cluster "--images \"$COMMON_IMAGES\""
 fi
 run_test
+coverage_and_cleanup_test
 
 rm -rf $PWD/bin
 

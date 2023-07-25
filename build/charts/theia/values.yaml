@@ -270,3 +270,4 @@ theiaManager:
     tlsMinVersion: ""
   # -- Log verbosity switch for Theia Manager.
   logVerbosity: 0
+  

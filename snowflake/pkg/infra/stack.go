@@ -266,6 +266,8 @@ func declareSnowflakeDatabase(
 			return nil, err
 		}
 
+		// add random seeding for generator
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		// ideally this would be a dynamic provider: https://www.pulumi.com/docs/intro/concepts/resources/dynamic-providers/
 		// however, dynamic providers are not supported at the moment for Golang
 		// maybe this is a change that we can make at a future time if support is added
@@ -278,7 +280,7 @@ func declareSnowflakeDatabase(
 				"SNOWFLAKE_PASSWORD": pulumi.ToSecret(os.Getenv("SNOWFLAKE_PASSWORD")).(pulumi.StringOutput),
 			},
 			// migrations are idempotent so for now we always run them
-			Triggers: pulumi.Array([]pulumi.Input{db.ID(), schema.ID(), pulumi.Int(rand.Int())}),
+			Triggers: pulumi.Array([]pulumi.Input{db.ID(), schema.ID(), pulumi.Int(r.Int())}),
 		}, pulumi.Parent(schema), pulumi.DeleteBeforeReplace(true), pulumi.ReplaceOnChanges([]string{"environment"}), pulumi.IgnoreChanges([]string{"create"}))
 		if err != nil {
 			return nil, err
@@ -459,5 +461,4 @@ func declareStack(warehouseName string) func(ctx *pulumi.Context) error {
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
 }

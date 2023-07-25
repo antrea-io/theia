@@ -16,9 +16,7 @@ package cmd
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
@@ -76,7 +74,5 @@ func Execute() {
 }
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
-
 	rootCmd.PersistentFlags().IntVarP(&verbosity, "verbosity", "v", 0, "log verbosity")
 }

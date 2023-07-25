@@ -24,6 +24,8 @@ import (
 	"strings"
 	"time"
 
+	"antrea.io/antrea/pkg/signals"
+
 	"github.com/ClickHouse/clickhouse-go"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -44,9 +46,9 @@ const (
 )
 
 var (
-	getEnv     = os.Getenv
-	openSql    = sql.Open
-	foreverRun = wait.Forever
+	getEnv   = os.Getenv
+	openSql  = sql.Open
+	runUntil = wait.Until
 )
 
 var (
@@ -103,7 +105,10 @@ func main() {
 }
 
 func startMonitor(connect *sql.DB) {
-	foreverRun(func() {
+	stopCh := signals.RegisterSignalHandlers()
+	// Set up signal capture: the first SIGINT signal is expected to be received from
+	// intentional SIGINT sending to collect coverage
+	runUntil(func() {
 		// The monitor stops working for several rounds after a deletion
 		// as the release of memory space by the ClickHouse MergeTree engine requires time
 		if remainingRoundsNum > 0 {
@@ -115,7 +120,7 @@ func startMonitor(connect *sql.DB) {
 			klog.ErrorS(nil, "Remaining rounds number to be skipped should be larger than or equal to 0", "number", remainingRoundsNum)
 			os.Exit(1)
 		}
-	}, monitorExecInterval)
+	}, monitorExecInterval, stopCh)
 }
 
 func loadEnvVariables() error {

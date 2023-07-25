@@ -98,14 +98,14 @@ own by using the "--warehouse-name" parameter.`,
 func showResults(result *infra.Result) {
 	table := tablewriter.NewWriter(os.Stdout)
 	data := [][]string{
-		[]string{"Region", result.Region},
-		[]string{"Bucket Name", result.BucketName},
-		[]string{"Bucket Flows Folder", result.BucketFlowsFolder},
-		[]string{"Snowflake Database Name", result.DatabaseName},
-		[]string{"Snowflake Schema Name", result.SchemaName},
-		[]string{"Snowflake Flows Table Name", result.FlowsTableName},
-		[]string{"SNS Topic ARN", result.SNSTopicARN},
-		[]string{"SQS Queue ARN", result.SQSQueueARN},
+		{"Region", result.Region},
+		{"Bucket Name", result.BucketName},
+		{"Bucket Flows Folder", result.BucketFlowsFolder},
+		{"Snowflake Database Name", result.DatabaseName},
+		{"Snowflake Schema Name", result.SchemaName},
+		{"Snowflake Flows Table Name", result.FlowsTableName},
+		{"SNS Topic ARN", result.SNSTopicARN},
+		{"SQS Queue ARN", result.SQSQueueARN},
 	}
 	table.SetAlignment(tablewriter.ALIGN_LEFT)
 	table.AppendBulk(data)

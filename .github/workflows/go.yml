@@ -47,7 +47,7 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: .coverage/coverage-unit.txt
+        file: .coverage/unit/coverage-unit.txt
         flags: unit-tests
         name: codecov-unit-test
 

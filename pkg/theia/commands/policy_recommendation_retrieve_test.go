@@ -167,6 +167,7 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			defer func() { os.Stdout = orig }()
 			err := policyRecommendationRetrieve(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				if tt.filePath != "" {
@@ -179,7 +180,6 @@ func TestPolicyRecommendationRetrieve(t *testing.T) {
 				} else {
 					assert.NoError(t, err)
 					outcome := readStdout(t, r, w)
-					os.Stdout = orig
 					for _, msg := range tt.expectedMsg {
 						assert.Contains(t, outcome, msg)
 					}

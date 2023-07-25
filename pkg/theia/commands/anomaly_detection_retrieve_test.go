@@ -302,6 +302,7 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 			orig := os.Stdout
 			r, w, _ := os.Pipe()
 			os.Stdout = w
+			defer func() { os.Stdout = orig }()
 			err := throughputAnomalyDetectionRetrieve(cmd, []string{})
 			if tt.expectedErrorMsg == "" {
 				if tt.filePath != "" {
@@ -314,7 +315,6 @@ func TestAnomalyDetectorRetrieve(t *testing.T) {
 				} else {
 					assert.NoError(t, err)
 					outcome := readStdouttad(t, r, w)
-					os.Stdout = orig
 					for _, msg := range tt.expectedMsg {
 						assert.Contains(t, outcome, msg)
 					}

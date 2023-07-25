@@ -44,13 +44,13 @@ func TestDeleteS3Objects(t *testing.T) {
 		mockS3Client := s3clienttesting.NewMockInterface(ctrl)
 		k := ""
 		output := s3.ListObjectsV2Output{
-			Contents: []s3types.Object{s3types.Object{Key: &k}},
+			Contents: []s3types.Object{{Key: &k}},
 		}
 		mockS3Client.EXPECT().ListObjectsV2(context.TODO(), &s3.ListObjectsV2Input{
 			Bucket: &name,
 			Prefix: &prefix,
 		}).Return(&output, nil)
-		keys := []s3types.ObjectIdentifier{s3types.ObjectIdentifier{
+		keys := []s3types.ObjectIdentifier{{
 			Key: &k,
 		}}
 		deleteObjectsInput := s3.DeleteObjectsInput{

@@ -79,7 +79,7 @@ func TestReceiveSQSMessage(t *testing.T) {
 			} else {
 				receiptHandle := "randomReceiptHandle"
 				receiveMessageOutput := sqs.ReceiveMessageOutput{
-					Messages: []types.Message{types.Message{Body: &messageBody, ReceiptHandle: &receiptHandle}},
+					Messages: []types.Message{{Body: &messageBody, ReceiptHandle: &receiptHandle}},
 				}
 				mockSqsClient.EXPECT().ReceiveMessage(context.TODO(), &receiveMessageInput).Return(&receiveMessageOutput, nil)
 				if tc.deleteExpected {

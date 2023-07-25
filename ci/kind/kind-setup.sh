@@ -206,6 +206,7 @@ function load_images {
       continue
     fi
     echo "loaded image $img"
+    rm -rf $img
   done
   set -e
 }

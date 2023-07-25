@@ -1,4 +1,4 @@
-FROM apache/spark-py:v3.4.0
+FROM spark:python3
 
 LABEL maintainer="Antrea <projectantrea-dev@googlegroups.com>"
 LABEL description="A docker image to deploy policy recommendation and throughput anomaly detection Spark job."
@@ -9,6 +9,10 @@ USER root
 RUN apt-get --allow-releaseinfo-change update && \
     apt-get install -y --no-install-recommends wget ca-certificates && \
     wget https://github.com/ClickHouse/clickhouse-jdbc/releases/download/v0.3.1/clickhouse-jdbc-0.3.1.jar -P /opt/spark/jars/
+    
+RUN rm -rf /var/cache/apt/* /var/lib/apt/lists/* && \
+    rm -rf /tmp/* && \
+    apt-get clean
 
 COPY plugins/policy-recommendation/policy_recommendation_job.py /opt/spark/work-dir/policy_recommendation_job.py
 COPY plugins/policy-recommendation/policy_recommendation_utils.py /opt/spark/work-dir/policy_recommendation_utils.py
@@ -16,7 +20,6 @@ COPY plugins/policy-recommendation/antrea_crd.py /opt/spark/work-dir/antrea_crd.
 COPY plugins/anomaly-detection/anomaly_detection.py /opt/spark/work-dir/anomaly_detection.py
 COPY plugins/anomaly-detection/requirements.txt /opt/spark/work-dir/anomaly_detection_requirements.txt
 
-RUN pip3 install --upgrade pip && \
-    pip3 install pyyaml && \
-    pip3 install kubernetes && \
-    pip3 install -r /opt/spark/work-dir/anomaly_detection_requirements.txt
+RUN pip3 install --upgrade pip --no-cache-dir && \
+    pip3 install kubernetes --no-cache-dir && \
+    pip3 install -r /opt/spark/work-dir/anomaly_detection_requirements.txt --no-cache-dir

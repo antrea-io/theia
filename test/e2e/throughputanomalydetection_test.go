@@ -229,9 +229,9 @@ func testAnomalyDetectionRetrieve(t *testing.T, data *TestData, connect *sql.DB)
 			"anomaly_output_idx": 9,
 			"throughput_idx":     5},
 		"podLabel": {
-			"tadoutputArray_len": 11,
-			"anomaly_output_idx": 10,
-			"throughput_idx":     6},
+			"tadoutputArray_len": 9,
+			"anomaly_output_idx": 8,
+			"throughput_idx":     4},
 		"external": {
 			"tadoutputArray_len": 8,
 			"anomaly_output_idx": 7,
@@ -343,7 +343,7 @@ func tadrunJob(t *testing.T, data *TestData, algotype, agg_type string) (stdout 
 		ext = " --pod-name test_podName"
 	case "podLabel":
 		agg_flow_ext = " --agg-flow pod"
-		ext = " --pod-label \"test_key\":\"test_value\""
+		ext = " --pod-label test_key:test_value"
 	case "external":
 		agg_flow_ext = fmt.Sprintf(" --agg-flow %s", agg_type)
 		ext = " --external-ip 10.10.1.33"
@@ -410,8 +410,8 @@ func addFakeRecordforTAD(t *testing.T, stmt *sql.Stmt) {
 	sourcePodName := "test_podName"
 	destinationPodName := "test_podName"
 	destinationPodNamespace := "test_namespace"
-	sourcePodLabels := "{\"test_key\":\"test_value\"}"
-	destinationPodLabels := "{\"test_key\":\"test_value\"}"
+	sourcePodLabels := "{test_key:test_value}"
+	destinationPodLabels := "{test_key:test_value}"
 	destinationServicePortName := "test_serviceportname"
 	flowtype := 3
 

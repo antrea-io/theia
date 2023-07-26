@@ -43,10 +43,37 @@ clickhouse:
     # -- The type of Service exposing ClickHouse. It can be one of ClusterIP,
     # NodePort or LoadBalancer.
     type: ClusterIP
-    # -- TCP port number for the ClickHouse service.
+    # -- TCP port number for ClickHouse service.
     tcpPort: 9000
-    # -- HTTP port number for the ClickHouse service.
+    # -- HTTP port number for ClickHouse service.
     httpPort: 8123
+    # As ClickHouse Operator currently does not support the cert management,
+    # we recommend to use Ingress or Load Balancer to expose ClickHouse securely.
+    # But we also provide this option to provide the secure connection from
+    # ClickHouse server end. To use this option, please rotate the certs manually.
+    secureConnection:
+      # -- Determine whether to enable secure connection to ClickHouse
+      enable: false
+      # -- TCP protocol TLS port.
+      secureTcpPort: 9440
+      # -- HTTP protocol TLS port.
+      httpsPort: 8443
+      # -- Indicates whether to use auto-generated self-signed TLS certificates.
+      # If false, a Secret named "clickhouse-tls" must be provided with the
+      # following keys: tls.crt and tls.key.
+      # If true, the following fields commonName, ipAddresses, dnsNames, daysValid
+      # need to be provided.
+      selfSignedCert: true
+      # -- Subject's common name. Only used when selfSignedCert is true.
+      commonName: "clickhouse-clickhouse.flow-visibility.svc"
+      # -- Optional list of IPs; may be nil. Only used when selfSignedCert is true.
+      ipAddresses: []
+      # -- Optional list of alternate DNS names; may be nil. Only used when
+      # selfSignedCert is true.
+      dnsNames: []
+      # -- Number of days for which the certificate will be valid. There is no automatic
+      # rotation with this method. This is ignored if selfSignedCert is false.
+      daysValid: 365
   # -- Time to live for data in the ClickHouse. Can be a plain integer using
   # one of these unit suffixes SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER,
   # YEAR.

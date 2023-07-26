@@ -37,8 +37,16 @@ Kubernetes: `>= 1.16.0-0`
 | clickhouse.monitor.image | object | `{"pullPolicy":"IfNotPresent","repository":"projects.registry.vmware.com/antrea/theia-clickhouse-monitor","tag":""}` | Container image used by the ClickHouse Monitor. |
 | clickhouse.monitor.skipRoundsNum | int | `3` | The number of rounds for the monitor to stop after a deletion to wait for the ClickHouse MergeTree Engine to release memory. |
 | clickhouse.monitor.threshold | float | `0.5` | The storage percentage at which the monitor starts to delete old records. Vary from 0 to 1. |
-| clickhouse.service.httpPort | int | `8123` | HTTP port number for the ClickHouse service. |
-| clickhouse.service.tcpPort | int | `9000` | TCP port number for the ClickHouse service. |
+| clickhouse.service.httpPort | int | `8123` | HTTP port number for ClickHouse service. |
+| clickhouse.service.secureConnection.commonName | string | `"clickhouse-clickhouse.flow-visibility.svc"` | Subject's common name. Only used when selfSignedCert is true. |
+| clickhouse.service.secureConnection.daysValid | int | `365` | Number of days for which the certificate will be valid. There is no automatic rotation with this method. This is ignored if selfSignedCert is false. |
+| clickhouse.service.secureConnection.dnsNames | list | `[]` | Optional list of alternate DNS names; may be nil. Only used when selfSignedCert is true. |
+| clickhouse.service.secureConnection.enable | bool | `false` | Determine whether to enable secure connection to ClickHouse |
+| clickhouse.service.secureConnection.httpsPort | int | `8443` | HTTP protocol TLS port. |
+| clickhouse.service.secureConnection.ipAddresses | list | `[]` | Optional list of IPs; may be nil. Only used when selfSignedCert is true. |
+| clickhouse.service.secureConnection.secureTcpPort | int | `9440` | TCP protocol TLS port. |
+| clickhouse.service.secureConnection.selfSignedCert | bool | `true` | Indicates whether to use auto-generated self-signed TLS certificates. If false, a Secret named "clickhouse-tls" must be provided with the following keys: tls.crt and tls.key. If true, the following fields commonName, ipAddresses, dnsNames, daysValid need to be provided. |
+| clickhouse.service.tcpPort | int | `9000` | TCP port number for ClickHouse service. |
 | clickhouse.service.type | string | `"ClusterIP"` | The type of Service exposing ClickHouse. It can be one of ClusterIP, NodePort or LoadBalancer. |
 | clickhouse.storage.createPersistentVolume.local.affinity | object | `{}` | Affinity for the Local PersistentVolume. By default it requires to label the Node used to store the ClickHouse data with "antrea.io/clickhouse-data-node=". |
 | clickhouse.storage.createPersistentVolume.local.nodes | list | `["kind-worker"]` | A list of Node hostnames. Required when type is "Local". Please make sure to provide (shards * replicas) Nodes. Each Node should meet affinity and have the path created on it. |

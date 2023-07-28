@@ -42,12 +42,21 @@
 {{- $clickhouse := .clickhouse }}
 {{- $enablePV := .enablePV }}
 {{- $Chart := .Chart }}
+{{- $tls := .clickhouse.service.secureConnection }}
 - name: clickhouse
   image: {{ include "clickHouseServerImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.image.pullPolicy }}
   volumeMounts:
     - name: clickhouse-configmap-volume
       mountPath: /docker-entrypoint-initdb.d
+    {{- if $tls.enable }}
+    - name: clickhouse-tls
+      mountPath: /opt/certs/tls.crt
+      subPath: tls.crt
+    - name: clickhouse-tls
+      mountPath: /opt/certs/tls.key
+      subPath: tls.key
+    {{- end }}
     {{- if not $enablePV }}
     - name: clickhouse-storage-volume
       mountPath: /var/lib/clickhouse
@@ -73,6 +82,7 @@
 
 {{- define "clickhouse.volume" }}
 {{- $clickhouse := .clickhouse }}
+{{- $tls := .clickhouse.service.secureConnection }}
 {{- $enablePV := .enablePV }}
 {{- $Files := .Files }}
 - name: clickhouse-configmap-volume
@@ -87,6 +97,12 @@
       - key: {{ regexReplaceAll "(.*)/" $path "" }}
         path: migrators/{{ regexReplaceAll "(.*)/" $path "" }}
       {{- end }}
+{{- if $tls.enable }}
+- name: clickhouse-tls
+  secret:
+    secretName: clickhouse-tls
+    optional: true
+{{- end }}
 {{- if not $enablePV }}
 - name: clickhouse-storage-volume
   emptyDir:
@@ -99,6 +115,14 @@
   name: clickhouse-monitor-coverage
 {{- end }}
 
+{{- define "clickhouse.tlsConfig" -}}
+{{- $Files := .Files }}
+{{- $Global := .Global }}
+{{- range $path, $_ :=  .Files.Glob  "provisioning/tls/*" }}
+{{ regexReplaceAll "(.*)/" $path "" }}: |
+{{ tpl ($.Files.Get $path) $Global | indent 2 }}
+{{- end }}
+{{- end -}}
 
 {{- define "theiaImageTag" -}}
 {{- $tag := .tag -}}

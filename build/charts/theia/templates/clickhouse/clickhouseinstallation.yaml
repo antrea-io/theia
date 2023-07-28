@@ -16,8 +16,18 @@ spec:
       {{ .Values.clickhouse.connectionSecret.readOnlyUsername }}/networks/ip: "::/0"
     profiles:
       readonly/readonly: 1
+    {{- if .Values.clickhouse.service.secureConnection.enable }}
+    files:
+      {{- include "clickhouse.tlsConfig" (dict "Files" .Files "Global" .) | indent 6 }}
+    {{- end }}
     clusters:
       - name: "clickhouse"
+        {{- if .Values.clickhouse.service.secureConnection.enable }}
+        settings:
+          tcp_port_secure: {{ .Values.clickhouse.service.secureConnection.secureTcpPort }}
+          https_port: {{ .Values.clickhouse.service.secureConnection.httpsPort }}
+        secure: "yes"
+        {{- end }} 
         layout:
           {{- if gt (int .Values.clickhouse.cluster.replicas) 1 }}
           shards:
@@ -66,8 +76,16 @@ spec:
           ports:
             - name: http
               port: {{ .Values.clickhouse.service.httpPort }}
+              targetPort: 8123
             - name: tcp
               port: {{ .Values.clickhouse.service.tcpPort }}
+              targetPort: 9000
+            {{- if .Values.clickhouse.service.secureConnection.enable }}
+            - name: https
+              port: {{ .Values.clickhouse.service.secureConnection.httpsPort }}
+            - name: secureclient
+              port: {{ .Values.clickhouse.service.secureConnection.secureTcpPort }}
+            {{- end }}
     podTemplates:
       {{- if gt (int .Values.clickhouse.cluster.replicas) 1 }}
       - name: pod-template-without-monitor

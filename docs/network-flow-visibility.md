@@ -11,6 +11,7 @@
   - [Configuration](#configuration)
     - [With Helm](#with-helm)
       - [ClickHouse Cluster](#clickhouse-cluster)
+      - [Secure Connection](#secure-connection)
     - [With Standalone Manifest](#with-standalone-manifest)
       - [Grafana Configuration](#grafana-configuration)
         - [Service Customization](#service-customization)
@@ -288,6 +289,23 @@ ClickHouse cluster can be deployed with default Local PV or NFS PV by setting
 `clickhouse.storage.createPersistentVolume`. To have more flexibility in the
 PV creation, you can configure a customized `StorageClass` in
 `clickhouse.storage.persistentVolumeClaimSpec`.
+
+##### Secure Connection
+
+From Theia 0.8, we support TLS connection option in ClickHouse server. To
+enable TLS connection, please set `clickhouse.service.secureConnection.enable`
+to true.
+
+Currently ClickHouse Operator does not support cert-manager, which means users
+need to manually do the certs rotation when using this ClickHouse server TLS
+option. You can set `clickhouse.service.secureConnection.selfSignedCert` to
+true to use the default certs. Please ensure that you have set the subject's
+common name. You will need to renew the certs after `clickhouse.service.secureConnection.daysValid`
+passes.
+
+You can set `clickhouse.service.secureConnection.selfSignedCert` to
+false to provide your own certificates by creating a Secret with name
+`clickhouse-tls` containing the following keys: `tls.crt` and `tls.key`.
 
 #### With Standalone Manifest
 

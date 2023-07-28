@@ -7240,7 +7240,7 @@ spec:
         containers:
         - env:
           - name: THEIA_VERSION
-            value: 0.7.0
+            value: 0.8.0
           - name: CLICKHOUSE_INIT_TIMEOUT
             value: "60"
           - name: DB_URL

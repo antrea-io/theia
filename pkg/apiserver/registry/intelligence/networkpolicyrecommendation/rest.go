@@ -61,6 +61,9 @@ func (r *REST) New() runtime.Object {
 	return &intelligence.NetworkPolicyRecommendation{}
 }
 
+func (r *REST) Destroy() {
+}
+
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	npReco, err := r.npRecommendationQuerier.GetNetworkPolicyRecommendation(defaultNameSpace, name)
 	if err != nil {

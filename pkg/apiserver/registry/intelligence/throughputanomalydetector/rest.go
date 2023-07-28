@@ -131,6 +131,9 @@ func (r *REST) New() runtime.Object {
 	return &v1alpha1.ThroughputAnomalyDetector{}
 }
 
+func (r *REST) Destroy() {
+}
+
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	tad, err := r.ThroughputAnomalyDetectorQuerier.GetThroughputAnomalyDetector(defaultNameSpace, name)
 	if err != nil {

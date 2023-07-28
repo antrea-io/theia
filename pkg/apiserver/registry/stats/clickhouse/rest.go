@@ -47,6 +47,9 @@ func (r *REST) New() runtime.Object {
 	return &v1alpha1.ClickHouseStats{}
 }
 
+func (r *REST) Destroy() {
+}
+
 func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions) (runtime.Object, error) {
 	var status v1alpha1.ClickHouseStats
 	switch name {

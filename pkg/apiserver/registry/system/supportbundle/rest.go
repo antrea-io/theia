@@ -110,6 +110,9 @@ type supportBundleREST struct {
 	clientSet  kubernetes.Interface
 }
 
+func (r *supportBundleREST) Destroy() {
+}
+
 // Create triggers a bundle generation. Returns metav1.Status if there is any error,
 // otherwise it returns the SupportBundle.
 func (r *supportBundleREST) Create(ctx context.Context, obj runtime.Object, _ rest.ValidateObjectFunc, _ *metav1.CreateOptions) (runtime.Object, error) {
@@ -385,6 +388,9 @@ type downloadREST struct {
 
 func (d *downloadREST) New() runtime.Object {
 	return &systemv1alpha1.SupportBundle{}
+}
+
+func (r *downloadREST) Destroy() {
 }
 
 func (d *downloadREST) Get(_ context.Context, _ string, _ *metav1.GetOptions) (runtime.Object, error) {

@@ -28,13 +28,18 @@ import (
 
 	"github.com/spf13/afero"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 	"k8s.io/kubectl/pkg/cmd/cp"
+	"k8s.io/kubectl/pkg/cmd/util"
 
 	"antrea.io/antrea/pkg/util/logdir"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 const (
@@ -182,11 +187,19 @@ func (d *managerDumper) DumpZookeeperLog(basedir string) error {
 func (d *managerDumper) copyFromPod(namespace, pod, srcDir, dstDir string) error {
 	ioStreams, _, out, errOut := genericclioptions.NewTestIOStreams()
 	copyOptions := cp.NewCopyOptions(ioStreams)
-	copyOptions.Clientset = d.clientSet
-	copyOptions.ClientConfig = d.restConfig
-	copyOptions.Namespace = namespace
-
-	if err := copyOptions.Run([]string{pod + ":" + srcDir, dstDir}); err != nil {
+	//copyOptions.ClientConfig = d.restConfig
+	//copyOptions.Namespace = namespace
+	//copyOptions.Clientset = d.clientSet
+	factory := util.NewFactory(newRestClientGetter(d.namespace, d.restConfig))
+	cmd := cp.NewCmdCp(factory, ioStreams)
+	args := []string{pod + ":" + srcDir, dstDir}
+	if err := copyOptions.Complete(factory, cmd, args); err != nil {
+		klog.Fatalf("Failed to complete: %v", err)
+	}
+	if err := copyOptions.Validate(); err != nil {
+		klog.Fatalf("Failed to validate: %v", err)
+	}
+	if err := copyOptions.Run(); err != nil {
 		return fmt.Errorf("could not run copy operation: %v", err)
 	}
 	klog.V(4).InfoS("Copy from pod finished", "pod", pod, "namespace", namespace,
@@ -327,4 +340,34 @@ func directoryCopy(fs afero.Fs, targetDir string, srcDir string, prefixFilter st
 		_, err = io.Copy(targetFile, srcFile)
 		return err
 	})
+}
+
+type restClientGetter struct {
+	ClientSet    kubernetes.Interface
+	ClientConfig *rest.Config
+	ConfigLoader clientcmd.ClientConfig
+}
+
+func newRestClientGetter(namespace string, clientConfig *rest.Config) restClientGetter {
+	configLoader := clientcmd.NewDefaultClientConfig(clientcmdapi.Config{}, &clientcmd.ConfigOverrides{Context: clientcmdapi.Context{Namespace: namespace}})
+	return restClientGetter{
+		ClientConfig: clientConfig,
+		ConfigLoader: configLoader,
+	}
+}
+
+func (r restClientGetter) ToRESTConfig() (*rest.Config, error) {
+	return r.ClientConfig, nil
+}
+
+func (r restClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	return r.ConfigLoader
+}
+
+func (r restClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	return nil, nil
+}
+
+func (r restClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
+	return nil, nil
 }

@@ -390,7 +390,7 @@ func (d *downloadREST) New() runtime.Object {
 	return &systemv1alpha1.SupportBundle{}
 }
 
-func (r *downloadREST) Destroy() {
+func (d *downloadREST) Destroy() {
 }
 
 func (d *downloadREST) Get(_ context.Context, _ string, _ *metav1.GetOptions) (runtime.Object, error) {

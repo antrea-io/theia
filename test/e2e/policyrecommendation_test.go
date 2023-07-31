@@ -33,7 +33,7 @@ const (
 	jobCompleteTimeout = 10 * time.Minute
 	jobSubmitTimeout   = 2 * time.Minute
 	jobFailedTimeout   = 2 * time.Minute
-	startCmd           = "./theia policy-recommendation run"
+	startBaseCmd       = "./theia policy-recommendation run"
 	statusCmd          = "./theia policy-recommendation status"
 	listCmd            = "./theia policy-recommendation list"
 	deleteCmd          = "./theia policy-recommendation delete"
@@ -313,8 +313,15 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 	// recommendation job recommends 3 allow ANP, and 3 default deny ACNP.
 	// Besides, there will always be 3 allow ACNP recommended for the
 	// 'kube-system', 'flow-aggregator', and 'flow-visibility' Namespace.
+	// For Kind cluster, there will be 1 more Namespace 'local-path-storage'
+	// having allow ACNP recommended.
 	expectedAllowANPCnt := 3
-	expectedAllowACNPCnt := 3
+	var expectedAllowACNPCnt int
+	if testOptions.providerName == "kind" {
+		expectedAllowACNPCnt = 4
+	} else {
+		expectedAllowACNPCnt = 3
+	}
 	expectedRejectANPCnt := 0
 	expectedRejectACNPCnt := 3
 
@@ -398,7 +405,14 @@ func testPolicyRecommendationRetrieve(t *testing.T, data *TestData, isIPv6 bool,
 }
 
 func runJob(t *testing.T, data *TestData) (stdout string, jobName string, err error) {
-	stdout, jobName, err = RunJob(t, data, startCmd)
+	// For Kind cluster, there is 1 more default traffic allow Namespace 'local-path-storage'.
+	var startJobCmd string
+	if testOptions.providerName == "kind" {
+		startJobCmd = startBaseCmd + " --ns-allow-list " + "[\"kube-system\",\"flow-aggregator\",\"flow-visibility\",\"local-path-storage\"]"
+	} else {
+		startJobCmd = startBaseCmd
+	}
+	stdout, jobName, err = RunJob(t, data, startJobCmd)
 	if err != nil {
 		return "", "", err
 	}

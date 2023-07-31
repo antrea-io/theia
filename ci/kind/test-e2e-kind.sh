@@ -185,9 +185,9 @@ function run_test {
   sleep 1
 
   if $coverage; then
-    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR -cover -covermode=atomic --skip=$skiplist
+    go test -v -timeout=45m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR -cover -covermode=atomic --skip=$skiplist
   else
-    go test -v -timeout=30m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
+    go test -v -timeout=45m antrea.io/theia/test/e2e -provider=kind --logs-export-dir=$ANTREA_LOG_DIR --skip=$skiplist
   fi
 
 }

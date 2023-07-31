@@ -109,11 +109,11 @@ func collectBundle(t *testing.T, data *TestData) ([]string, error) {
 	}
 	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), bundleCollectCmd)
 	if err != nil || rc != 0 {
-		return files, fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+		return files, fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", bundleCollectCmd, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	rc, stdout, stderr, err = data.RunCommandOnNode(controlPlaneNodeName(), bundleExpandCmd)
 	if err != nil || rc != 0 {
-		return files, fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", cmd, controlPlaneNodeName(), err, stdout, stderr)
+		return files, fmt.Errorf("error when running %s from %s: %v\nstdout:%s\nstderr:%s", bundleExpandCmd, controlPlaneNodeName(), err, stdout, stderr)
 	}
 	log.Infof("Files expanded:\n%s", stdout)
 	stdout = strings.TrimSuffix(stdout, "\n")

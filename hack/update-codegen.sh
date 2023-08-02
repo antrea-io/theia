@@ -18,16 +18,17 @@ set -o errexit
 set -o pipefail
 
 THEIA_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../" && pwd )"
-IMAGE_NAME="antrea/codegen:kubernetes-1.24.0"
+IMAGE_NAME="antrea/codegen:kubernetes-1.26.4"
 
 function docker_run() {
   docker pull ${IMAGE_NAME}
   set -x
+  THEIA_PATH="/go/src/antrea.io/theia"
   docker run --rm \
 		-e GOPROXY=${GOPROXY} \
-		-w /go/src/antrea.io/theia \
-		-v ${THEIA_ROOT}:/go/src/antrea.io/theia \
-		"${IMAGE_NAME}" "$@"
+		-w ${THEIA_PATH} \
+		-v ${THEIA_ROOT}:${THEIA_PATH} \
+		"${IMAGE_NAME}" bash -c "git config --global --add safe.directory ${THEIA_PATH} && $@"
 }
 
 docker_run hack/update-codegen-dockerized.sh "$@"

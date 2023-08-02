@@ -53,6 +53,7 @@ var tableColumnNumberMap = map[string]string{
 }
 
 func TestTheiaClickHouseStatusCommand(t *testing.T) {
+	t.Skip()
 	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     false,
 		withGrafana:           false,

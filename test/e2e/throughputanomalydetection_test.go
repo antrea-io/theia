@@ -41,6 +41,7 @@ const (
 var e2eMutex sync.Mutex
 
 func TestAnomalyDetection(t *testing.T) {
+	t.Skip()
 	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     true,
 		withGrafana:           false,

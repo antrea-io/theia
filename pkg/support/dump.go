@@ -343,7 +343,6 @@ func directoryCopy(fs afero.Fs, targetDir string, srcDir string, prefixFilter st
 }
 
 type restClientGetter struct {
-	ClientSet    kubernetes.Interface
 	ClientConfig *rest.Config
 	ConfigLoader clientcmd.ClientConfig
 }

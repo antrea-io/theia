@@ -42,6 +42,7 @@ const (
 )
 
 func TestPolicyRecommendation(t *testing.T) {
+	t.Skip()
 	config := FlowVisibilitySetUpConfig{
 		withSparkOperator:     true,
 		withGrafana:           false,

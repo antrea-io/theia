@@ -84,6 +84,9 @@ func (r *REST) NewList() runtime.Object {
 	return &intelligence.NetworkPolicyRecommendationList{}
 }
 
+func (r *REST) Destroy() {
+}
+
 func (r *REST) List(ctx context.Context, options *internalversion.ListOptions) (runtime.Object, error) {
 	npRecoList, err := r.npRecommendationQuerier.ListNetworkPolicyRecommendation(defaultNameSpace)
 	if err != nil {

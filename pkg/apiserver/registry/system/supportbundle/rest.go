@@ -182,6 +182,9 @@ func (r *supportBundleREST) Get(_ context.Context, name string, _ *metav1.GetOpt
 	return r.cache, nil
 }
 
+func (r *supportBundleREST) Destroy() {
+}
+
 // Delete can remove the current finished bundle or cancel a running bundle
 // collecting. It only allows querying the resource whose name is equal to the mode.
 func (r *supportBundleREST) Delete(_ context.Context, name string, _ rest.ValidateObjectFunc, _ *metav1.DeleteOptions) (runtime.Object, bool, error) {
@@ -385,6 +388,9 @@ type downloadREST struct {
 
 func (d *downloadREST) New() runtime.Object {
 	return &systemv1alpha1.SupportBundle{}
+}
+
+func (d *downloadREST) Destroy() {
 }
 
 func (d *downloadREST) Get(_ context.Context, _ string, _ *metav1.GetOptions) (runtime.Object, error) {

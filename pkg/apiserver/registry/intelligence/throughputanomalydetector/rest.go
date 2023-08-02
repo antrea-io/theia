@@ -148,6 +148,9 @@ func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions)
 	return newTAD, nil
 }
 
+func (r *REST) Destroy() {
+}
+
 // copyThroughputAnomalyDetector is used to copy ThroughputAnomalyDetector from crd to anomalydetector
 func (r *REST) copyThroughputAnomalyDetector(tad *v1alpha1.ThroughputAnomalyDetector, crd *crdv1alpha1.ThroughputAnomalyDetector) error {
 	tad.Name = crd.Name

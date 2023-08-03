@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"antrea.io/antrea/pkg/apis/crd/v1beta1"
 	"github.com/containernetworking/plugins/pkg/ip"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +52,6 @@ import (
 	utilnet "k8s.io/utils/net"
 
 	"antrea.io/antrea/pkg/agent/openflow"
-	crdv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	crdclientset "antrea.io/antrea/pkg/client/clientset/versioned"
 
 	"antrea.io/theia/pkg/theia/commands"
@@ -664,8 +664,8 @@ func (data *TestData) deleteNetworkpolicy(policy *networkingv1.NetworkPolicy) er
 }
 
 // deleteAntreaNetworkpolicy deletes an Antrea NetworkPolicy.
-func (data *TestData) deleteAntreaNetworkpolicy(policy *crdv1alpha1.NetworkPolicy) error {
-	if err := data.crdClient.CrdV1alpha1().NetworkPolicies(testNamespace).Delete(context.TODO(), policy.Name, metav1.DeleteOptions{}); err != nil {
+func (data *TestData) deleteAntreaNetworkpolicy(policy *v1beta1.NetworkPolicy) error {
+	if err := data.crdClient.CrdV1beta1().NetworkPolicies(testNamespace).Delete(context.TODO(), policy.Name, metav1.DeleteOptions{}); err != nil {
 		return fmt.Errorf("unable to cleanup policy %v: %v", policy.Name, err)
 	}
 	return nil
@@ -682,19 +682,19 @@ func (data *TestData) DeleteANP(ns, name string) error {
 }
 
 // CreateOrUpdateANP is a convenience function for updating/creating Antrea NetworkPolicies.
-func (data *TestData) CreateOrUpdateANP(anp *crdv1alpha1.NetworkPolicy) (*crdv1alpha1.NetworkPolicy, error) {
+func (data *TestData) CreateOrUpdateANP(anp *v1beta1.NetworkPolicy) (*v1beta1.NetworkPolicy, error) {
 	log.Infof("Creating/updating Antrea NetworkPolicy %s/%s", anp.Namespace, anp.Name)
-	cnpReturned, err := data.crdClient.CrdV1alpha1().NetworkPolicies(anp.Namespace).Get(context.TODO(), anp.Name, metav1.GetOptions{})
+	cnpReturned, err := data.crdClient.CrdV1beta1().NetworkPolicies(anp.Namespace).Get(context.TODO(), anp.Name, metav1.GetOptions{})
 	if err != nil {
 		log.Debugf("Creating Antrea NetworkPolicy %s", anp.Name)
-		anp, err = data.crdClient.CrdV1alpha1().NetworkPolicies(anp.Namespace).Create(context.TODO(), anp, metav1.CreateOptions{})
+		anp, err = data.crdClient.CrdV1beta1().NetworkPolicies(anp.Namespace).Create(context.TODO(), anp, metav1.CreateOptions{})
 		if err != nil {
 			log.Debugf("Unable to create Antrea NetworkPolicy: %s", err)
 		}
 		return anp, err
 	} else if cnpReturned.Name != "" {
 		log.Debugf("Antrea NetworkPolicy with name %s already exists, updating", anp.Name)
-		anp, err = data.crdClient.CrdV1alpha1().NetworkPolicies(anp.Namespace).Update(context.TODO(), anp, metav1.UpdateOptions{})
+		anp, err = data.crdClient.CrdV1beta1().NetworkPolicies(anp.Namespace).Update(context.TODO(), anp, metav1.UpdateOptions{})
 		return anp, err
 	}
 	return nil, fmt.Errorf("error occurred in creating/updating Antrea NetworkPolicy %s", anp.Name)

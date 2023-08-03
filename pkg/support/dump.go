@@ -189,10 +189,10 @@ func (d *managerDumper) copyFromPod(namespace, pod, srcDir, dstDir string) error
 	copyOptions := cp.NewCopyOptions(ioStreams)
 	factory := util.NewFactory(newRestClientGetter(namespace, d.restConfig))
 	if err := copyOptions.Complete(factory, cp.NewCmdCp(factory, ioStreams), []string{pod + ":" + srcDir, dstDir}); err != nil {
-		return fmt.Errorf("failed to complete: %v", err)
+		return fmt.Errorf("error when completing all the required options: %v", err)
 	}
 	if err := copyOptions.Validate(); err != nil {
-		return fmt.Errorf("failed to validate: %v", err)
+		return fmt.Errorf("error when validating the provided values for CopyOptions: %v", err)
 	}
 	if err := copyOptions.Run(); err != nil {
 		return fmt.Errorf("could not run copy operation: %v", err)

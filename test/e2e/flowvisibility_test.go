@@ -30,6 +30,7 @@ import (
 	"testing"
 	"time"
 
+	"antrea.io/antrea/pkg/apis/crd/v1beta1"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"antrea.io/antrea/pkg/agent/openflow"
-	secv1alpha1 "antrea.io/antrea/pkg/apis/crd/v1alpha1"
 	"antrea.io/antrea/test/e2e/utils"
 )
 
@@ -1010,14 +1010,14 @@ func deployK8sNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod strin
 	return np1, np2
 }
 
-func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, srcNode, dstNode string) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
+func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, srcNode, dstNode string) (anp1 *v1beta1.NetworkPolicy, anp2 *v1beta1.NetworkPolicy) {
 	builder1 := &utils.AntreaNetworkPolicySpecBuilder{}
 	// apply anp to dstPod, allow ingress from srcPod
 	builder1 = builder1.SetName(testNamespace, ingressAntreaNetworkPolicyName).
 		SetPriority(2.0).
-		SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": dstPod}}})
+		SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": dstPod}}})
 	builder1 = builder1.AddIngress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": srcPod}, map[string]string{}, nil,
-		nil, nil, nil, nil, secv1alpha1.RuleActionAllow, "", testIngressRuleName)
+		nil, nil, nil, nil, v1beta1.RuleActionAllow, "", testIngressRuleName)
 	anp1 = builder1.Get()
 	anp1, err1 := data.CreateOrUpdateANP(anp1)
 	if err1 != nil {
@@ -1028,9 +1028,9 @@ func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, s
 	// apply anp to srcPod, allow egress to dstPod
 	builder2 = builder2.SetName(testNamespace, egressAntreaNetworkPolicyName).
 		SetPriority(2.0).
-		SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
+		SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
 	builder2 = builder2.AddEgress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": dstPod}, map[string]string{}, nil,
-		nil, nil, nil, nil, secv1alpha1.RuleActionAllow, "", testEgressRuleName)
+		nil, nil, nil, nil, v1beta1.RuleActionAllow, "", testEgressRuleName)
 	anp2 = builder2.Get()
 	anp2, err2 := data.CreateOrUpdateANP(anp2)
 	if err2 != nil {
@@ -1048,7 +1048,7 @@ func deployAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod, s
 	return anp1, anp2
 }
 
-func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podReject, podDrop string, srcNode, dstNode string, isIngress bool) (anp1 *secv1alpha1.NetworkPolicy, anp2 *secv1alpha1.NetworkPolicy) {
+func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podReject, podDrop string, srcNode, dstNode string, isIngress bool) (anp1 *v1beta1.NetworkPolicy, anp2 *v1beta1.NetworkPolicy) {
 	var err error
 	builder1 := &utils.AntreaNetworkPolicySpecBuilder{}
 	builder2 := &utils.AntreaNetworkPolicySpecBuilder{}
@@ -1059,14 +1059,14 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 		// apply reject and drop ingress rule to destination pods
 		builder1 = builder1.SetName(testNamespace, ingressRejectANPName).
 			SetPriority(2.0).
-			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": podReject}}})
+			SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": podReject}}})
 		builder1 = builder1.AddIngress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": srcPod}, map[string]string{}, nil,
-			nil, nil, nil, nil, secv1alpha1.RuleActionReject, "", testIngressRuleName)
+			nil, nil, nil, nil, v1beta1.RuleActionReject, "", testIngressRuleName)
 		builder2 = builder2.SetName(testNamespace, ingressDropANPName).
 			SetPriority(2.0).
-			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": podDrop}}})
+			SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": podDrop}}})
 		builder2 = builder2.AddIngress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": srcPod}, map[string]string{}, nil,
-			nil, nil, nil, nil, secv1alpha1.RuleActionDrop, "", testIngressRuleName)
+			nil, nil, nil, nil, v1beta1.RuleActionDrop, "", testIngressRuleName)
 		table = openflow.AntreaPolicyIngressRuleTable
 		flowCount = antreaIngressTableInitFlowCount + 2
 		nodeName = dstNode
@@ -1074,14 +1074,14 @@ func deployDenyAntreaNetworkPolicies(t *testing.T, data *TestData, srcPod, podRe
 		// apply reject and drop egress rule to source pod
 		builder1 = builder1.SetName(testNamespace, egressRejectANPName).
 			SetPriority(2.0).
-			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
+			SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
 		builder1 = builder1.AddEgress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": podReject}, map[string]string{}, nil,
-			nil, nil, nil, nil, secv1alpha1.RuleActionReject, "", testEgressRuleName)
+			nil, nil, nil, nil, v1beta1.RuleActionReject, "", testEgressRuleName)
 		builder2 = builder2.SetName(testNamespace, egressDropANPName).
 			SetPriority(2.0).
-			SetAppliedToGroup([]utils.ANPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
+			SetAppliedToGroup([]utils.ANNPAppliedToSpec{{PodSelector: map[string]string{"antrea-e2e": srcPod}}})
 		builder2 = builder2.AddEgress(utils.ProtocolTCP, nil, nil, nil, nil, nil, nil, nil, nil, nil, map[string]string{"antrea-e2e": podDrop}, map[string]string{}, nil,
-			nil, nil, nil, nil, secv1alpha1.RuleActionDrop, "", testEgressRuleName)
+			nil, nil, nil, nil, v1beta1.RuleActionDrop, "", testEgressRuleName)
 		table = openflow.AntreaPolicyEgressRuleTable
 		flowCount = antreaEgressTableInitFlowCount + 2
 		nodeName = srcNode

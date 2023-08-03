@@ -1093,6 +1093,24 @@
                 "skipUrlSync": false,
                 "sort": 0,
                 "type": "query"
+            },
+            {
+                "datasource": {
+                  "type": "michelin-snowflake-datasource",
+                  "uid": "P1DBD59F661D68B90"
+                },
+                "filters": [],
+                "hide": 0,
+                "name": "Filter",
+                "skipUrlSync": false,
+                "type": "adhoc"
+            },
+            {
+                "hide": 2,
+                "name": "snowflake_adhoc_query",
+                "query": "select * from flows",
+                "skipUrlSync": false,
+                "type": "constant"
             }
         ]
     },

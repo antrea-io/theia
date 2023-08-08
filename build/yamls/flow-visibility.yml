@@ -603,7 +603,13 @@ data:
         DROP COLUMN aggType,
         DROP COLUMN direction,
         DROP COLUMN podName;
-  000005_0-6-0.up.sql: |
+    ALTER TABLE flows
+        DROP COLUMN isL7,
+        DROP COLUMN httpVals;
+    ALTER TABLE flows_local
+        DROP COLUMN isL7,
+        DROP COLUMN httpVals;
+  000005_0-6-0.up.sql: |-
     -- Create underlying tables for Materialized Views to attach data
     CREATE TABLE IF NOT EXISTS pod_view_table_local (
         timeInserted DateTime DEFAULT now(),
@@ -757,6 +763,12 @@ data:
         ADD COLUMN aggType String,
         ADD COLUMN direction String,
         ADD COLUMN podName String;
+    ALTER TABLE flows
+        ADD COLUMN isL7 Bool,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_local
+        ADD COLUMN isL7 Bool,
+        ADD COLUMN httpVals String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -831,6 +843,8 @@ data:
             clusterUUID String,
             egressName String,
             egressIP String,
+            isL7 Bool,
+            httpVals String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds);

@@ -52,7 +52,11 @@ FLOW_TABLE_COLUMNS = [
     'flowType',
 ]
 
-NAMESPACE_ALLOW_LIST = ["kube-system", "flow-aggregator", "flow-visibility"]
+NAMESPACE_ALLOW_LIST = [
+    "kube-system",
+    "flow-aggregator",
+    "flow-visibility",
+]
 
 ROW_DELIMITER = "#"
 PEER_DELIMITER = "|"
@@ -63,6 +67,7 @@ MEANINGLESS_LABELS = [
     "controller-revision-hash",
     "pod-template-generation",
 ]
+broadcast_ns_allow_list = None
 
 logger = logging.getLogger("policy_recommendation")
 logger.setLevel(logging.INFO)
@@ -248,8 +253,12 @@ def generate_policy_name(info):
 def generate_k8s_np(x):
     applied_to, (ingresses, egresses) = x
     ns, labels = applied_to.split(ROW_DELIMITER)
-    if ns in NAMESPACE_ALLOW_LIST:
-        return []
+    if broadcast_ns_allow_list:
+        if ns in broadcast_ns_allow_list.value:
+            return []
+    else:
+        if ns in NAMESPACE_ALLOW_LIST:
+            return []
     ingress_list = list(set(ingresses.split(PEER_DELIMITER)))
     egress_list = list(set(egresses.split(PEER_DELIMITER)))
     egressRules = []
@@ -382,8 +391,12 @@ def generate_anp_ingress_rule(ingress):
 def generate_anp(network_peers):
     applied_to, (ingresses, egresses) = network_peers
     ns, labels = applied_to.split(ROW_DELIMITER)
-    if ns in NAMESPACE_ALLOW_LIST:
-        return []
+    if broadcast_ns_allow_list:
+        if ns in broadcast_ns_allow_list.value:
+            return []
+    else:
+        if ns in NAMESPACE_ALLOW_LIST:
+            return []
     try:
         labels_dict = json.loads(labels)
     except Exception as e:
@@ -450,8 +463,12 @@ def generate_svc_cg(destinationServicePortNameRow):
     ].split(
         "/"
     )
-    if namespace in NAMESPACE_ALLOW_LIST:
-        return []
+    if broadcast_ns_allow_list:
+        if namespace in broadcast_ns_allow_list.value:
+            return []
+    else:
+        if namespace in NAMESPACE_ALLOW_LIST:
+            return []
     svc_cg = antrea_crd.ClusterGroup(
         kind="ClusterGroup",
         api_version="crd.antrea.io/v1alpha2",
@@ -483,8 +500,12 @@ def generate_acnp_svc_egress_rule(egress):
 def generate_svc_acnp(x):
     applied_to, egresses = x
     ns, labels = applied_to.split(ROW_DELIMITER)
-    if ns in NAMESPACE_ALLOW_LIST:
-        return []
+    if broadcast_ns_allow_list:
+        if ns in broadcast_ns_allow_list.value:
+            return []
+    else:
+        if ns in NAMESPACE_ALLOW_LIST:
+            return []
     try:
         labels_dict = json.loads(labels)
     except Exception as e:
@@ -538,8 +559,12 @@ def generate_reject_acnp(applied_to):
     else:
         np_name = generate_policy_name("recommend-reject-acnp")
         ns, labels = applied_to.split(ROW_DELIMITER)
-        if ns in NAMESPACE_ALLOW_LIST:
-            return []
+        if broadcast_ns_allow_list:
+            if ns in broadcast_ns_allow_list.value:
+                return []
+        else:
+            if ns in NAMESPACE_ALLOW_LIST:
+                return []
         try:
             labels_dict = json.loads(labels)
         except Exception as e:
@@ -1003,7 +1028,6 @@ def main(argv):
     option = 1
     start_time = ""
     end_time = ""
-    ns_allow_list = NAMESPACE_ALLOW_LIST
     recommendation_id_input = ""
     rm_labels = True
     to_services = True
@@ -1058,6 +1082,10 @@ def main(argv):
         -e '2021-12-31 00:00:00'
         -n '["kube-system","flow-aggregator","flow-visibility"]'
     """
+    global broadcast_ns_allow_list
+    spark = SparkSession.builder.getOrCreate()
+    broadcast_ns_allow_list = spark.sparkContext.broadcast(
+        NAMESPACE_ALLOW_LIST)
 
     # TODO: change to use argparse instead of getopt for options
     try:
@@ -1148,7 +1176,8 @@ def main(argv):
                 logger.error("ns_allow_list should be a list.")
                 logger.info(help_message)
                 sys.exit(2)
-            ns_allow_list = arg_list
+            broadcast_ns_allow_list.unpersist()
+            broadcast_ns_allow_list = spark.sparkContext.broadcast(arg_list)
         elif opt in ("-i", "--id"):
             recommendation_id_input = arg
         elif opt in ("--rm_labels"):
@@ -1158,7 +1187,6 @@ def main(argv):
             if arg == "false":
                 to_services = False
 
-    spark = SparkSession.builder.getOrCreate()
     if recommendation_type == "initial":
         result = initial_recommendation_job(
             spark,
@@ -1168,7 +1196,7 @@ def main(argv):
             option,
             start_time,
             end_time,
-            ns_allow_list,
+            broadcast_ns_allow_list.value,
             rm_labels,
             to_services,
         )

@@ -88,6 +88,9 @@ func (r *REST) Get(ctx context.Context, name string, options *metav1.GetOptions)
 	return &status, nil
 }
 
+func (r *REST) Destroy() {
+}
+
 func (r *REST) NamespaceScoped() bool {
 	return false
 }

@@ -356,7 +356,11 @@ function deliver_antrea {
 
 
     # delete old images first
+    set +e
     docker image prune -f --filter "until=1h" || true > /dev/null
+    docker images | grep 'theia' | awk '{print $3}' | xargs -r docker rmi || true
+    docker images | grep '<none>' | awk '{print $3}' | xargs -r docker rmi || true
+    set -e
 
     # copy images
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN

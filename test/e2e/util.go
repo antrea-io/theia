@@ -15,11 +15,15 @@
 package e2e
 
 import (
+	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +33,11 @@ import (
 )
 
 const (
+	iperfTimeSec = 12
+	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
+	// (default unlimited for TCP), to reduce the variances caused by network performance
+	// during 12s, and make the throughput test more stable.
+	iperfBandwidth                     = "10m"
 	nameSuffixLength               int = 8
 	ingressAllowNetworkPolicyName      = "test-flow-aggregator-networkpolicy-ingress-allow"
 	ingressRejectANPName               = "test-flow-aggregator-anp-ingress-reject"
@@ -511,7 +520,7 @@ func TheiaManagerRestart(t *testing.T, data *TestData, jobName1 string, job stri
 	if err != nil {
 		return err
 	}
-	err = data.podWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace)
 	if err != nil {
 		return fmt.Errorf("error when waiting for Theia Manager %s", theiaManagerPodName)
 	}
@@ -568,4 +577,111 @@ func ApplyNewVersion(t *testing.T, data *TestData, antreaYML, chOperatorYML, flo
 	if err := data.waitForClickHousePod(); err != nil {
 		t.Fatalf("Error when waiting for the ClickHouse Pod restarting: %v", err)
 	}
+}
+
+func CreateFlowVisibilitySetUpConfig(sparkOperator, grafana, clickHouseLocalPv, flowAggregator, flowAggregatorOnly bool) FlowVisibilitySetUpConfig {
+	return FlowVisibilitySetUpConfig{
+		withSparkOperator:     sparkOperator,
+		withGrafana:           grafana,
+		withClickHouseLocalPv: clickHouseLocalPv,
+		withFlowAggregator:    flowAggregator,
+		flowAggregatorOnly:    flowAggregatorOnly,
+	}
+}
+
+func CopyCovFolder(nodeName, covDir, covPrefix string) error {
+	covDirAbs, err := filepath.Abs("../../" + covDir)
+	if err != nil {
+		return fmt.Errorf("error while creating absolute file path: %v", err)
+	}
+	pathOnNode := nodeName + ":" + "/var/log/" + covPrefix + "-coverage/."
+	cmd := exec.Command("docker", "cp", pathOnNode, covDirAbs)
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		errStr := errb.String()
+		outStr := outb.String()
+		if !strings.Contains(errb.String(), "Could not find the file") {
+			return fmt.Errorf("error while running docker cp command[%v] from node: %s: stdout: %s, stderr: %s", cmd, nodeName, outStr, errStr)
+		}
+	}
+	return nil
+}
+
+func ClearCovFolder(nodeName, covPrefix string) error {
+	nestedCmd := "`rm -rf /var/log/" + covPrefix + "-coverage/*`"
+	cmd := exec.Command("docker", "exec", nodeName, "sh", "-c", nestedCmd)
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+	if err := cmd.Run(); err != nil {
+		errStr := errb.String()
+		outStr := outb.String()
+		if !strings.Contains(errb.String(), "not found") {
+			return fmt.Errorf("error while running docker exec command[%v] from node: %s: stdout: %s, stderr: %s", cmd, nodeName, outStr, errStr)
+		}
+	}
+	return nil
+}
+
+// GetClickHouseOutput queries clickhouse with built-in client and checks if we have
+// received all the expected records for a given flow with source IP, destination IP
+// and source port. We send source port to ignore the control flows during the iperf test.
+// Polling timeout is coded assuming IPFIX output has been checked first.
+func GetClickHouseOutput(t *testing.T, data *TestData, srcIP, dstIP, srcPort string, isDstService, checkAllRecords bool) []*ClickHouseFullRow {
+	var flowRecords []*ClickHouseFullRow
+	var queryOutput string
+
+	query := fmt.Sprintf("SELECT * FROM flows WHERE (sourceIP = '%s') AND (destinationIP = '%s')", srcIP, dstIP)
+	if isDstService {
+		query = fmt.Sprintf("SELECT * FROM flows WHERE (sourceIP = '%s') AND (destinationClusterIP = '%s')", srcIP, dstIP)
+	}
+	if len(srcPort) > 0 {
+		query = fmt.Sprintf("%s AND (sourceTransportPort = %s)", query, srcPort)
+	}
+	cmd := []string{
+		"clickhouse-client",
+		"--date_time_output_format=iso",
+		"--format=JSONEachRow",
+		fmt.Sprintf("--query=%s", query),
+	}
+	// Waiting additional 4x commit interval to be adequate for 3 commit attempts.
+	timeout := (exporterActiveFlowExportTimeout + aggregatorActiveFlowRecordTimeout*2 + aggregatorClickHouseCommitInterval*4) * 2
+	err := wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {
+		queryOutput, _, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", cmd)
+		if err != nil {
+			return false, err
+		}
+
+		rows := strings.Split(queryOutput, "\n")
+		flowRecords = make([]*ClickHouseFullRow, 0, len(rows))
+		for _, row := range rows {
+			row = strings.TrimSpace(row)
+			if len(row) == 0 {
+				continue
+			}
+			flowRecord := ClickHouseFullRow{}
+			err = json.Unmarshal([]byte(row), &flowRecord)
+			if err != nil {
+				return false, err
+			}
+			flowRecords = append(flowRecords, &flowRecord)
+		}
+
+		if checkAllRecords {
+			for _, record := range flowRecords {
+				flowStartTime := record.FlowStartSeconds.Unix()
+				exportTime := record.FlowEndSeconds.Unix()
+				// flowEndReason == 3 means the end of flow detected
+				if exportTime >= flowStartTime+iperfTimeSec || record.FlowEndReason == 3 {
+					return true, nil
+				}
+			}
+			return false, nil
+		}
+		return len(flowRecords) > 0, nil
+	})
+	require.NoErrorf(t, err, "ClickHouse did not receive the expected records in query output: %v; query: %s", queryOutput, query)
+	return flowRecords
 }

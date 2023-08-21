@@ -17,7 +17,6 @@ package e2e
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -101,11 +100,6 @@ trusted: 0
 */
 
 const (
-	iperfTimeSec = 12
-	// Set target bandwidth(bits/sec) of iPerf traffic to a relatively small value
-	// (default unlimited for TCP), to reduce the variances caused by network performance
-	// during 12s, and make the throughput test more stable.
-	iperfBandwidth                  = "10m"
 	antreaEgressTableInitFlowCount  = 3
 	antreaIngressTableInitFlowCount = 6
 	ingressTableInitFlowCount       = 1
@@ -720,7 +714,7 @@ func checkRecordsForFlowsClickHouse(t *testing.T, data *TestData, srcIP, dstIP, 
 	// Check the source port along with source and destination IPs as there
 	// are flow records for control flows during the iperf with same IPs
 	// and destination port.
-	clickHouseRecords := getClickHouseOutput(t, data, srcIP, dstIP, srcPort, checkService, true)
+	clickHouseRecords := GetClickHouseOutput(t, data, srcIP, dstIP, srcPort, checkService, true)
 
 	for _, record := range clickHouseRecords {
 		// Check if record has both Pod name of source and destination Pod.
@@ -796,7 +790,7 @@ func checkRecordsForToExternalFlows(t *testing.T, data *TestData, srcNodeName st
 	stdout, stderr, err := data.RunCommandFromPod(testNamespace, srcPodName, busyboxContainerName, strings.Fields(cmd))
 	require.NoErrorf(t, err, "Error when running wget command, stdout: %s, stderr: %s", stdout, stderr)
 
-	clickHouseRecords := getClickHouseOutput(t, data, srcIP, dstIP, "", false, false)
+	clickHouseRecords := GetClickHouseOutput(t, data, srcIP, dstIP, "", false, false)
 	for _, record := range clickHouseRecords {
 		checkPodAndNodeDataClickHouse(t, record, srcPodName, srcNodeName, "", "")
 		checkFlowTypeClickHouse(t, record, ipfixregistry.FlowTypeToExternal)
@@ -826,8 +820,8 @@ func checkRecordsForDenyFlows(t *testing.T, data *TestData, testFlow1, testFlow2
 }
 
 func checkRecordsForDenyFlowsClickHouse(t *testing.T, data *TestData, testFlow1, testFlow2 testFlow, isIPv6, isIntraNode, isANP bool) {
-	clickHouseRecords1 := getClickHouseOutput(t, data, testFlow1.srcIP, testFlow1.dstIP, "", false, false)
-	clickHouseRecords2 := getClickHouseOutput(t, data, testFlow2.srcIP, testFlow2.dstIP, "", false, false)
+	clickHouseRecords1 := GetClickHouseOutput(t, data, testFlow1.srcIP, testFlow1.dstIP, "", false, false)
+	clickHouseRecords2 := GetClickHouseOutput(t, data, testFlow2.srcIP, testFlow2.dstIP, "", false, false)
 	recordSlices := append(clickHouseRecords1, clickHouseRecords2...)
 	// Iterate over recordSlices and build some results to test with expected results
 	for _, record := range recordSlices {
@@ -901,67 +895,6 @@ func checkPodAndNodeDataClickHouse(t *testing.T, record *ClickHouseFullRow, srcP
 
 func checkFlowTypeClickHouse(t *testing.T, record *ClickHouseFullRow, flowType uint8) {
 	assert.Equal(t, record.FlowType, flowType, "Record does not have correct flowType")
-}
-
-// getClickHouseOutput queries clickhouse with built-in client and checks if we have
-// received all the expected records for a given flow with source IP, destination IP
-// and source port. We send source port to ignore the control flows during the iperf test.
-// Polling timeout is coded assuming IPFIX output has been checked first.
-func getClickHouseOutput(t *testing.T, data *TestData, srcIP, dstIP, srcPort string, isDstService, checkAllRecords bool) []*ClickHouseFullRow {
-	var flowRecords []*ClickHouseFullRow
-	var queryOutput string
-
-	query := fmt.Sprintf("SELECT * FROM flows WHERE (sourceIP = '%s') AND (destinationIP = '%s')", srcIP, dstIP)
-	if isDstService {
-		query = fmt.Sprintf("SELECT * FROM flows WHERE (sourceIP = '%s') AND (destinationClusterIP = '%s')", srcIP, dstIP)
-	}
-	if len(srcPort) > 0 {
-		query = fmt.Sprintf("%s AND (sourceTransportPort = %s)", query, srcPort)
-	}
-	cmd := []string{
-		"clickhouse-client",
-		"--date_time_output_format=iso",
-		"--format=JSONEachRow",
-		fmt.Sprintf("--query=%s", query),
-	}
-	// Waiting additional 4x commit interval to be adequate for 3 commit attempts.
-	timeout := (exporterActiveFlowExportTimeout + aggregatorActiveFlowRecordTimeout*2 + aggregatorClickHouseCommitInterval*4) * 2
-	err := wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {
-		queryOutput, _, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", cmd)
-		if err != nil {
-			return false, err
-		}
-
-		rows := strings.Split(queryOutput, "\n")
-		flowRecords = make([]*ClickHouseFullRow, 0, len(rows))
-		for _, row := range rows {
-			row = strings.TrimSpace(row)
-			if len(row) == 0 {
-				continue
-			}
-			flowRecord := ClickHouseFullRow{}
-			err = json.Unmarshal([]byte(row), &flowRecord)
-			if err != nil {
-				return false, err
-			}
-			flowRecords = append(flowRecords, &flowRecord)
-		}
-
-		if checkAllRecords {
-			for _, record := range flowRecords {
-				flowStartTime := record.FlowStartSeconds.Unix()
-				exportTime := record.FlowEndSeconds.Unix()
-				// flowEndReason == 3 means the end of flow detected
-				if exportTime >= flowStartTime+iperfTimeSec || record.FlowEndReason == 3 {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-		return len(flowRecords) > 0, nil
-	})
-	require.NoErrorf(t, err, "ClickHouse did not receive the expected records in query output: %v; query: %s", queryOutput, query)
-	return flowRecords
 }
 
 func deployK8sNetworkPolicies(t *testing.T, data *TestData, srcPod, dstPod string) (np1 *networkingv1.NetworkPolicy, np2 *networkingv1.NetworkPolicy) {
@@ -1222,61 +1155,6 @@ func getBandwidthAndPorts(iperfStdout string) ([]string, string, string) {
 		}
 	}
 	return bandwidth, srcPort, dstPort
-}
-
-type ClickHouseFullRow struct {
-	TimeInserted                         time.Time `json:"timeInserted"`
-	FlowStartSeconds                     time.Time `json:"flowStartSeconds"`
-	FlowEndSeconds                       time.Time `json:"flowEndSeconds"`
-	FlowEndSecondsFromSourceNode         time.Time `json:"flowEndSecondsFromSourceNode"`
-	FlowEndSecondsFromDestinationNode    time.Time `json:"flowEndSecondsFromDestinationNode"`
-	FlowEndReason                        uint8     `json:"flowEndReason"`
-	SourceIP                             string    `json:"sourceIP"`
-	DestinationIP                        string    `json:"destinationIP"`
-	SourceTransportPort                  uint16    `json:"sourceTransportPort"`
-	DestinationTransportPort             uint16    `json:"destinationTransportPort"`
-	ProtocolIdentifier                   uint8     `json:"protocolIdentifier"`
-	PacketTotalCount                     uint64    `json:"packetTotalCount,string"`
-	OctetTotalCount                      uint64    `json:"octetTotalCount,string"`
-	PacketDeltaCount                     uint64    `json:"packetDeltaCount,string"`
-	OctetDeltaCount                      uint64    `json:"octetDeltaCount,string"`
-	ReversePacketTotalCount              uint64    `json:"reversePacketTotalCount,string"`
-	ReverseOctetTotalCount               uint64    `json:"reverseOctetTotalCount,string"`
-	ReversePacketDeltaCount              uint64    `json:"reversePacketDeltaCount,string"`
-	ReverseOctetDeltaCount               uint64    `json:"reverseOctetDeltaCount,string"`
-	SourcePodName                        string    `json:"sourcePodName"`
-	SourcePodNamespace                   string    `json:"sourcePodNamespace"`
-	SourceNodeName                       string    `json:"sourceNodeName"`
-	DestinationPodName                   string    `json:"destinationPodName"`
-	DestinationPodNamespace              string    `json:"destinationPodNamespace"`
-	DestinationNodeName                  string    `json:"destinationNodeName"`
-	DestinationClusterIP                 string    `json:"destinationClusterIP"`
-	DestinationServicePort               uint16    `json:"destinationServicePort"`
-	DestinationServicePortName           string    `json:"destinationServicePortName"`
-	IngressNetworkPolicyName             string    `json:"ingressNetworkPolicyName"`
-	IngressNetworkPolicyNamespace        string    `json:"ingressNetworkPolicyNamespace"`
-	IngressNetworkPolicyRuleName         string    `json:"ingressNetworkPolicyRuleName"`
-	IngressNetworkPolicyRuleAction       uint8     `json:"ingressNetworkPolicyRuleAction"`
-	IngressNetworkPolicyType             uint8     `json:"ingressNetworkPolicyType"`
-	EgressNetworkPolicyName              string    `json:"egressNetworkPolicyName"`
-	EgressNetworkPolicyNamespace         string    `json:"egressNetworkPolicyNamespace"`
-	EgressNetworkPolicyRuleName          string    `json:"egressNetworkPolicyRuleName"`
-	EgressNetworkPolicyRuleAction        uint8     `json:"egressNetworkPolicyRuleAction"`
-	EgressNetworkPolicyType              uint8     `json:"egressNetworkPolicyType"`
-	TcpState                             string    `json:"tcpState"`
-	FlowType                             uint8     `json:"flowType"`
-	SourcePodLabels                      string    `json:"sourcePodLabels"`
-	DestinationPodLabels                 string    `json:"destinationPodLabels"`
-	Throughput                           uint64    `json:"throughput,string"`
-	ReverseThroughput                    uint64    `json:"reverseThroughput,string"`
-	ThroughputFromSourceNode             uint64    `json:"throughputFromSourceNode,string"`
-	ThroughputFromDestinationNode        uint64    `json:"throughputFromDestinationNode,string"`
-	ReverseThroughputFromSourceNode      uint64    `json:"reverseThroughputFromSourceNode,string"`
-	ReverseThroughputFromDestinationNode uint64    `json:"reverseThroughputFromDestinationNode,string"`
-	ClusterUUID                          string    `json:"clusterUUID"`
-	EgressName                           string    `json:"egressName"`
-	EgressIP                             string    `json:"egressIP"`
-	Trusted                              uint8     `json:"trusted"`
 }
 
 func failOnError(err error, t *testing.T, data *TestData) {

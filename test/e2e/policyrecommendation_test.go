@@ -55,7 +55,7 @@ func TestPolicyRecommendation(t *testing.T) {
 	defer func() {
 		teardownTest(t, data)
 		deleteRecommendedPolicies(t, data)
-		teardownFlowVisibility(t, data, config)
+		TeardownFlowVisibility(t, data, config, controlPlaneNodeName())
 	}()
 
 	t.Run("testPolicyRecommendationRun", func(t *testing.T) {
@@ -187,7 +187,7 @@ func testNPRCleanAfterTheiaMgrResync(t *testing.T, data *TestData) {
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, "Status of this policy recommendation job is", "stdout: %s", stdout)
-	err = data.podWaitForReady(defaultTimeout, jobName2+"-driver", flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, jobName2+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
 	_, err = deleteJob(t, data, jobName2)
 	require.NoError(t, err)
@@ -202,7 +202,7 @@ func testPolicyRecommendationRun(t *testing.T, data *TestData) {
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, fmt.Sprintf("Successfully created policy recommendation job with name %s", jobName), "stdout: %s", stdout)
-	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
 	_, err = deleteJob(t, data, jobName)
 	require.NoError(t, err)
@@ -216,7 +216,7 @@ func testPolicyRecommendationStatus(t *testing.T, data *TestData) {
 	require.NoError(t, err)
 	assert := assert.New(t)
 	assert.Containsf(stdout, "Status of this policy recommendation job is", "stdout: %s", stdout)
-	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
 	_, err = deleteJob(t, data, jobName)
 	require.NoError(t, err)
@@ -238,7 +238,7 @@ func testPolicyRecommendationList(t *testing.T, data *TestData) {
 	assert.Containsf(stdout, "Name", "stdout: %s", stdout)
 	assert.Containsf(stdout, "Status", "stdout: %s", stdout)
 	assert.Containsf(stdout, jobName, "stdout: %s", stdout)
-	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
 	_, err = deleteJob(t, data, jobName)
 	require.NoError(t, err)
@@ -248,7 +248,7 @@ func testPolicyRecommendationList(t *testing.T, data *TestData) {
 func testPolicyRecommendationDelete(t *testing.T, data *TestData) {
 	_, jobName, err := runJob(t, data)
 	require.NoError(t, err)
-	err = data.podWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, jobName+"-driver", flowVisibilityNamespace)
 	require.NoError(t, err)
 	stdout, err := deleteJob(t, data, jobName)
 	require.NoError(t, err)
@@ -278,7 +278,7 @@ func testPolicyRecommendationFailed(t *testing.T, data *TestData) {
 	})
 	require.NoError(t, err)
 	driverPodName := fmt.Sprintf("%s-driver", jobName)
-	err = data.podWaitForReady(defaultTimeout, driverPodName, flowVisibilityNamespace)
+	err = data.PodWaitForReady(defaultTimeout, driverPodName, flowVisibilityNamespace)
 	require.NoError(t, err)
 	if err := data.DeletePod(flowVisibilityNamespace, driverPodName); err != nil {
 		t.Logf("Error when deleting Driver Pod: %v", err)

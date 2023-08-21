@@ -43,7 +43,7 @@ func ensureAntreaRunning(data *TestData) error {
 }
 
 func teardownTest(tb testing.TB, data *TestData) {
-	exportLogs(tb, data, "beforeTeardown", true, false)
+	ExportLogs(tb, data, "beforeTeardown", true, false, controlPlaneNodeName())
 	if empty, _ := IsDirEmpty(data.logsDirForTestCase); empty {
 		_ = os.Remove(data.logsDirForTestCase)
 	}
@@ -93,17 +93,22 @@ func (data *TestData) setupLogDirectoryForTest(testName string) error {
 // namespace and which matches labelSelector criteria.
 func (data *TestData) forAllMatchingPodsInNamespace(
 	labelSelector, nsName string, fn func(nodeName string, podName string, nsName string) error) error {
-	for _, node := range clusterInfo.nodes {
+	// retrieve Node information
+	nodes, err := data.clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("error when listing cluster Nodes: %v", err)
+	}
+	for _, node := range nodes.Items {
 		listOptions := metav1.ListOptions{
 			LabelSelector: labelSelector,
-			FieldSelector: fmt.Sprintf("spec.nodeName=%s", node.name),
+			FieldSelector: fmt.Sprintf("spec.nodeName=%s", node.Name),
 		}
 		pods, err := data.clientset.CoreV1().Pods(nsName).List(context.TODO(), listOptions)
 		if err != nil {
-			return fmt.Errorf("failed to list Antrea Pods on Node '%s': %v", node.name, err)
+			return fmt.Errorf("failed to list Antrea Pods on Node '%s': %v", node.Name, err)
 		}
 		for _, pod := range pods.Items {
-			if err := fn(node.name, pod.Name, nsName); err != nil {
+			if err := fn(node.Name, pod.Name, nsName); err != nil {
 				return err
 			}
 		}
@@ -124,7 +129,7 @@ func forAllNodes(fn func(nodeName string) error) error {
 	return nil
 }
 
-func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs bool, testMain bool) {
+func ExportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs bool, testMain bool, cpNodeName string) {
 	if !testMain {
 		if tb.Skipped() {
 			return
@@ -159,13 +164,16 @@ func exportLogs(tb testing.TB, data *TestData, logsSubDir string, writeNodeLogs 
 		}
 		return f
 	}
+	if cpNodeName == "" {
+		cpNodeName = controlPlaneNodeName()
+	}
 
 	// runKubectl runs the provided kubectl command on the control-plane Node and returns the
 	// output. It returns an empty string in case of error.
 	runKubectl := func(cmd string) string {
-		rc, stdout, stderr, err := data.RunCommandOnNode(controlPlaneNodeName(), cmd)
+		rc, stdout, stderr, err := data.RunCommandOnNode(cpNodeName, cmd)
 		if err != nil || rc != 0 {
-			log.Printf("Error when running kubectl command on control-plane Node, cmd:%s\nstdout:%s\nstderr:%s", cmd, stdout, stderr)
+			log.Printf("Error when running kubectl command on control-plane Node, Node name:%s\ncmd:%s\nstdout:%s\nstderr:%s", cpNodeName, cmd, stdout, stderr)
 			return ""
 		}
 		return stdout
@@ -267,7 +275,7 @@ func setupTest(tb testing.TB) (*TestData, error) {
 	defer func() {
 		if !success {
 			tb.Fail()
-			exportLogs(tb, testData, "afterSetupTest", true, false)
+			ExportLogs(tb, testData, "afterSetupTest", true, false, controlPlaneNodeName())
 		}
 	}()
 	tb.Logf("Creating '%s' K8s Namespace", testNamespace)

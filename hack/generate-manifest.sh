@@ -31,6 +31,9 @@ Kustomize, and print it to stdout.
         --theia-manager                     Generate a manifest with Theia Manager enabled.
         --no-grafana                        Generate a manifest with Grafana disabled.
         --ch-only                           Generate a manifest with ClickHouse only.
+        --node-port                         Generate a manifest with Clickhouse service using NodePort
+        --ipaddress <ip>                    Generate a manifest with ip address SANs set in the certificate
+        --secure-connection                 Generate a manifest with secure connection enabled in Clickhouse service
         --ch-size <size>                    Deploy the ClickHouse with a specific storage size. Can be a 
                                             plain integer or as a fixed-point number using one of these quantity
                                             suffixes: E, P, T, G, M, K. Or the power-of-two equivalents:
@@ -58,9 +61,12 @@ SPARK_OP=false
 THEIA_MANAGER=false
 GRAFANA=true
 CH_ONLY=false
+NODE_PORT=false
+SECURE=false
 CH_SIZE="8Gi"
 CH_THRESHOLD=0.5
 LOCALPATH=""
+IP_ADDRESS=""
 
 while [[ $# -gt 0 ]]
 do
@@ -83,6 +89,14 @@ case $key in
     GRAFANA=false
     shift 1
     ;;
+    --node-port)
+    NODE_PORT=true
+    shift 1
+    ;;
+    --secure-connection)
+    SECURE=true
+    shift 1
+    ;;
     --ch-only)
     CH_ONLY=true
     shift 1
@@ -97,6 +111,10 @@ case $key in
     ;;
     --local)
     LOCALPATH="$2"
+    shift 2
+    ;;
+    --ipaddress)
+    IP_ADDRESS="$2"
     shift 2
     ;;
     -h|--help)
@@ -170,8 +188,17 @@ fi
 if [ "$CH_ONLY" == true ]; then
     HELM_VALUES+=("grafana.enable=false" "theiaManager.enable=false" "sparkOperator.enable=false" "clickhouse.monitor.enable=true")
 fi
+if [ "$NODE_PORT" == true ]; then
+    HELM_VALUES+=("clickhouse.service.type=NodePort")
+fi
+if [ "$SECURE" == true ]; then
+    HELM_VALUES+=("clickhouse.service.secureConnection.enable=true")
+fi
 if [[ $LOCALPATH != "" ]]; then
     HELM_VALUES+=("clickhouse.storage.createPersistentVolume.type=Local" "clickhouse.storage.createPersistentVolume.local.path=$LOCALPATH")
+fi
+if [[ $IP_ADDRESS != "" ]]; then
+    HELM_VALUES+=("clickhouse.service.secureConnection.ipAddresses={$IP_ADDRESS}")
 fi
 
 delim=""

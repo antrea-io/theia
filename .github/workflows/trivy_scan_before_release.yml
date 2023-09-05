@@ -16,7 +16,7 @@ jobs:
           - clickhouse-monitor
           - clickhouse-server
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Build theia Docker images
       id: make
       run: |
@@ -32,7 +32,7 @@ jobs:
     if: startsWith(github.event.pull_request.title, 'Release ')
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Build theia-manager Docker image
       id: make
       run: |

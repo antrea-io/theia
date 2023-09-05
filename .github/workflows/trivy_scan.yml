@@ -18,7 +18,7 @@ jobs:
     outputs:
       theia-version: ${{ steps.find-theia-greatest-version.outputs.theia_version }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Find greatest Theia version
       id: find-theia-greatest-version
       env:
@@ -43,7 +43,7 @@ jobs:
           - latest
           - ${{ needs.find-theia-greatest-version.outputs.theia-version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Pull theia Docker image
         id: pull
         run: |

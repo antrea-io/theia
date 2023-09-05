@@ -189,7 +189,9 @@ DOCKER_IMAGES=("registry.k8s.io/e2e-test-images/agnhost:2.29" \
                 "projects.registry.vmware.com/antrea/antrea-ubuntu:$ANTREA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-monitor:$THEIA_FROM_TAG" \
                 "projects.registry.vmware.com/antrea/theia-clickhouse-server:$CLICKHOUSE_FROM_TAG" \
+                "projects.registry.vmware.com/antrea/theia-manager:$THEIA_FROM_TAG" \
                 "antrea/antrea-ubuntu:latest")
+
 
 for img in "${DOCKER_IMAGES[@]}"; do
     echo "Pulling $img"
@@ -200,7 +202,9 @@ for img in "${DOCKER_IMAGES[@]}"; do
 done
 
 DOCKER_IMAGES+=("projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest\
-                 projects.registry.vmware.com/antrea/theia-clickhouse-server:latest")
+                 projects.registry.vmware.com/antrea/theia-clickhouse-server:latest\
+                 projects.registry.vmware.com/antrea/theia-manager:latest\
+                 projects.registry.vmware.com/antrea/theia-spark-jobs:latest")
 
 echo "Creating Kind cluster"
 IMAGES="${DOCKER_IMAGES[@]}"

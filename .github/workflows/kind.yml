@@ -19,7 +19,7 @@ jobs:
     name: Check whether tests need to be run based on diff
     runs-on: [ubuntu-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: antrea-io/has-changes@v2
@@ -35,7 +35,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
     runs-on: [ ubuntu-latest ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make spark-jobs
     - name: Save Spark jobs image to tarball
       run: docker save -o spark-jobs.tar antrea/theia-spark-jobs
@@ -52,7 +52,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
     runs-on: [ ubuntu-latest ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make clickhouse-monitor
     - name: Save ClickHouse monitor image to tarball
       run: docker save -o clickhouse-monitor.tar antrea/theia-clickhouse-monitor
@@ -69,7 +69,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
     runs-on: [ ubuntu-latest ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make clickhouse-server
     - name: Save ClickHouse server image to tarball
       run: docker save -o clickhouse-server.tar antrea/theia-clickhouse-server
@@ -86,7 +86,7 @@ jobs:
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
     runs-on: [ ubuntu-latest ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - run: make theia-manager
     - name: Save Theia Manager image to tarball
       run: docker save -o theia-manager.tar antrea/theia-manager
@@ -117,7 +117,7 @@ jobs:
           sudo rm -rf "/usr/local/lib/android"
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
@@ -204,7 +204,7 @@ jobs:
           sudo apt-get autoclean
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'
@@ -280,7 +280,7 @@ jobs:
           sudo apt-get autoclean
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-go@v4
         with:
           go-version-file: 'go.mod'

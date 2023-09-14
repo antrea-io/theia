@@ -28,6 +28,19 @@ updates:
     - dependency-name: "github.com/TomCodeLV/OVSDB-golang-lib"
     - dependency-name: "antrea.io/ofnet"
     - dependency-name: "antrea.io/libOpenflow"
+  - package-ecosystem: "gomod"
+    directory: "/snowflake/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    ignore:
+    - dependency-name: "k8s.io/*"
+    - dependency-name: "sigs.k8s.io/*"
+    - dependency-name: "github.com/containernetworking/*"
+    - dependency-name: "github.com/vmware/go-ipfix"
+    - dependency-name: "github.com/TomCodeLV/OVSDB-golang-lib"
+    - dependency-name: "antrea.io/ofnet"
+    - dependency-name: "antrea.io/libOpenflow"
   - package-ecosystem: "github-actions"
     # Workflow files stored in the default location of `.github/workflows`
     directory: "/"

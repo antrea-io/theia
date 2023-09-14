@@ -9,7 +9,12 @@ GOPATH                ?= $$($(GO) env GOPATH)
 DOCKER_CACHE          := $(CURDIR)/.cache
 THEIA_BINARY_NAME     ?= theia
 GO_VERSION            := $(shell head -n 1 build/images/deps/go-version)
+GIT_HOOKS             := $(shell find hack/git_client_side_hooks -type f -print)
 TRIVY_TARGET_IMAGE ?=
+
+GOLANGCI_LINT_VERSION := v1.54.2
+GOLANGCI_LINT_BINDIR  := $(CURDIR)/.golangci-bin
+GOLANGCI_LINT_BIN     := $(GOLANGCI_LINT_BINDIR)/$(GOLANGCI_LINT_VERSION)/golangci-lint
 
 DOCKER_BUILD_ARGS = --build-arg GO_VERSION=$(GO_VERSION)
 
@@ -72,7 +77,7 @@ DOCKER_ENV := \
 		-v $(DOCKER_CACHE)/gopath:/tmp/gopath \
 		-v $(DOCKER_CACHE)/gocache:/tmp/gocache \
 		-v $(CURDIR):/usr/src/antrea.io/theia \
-		golang:1.20
+		golang:1.21
 
 .PHONY: docker-test-unit
 docker-test-unit: $(DOCKER_CACHE)
@@ -116,25 +121,25 @@ fmt:
 	@echo "===> Formatting Go files <==="
 	@gofmt -s -l -w $(GO_FILES)
 
-.golangci-bin:
-	@echo "===> Installing Golangci-lint <==="
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $@ v1.52.2
+$(GOLANGCI_LINT_BIN):
+	@rm -rf $(GOLANGCI_LINT_BINDIR)/* # remove old versions
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOLANGCI_LINT_BINDIR)/$(GOLANGCI_LINT_VERSION) $(GOLANGCI_LINT_VERSION)
 
 .PHONY: golangci
-golangci: .golangci-bin
+golangci: $(GOLANGCI_LINT_BIN)
 	@echo "===> Running golangci (linux) <==="
-	@GOOS=linux $(CURDIR)/.golangci-bin/golangci-lint run -c $(CURDIR)/.golangci.yml
+	@GOOS=linux $(GOLANGCI_LINT_BIN) run -c $(CURDIR)/.golangci.yml
 
 .PHONY: golangci-fix
-golangci-fix: .golangci-bin
+golangci-fix: $(GOLANGCI_LINT_BIN)
 	@echo "===> Running golangci (linux) <==="
-	@GOOS=linux $(CURDIR)/.golangci-bin/golangci-lint run -c $(CURDIR)/.golangci.yml --fix
+	@GOOS=linux $(GOLANGCI_LINT_BIN) run -c $(CURDIR)/.golangci.yml --fix
 
 .PHONY: clean
 clean:
 	@rm -rf $(BINDIR)
 	@rm -rf $(DOCKER_CACHE)
-	@rm -rf .golangci-bin
+	@rm -rf $(GOLANGCI_LINT_BINDIR)
 	@rm -rf .trivy-bin
 
 .PHONY: codegen

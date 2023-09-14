@@ -11,7 +11,7 @@
     "start": "yarn watch"
   },
   "dependencies": {
-    "d3": "^7.1.0",
+    "d3": "^7.8.5",
     "d3-chord": "^3.0.1",
     "enzyme": "^3.11.0",
     "enzyme-adapter-react-16": "^1.15.7",

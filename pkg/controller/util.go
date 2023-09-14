@@ -167,8 +167,8 @@ func RunClickHouseQuery(connect *sql.DB, query string, id string) (err error) {
 }
 
 func GetSparkJobIds(connect *sql.DB, tableName string) ([]string, error) {
-	query := "SELECT DISTINCT id FROM " + tableName + ";"
-	rows, err := connect.Query(query)
+	query := `SELECT DISTINCT id FROM %s;`
+	rows, err := connect.Query(query, tableName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from ClickHouse: %v", err)
 	}

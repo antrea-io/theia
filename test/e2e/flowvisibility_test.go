@@ -504,8 +504,8 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	// Grafana tests the queries in self-defined dashboards can be successfully
 	// executed, and the returned data contains expected results.
 	t.Run("Grafana", func(t *testing.T) {
-		for _, tc := range grafanaTestCases {
-			checkGrafanaQueryResults(t, data, tc.dashboardName, tc.dashboardUid, &tc.queryList)
+		for i, tc := range grafanaTestCases {
+			checkGrafanaQueryResults(t, data, tc.dashboardName, tc.dashboardUid, &grafanaTestCases[i].queryList)
 		}
 	})
 

@@ -42,6 +42,8 @@ Kustomize, and print it to stdout.
                                             vary from 0 to 1. (default is 0.5)
         --local <path>                      Create the PersistentVolume for Clickhouse DB with a provided
                                             local path.
+        --zookeeper-local <path>            Create the PersistentVolume for ZooKeeper with a provided
+                                            local path.
 This tool uses Helm 3 (https://helm.sh/) and Kustomize (https://github.com/kubernetes-sigs/kustomize)
 to generate manifests for Theia. You can set the HELM and KUSTOMIZE environment variables to
 the paths of the helm and kustomize binaries you want us to use. Otherwise we will download the
@@ -66,6 +68,7 @@ SECURE=false
 CH_SIZE="8Gi"
 CH_THRESHOLD=0.5
 LOCALPATH=""
+ZK_LOCALPATH=""
 IP_ADDRESS=""
 
 while [[ $# -gt 0 ]]
@@ -111,6 +114,10 @@ case $key in
     ;;
     --local)
     LOCALPATH="$2"
+    shift 2
+    ;;
+    --zookeeper-local)
+    ZK_LOCALPATH="$2"
     shift 2
     ;;
     --ipaddress)
@@ -196,6 +203,9 @@ if [ "$SECURE" == true ]; then
 fi
 if [[ $LOCALPATH != "" ]]; then
     HELM_VALUES+=("clickhouse.storage.createPersistentVolume.type=Local" "clickhouse.storage.createPersistentVolume.local.path=$LOCALPATH")
+fi
+if [[ $ZK_LOCALPATH != "" ]]; then
+    HELM_VALUES+=("clickhouse.cluster.installZookeeper.storage.createPersistentVolume.type=Local" "clickhouse.cluster.installZookeeper.storage.createPersistentVolume.local.path=$ZK_LOCALPATH")
 fi
 if [[ $IP_ADDRESS != "" ]]; then
     HELM_VALUES+=("clickhouse.service.secureConnection.ipAddresses={$IP_ADDRESS}")

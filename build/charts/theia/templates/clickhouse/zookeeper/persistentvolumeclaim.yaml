@@ -1,0 +1,22 @@
+{{- if (eq (len .Values.clickhouse.cluster.zookeeperHosts) 0) }}
+{{- if or .Values.clickhouse.cluster.installZookeeper.storage.createPersistentVolume.type .Values.clickhouse.cluster.installZookeeper.storage.persistentVolumeClaimSpec }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zookeeper-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  {{- if .Values.clickhouse.cluster.installZookeeper.storage.createPersistentVolume.type }}
+  storageClassName: zookeeper-storage
+  {{- else }}
+  {{- with .Values.clickhouse.cluster.installZookeeper.storage.persistentVolumeClaimSpec }}
+  {{- toYaml . | trim | nindent 10 }}
+  {{- end }}
+  {{- end }}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.clickhouse.cluster.installZookeeper.storage.size }}
+{{- end }}
+{{- end }}

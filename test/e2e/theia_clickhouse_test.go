@@ -65,7 +65,7 @@ func TestTheiaClickHouseStatusCommand(t *testing.T) {
 	}
 	defer func() {
 		teardownTest(t, data)
-		teardownFlowVisibility(t, data, config)
+		TeardownFlowVisibility(t, data, config, controlPlaneNodeName())
 	}()
 
 	clientset := data.clientset

@@ -30,10 +30,12 @@ import (
 	"time"
 
 	"antrea.io/antrea/pkg/apis/crd/v1beta1"
+	"antrea.io/antrea/pkg/config/flowaggregator"
 	"github.com/containernetworking/plugins/pkg/ip"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/semver"
+	"gopkg.in/yaml.v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -63,13 +65,16 @@ import (
 )
 
 const (
-	defaultTimeout  = 90 * time.Second
-	defaultInterval = 1 * time.Second
-	realizeTimeout  = 5 * time.Minute
+	defaultTimeout                      = 90 * time.Second
+	defaultInterval                     = 1 * time.Second
+	realizeTimeout                      = 5 * time.Minute
+	aggregatorInactiveFlowRecordTimeout = 6 * time.Second
 
 	antreaNamespace            string = "kube-system"
 	kubeNamespace              string = "kube-system"
 	flowAggregatorNamespace    string = "flow-aggregator"
+	flowAggregatorConfigVolume string = "flow-aggregator-config"
+	flowAggregatorConfName     string = "flow-aggregator.conf"
 	flowVisibilityNamespace    string = "flow-visibility"
 	testNamespace              string = "antrea-test"
 	iperfPort                  int32  = 5201
@@ -172,6 +177,7 @@ type FlowVisibilitySetUpConfig struct {
 	withGrafana           bool
 	withClickHouseLocalPv bool
 	withFlowAggregator    bool
+	flowAggregatorOnly    bool
 }
 
 type ClusterNode struct {
@@ -205,14 +211,72 @@ type ClusterInfo struct {
 
 var clusterInfo ClusterInfo
 
+type ClickHouseFullRow struct {
+	TimeInserted                         time.Time `json:"timeInserted"`
+	FlowStartSeconds                     time.Time `json:"flowStartSeconds"`
+	FlowEndSeconds                       time.Time `json:"flowEndSeconds"`
+	FlowEndSecondsFromSourceNode         time.Time `json:"flowEndSecondsFromSourceNode"`
+	FlowEndSecondsFromDestinationNode    time.Time `json:"flowEndSecondsFromDestinationNode"`
+	FlowEndReason                        uint8     `json:"flowEndReason"`
+	SourceIP                             string    `json:"sourceIP"`
+	DestinationIP                        string    `json:"destinationIP"`
+	SourceTransportPort                  uint16    `json:"sourceTransportPort"`
+	DestinationTransportPort             uint16    `json:"destinationTransportPort"`
+	ProtocolIdentifier                   uint8     `json:"protocolIdentifier"`
+	PacketTotalCount                     uint64    `json:"packetTotalCount,string"`
+	OctetTotalCount                      uint64    `json:"octetTotalCount,string"`
+	PacketDeltaCount                     uint64    `json:"packetDeltaCount,string"`
+	OctetDeltaCount                      uint64    `json:"octetDeltaCount,string"`
+	ReversePacketTotalCount              uint64    `json:"reversePacketTotalCount,string"`
+	ReverseOctetTotalCount               uint64    `json:"reverseOctetTotalCount,string"`
+	ReversePacketDeltaCount              uint64    `json:"reversePacketDeltaCount,string"`
+	ReverseOctetDeltaCount               uint64    `json:"reverseOctetDeltaCount,string"`
+	SourcePodName                        string    `json:"sourcePodName"`
+	SourcePodNamespace                   string    `json:"sourcePodNamespace"`
+	SourceNodeName                       string    `json:"sourceNodeName"`
+	DestinationPodName                   string    `json:"destinationPodName"`
+	DestinationPodNamespace              string    `json:"destinationPodNamespace"`
+	DestinationNodeName                  string    `json:"destinationNodeName"`
+	DestinationClusterIP                 string    `json:"destinationClusterIP"`
+	DestinationServicePort               uint16    `json:"destinationServicePort"`
+	DestinationServicePortName           string    `json:"destinationServicePortName"`
+	IngressNetworkPolicyName             string    `json:"ingressNetworkPolicyName"`
+	IngressNetworkPolicyNamespace        string    `json:"ingressNetworkPolicyNamespace"`
+	IngressNetworkPolicyRuleName         string    `json:"ingressNetworkPolicyRuleName"`
+	IngressNetworkPolicyRuleAction       uint8     `json:"ingressNetworkPolicyRuleAction"`
+	IngressNetworkPolicyType             uint8     `json:"ingressNetworkPolicyType"`
+	EgressNetworkPolicyName              string    `json:"egressNetworkPolicyName"`
+	EgressNetworkPolicyNamespace         string    `json:"egressNetworkPolicyNamespace"`
+	EgressNetworkPolicyRuleName          string    `json:"egressNetworkPolicyRuleName"`
+	EgressNetworkPolicyRuleAction        uint8     `json:"egressNetworkPolicyRuleAction"`
+	EgressNetworkPolicyType              uint8     `json:"egressNetworkPolicyType"`
+	TcpState                             string    `json:"tcpState"`
+	FlowType                             uint8     `json:"flowType"`
+	SourcePodLabels                      string    `json:"sourcePodLabels"`
+	DestinationPodLabels                 string    `json:"destinationPodLabels"`
+	Throughput                           uint64    `json:"throughput,string"`
+	ReverseThroughput                    uint64    `json:"reverseThroughput,string"`
+	ThroughputFromSourceNode             uint64    `json:"throughputFromSourceNode,string"`
+	ThroughputFromDestinationNode        uint64    `json:"throughputFromDestinationNode,string"`
+	ReverseThroughputFromSourceNode      uint64    `json:"reverseThroughputFromSourceNode,string"`
+	ReverseThroughputFromDestinationNode uint64    `json:"reverseThroughputFromDestinationNode,string"`
+	ClusterUUID                          string    `json:"clusterUUID"`
+	EgressName                           string    `json:"egressName"`
+	EgressIP                             string    `json:"egressIP"`
+	Trusted                              uint8     `json:"trusted"`
+}
+
 // TestData stores the state required for each test case.
 type TestData struct {
+	clusterName        string
 	provider           providers.ProviderInterface
 	kubeConfig         *restclient.Config
 	clientset          kubernetes.Interface
 	aggregatorClient   aggregatorclientset.Interface
 	crdClient          crdclientset.Interface
 	logsDirForTestCase string
+	podV4NetworkCIDR   string
+	podV6NetworkCIDR   string
 }
 
 var testData *TestData
@@ -242,6 +306,14 @@ func (p PodIPs) String() string {
 		res += fmt.Sprintf("IPv6(%s),", p.ipv6.String())
 	}
 	return fmt.Sprintf("%sIPstrings(%s)", res, strings.Join(p.ipStrings, ","))
+}
+
+func (p PodIPs) GetIPv4() *net.IP {
+	return p.ipv4
+}
+
+func (p PodIPs) GetIPv6() *net.IP {
+	return p.ipv6
 }
 
 // deployAntreaCommon deploys Antrea using kubectl on the control-plane Node.
@@ -611,6 +683,23 @@ func (data *TestData) collectClusterInfo() error {
 	return nil
 }
 
+func (data *TestData) GetControlPlaneNodeIP(label string) (string, error) {
+	nodes, err := data.clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return "", fmt.Errorf("error when listing cluster Nodes: %v", err)
+	}
+	for _, node := range nodes.Items {
+		if _, ok := node.Labels[label]; ok {
+			for _, address := range node.Status.Addresses {
+				if address.Type == corev1.NodeInternalIP {
+					return address.Address, nil
+				}
+			}
+		}
+	}
+	return "", fmt.Errorf("cannot find IP of control-plane-node")
+}
+
 // deleteTestNamespace deletes test namespace and waits for deletion to actually complete.
 func (data *TestData) deleteTestNamespace(timeout time.Duration) error {
 	return data.DeleteNamespace(testNamespace, timeout)
@@ -764,7 +853,7 @@ func (data *TestData) GetPodLogs(namespace, name string, podLogOpts *corev1.PodL
 	return logString, nil
 }
 
-func parsePodIPs(podIPStrings sets.Set[string]) (*PodIPs, error) {
+func ParsePodIPs(podIPStrings sets.Set[string]) (*PodIPs, error) {
 	ips := new(PodIPs)
 	for idx := range sets.List(podIPStrings) {
 		ipStr := sets.List(podIPStrings)[idx]
@@ -817,7 +906,7 @@ func (data *TestData) podWaitForIPs(timeout time.Duration, name, namespace strin
 			podIPStrings.Insert(ipStr)
 		}
 	}
-	ips, err := parsePodIPs(podIPStrings)
+	ips, err := ParsePodIPs(podIPStrings)
 	if err != nil {
 		return nil, err
 	}
@@ -833,9 +922,9 @@ func (data *TestData) podWaitForIPs(timeout time.Duration, name, namespace strin
 	return ips, nil
 }
 
-// podWaitForReady polls the k8s apiserver until the specified Pod is in the "Ready" status (or
+// PodWaitForReady polls the k8s apiserver until the specified Pod is in the "Ready" status (or
 // until the provided timeout expires).
-func (data *TestData) podWaitForReady(timeout time.Duration, name, namespace string) error {
+func (data *TestData) PodWaitForReady(timeout time.Duration, name, namespace string) error {
 	_, err := data.PodWaitFor(timeout, name, namespace, func(p *corev1.Pod) (bool, error) {
 		for _, condition := range p.Status.Conditions {
 			if condition.Type == corev1.PodReady {
@@ -847,9 +936,9 @@ func (data *TestData) podWaitForReady(timeout time.Duration, name, namespace str
 	return err
 }
 
-// getImageName gets the image name from the fully qualified URI.
+// GetImageName gets the image name from the fully qualified URI.
 // For example: "gcr.io/kubernetes-e2e-test-images/agnhost:2.8" gets "agnhost".
-func getImageName(uri string) string {
+func GetImageName(uri string) string {
 	registryAndImage := strings.Split(uri, ":")[0]
 	paths := strings.Split(registryAndImage, "/")
 	return paths[len(paths)-1]
@@ -882,7 +971,7 @@ func workerNodeName(idx int) string {
 	return node.name
 }
 
-func controlPlaneNoScheduleTolerations() []corev1.Toleration {
+func ControlPlaneNoScheduleTolerations() []corev1.Toleration {
 	// Use both "old" and "new" label for NoSchedule Toleration
 	return []corev1.Toleration{
 		{
@@ -924,7 +1013,7 @@ func (data *TestData) CreatePodOnNodeInNamespace(name, ns string, nodeName, ctrN
 	}
 	if nodeName == controlPlaneNodeName() {
 		// tolerate NoSchedule taint if we want Pod to run on control-plane Node
-		podSpec.Tolerations = controlPlaneNoScheduleTolerations()
+		podSpec.Tolerations = ControlPlaneNoScheduleTolerations()
 	}
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -951,7 +1040,7 @@ func (data *TestData) CreatePodOnNodeInNamespace(name, ns string, nodeName, ctrN
 func (data *TestData) createPodOnNode(name string, ns string, nodeName string, image string, command []string, args []string, env []corev1.EnvVar, ports []corev1.ContainerPort, hostNetwork bool, mutateFunc func(*corev1.Pod)) error {
 	// image could be a fully qualified URI which can't be used as container name and label value,
 	// extract the image name from it.
-	imageName := getImageName(image)
+	imageName := GetImageName(image)
 	return data.CreatePodOnNodeInNamespace(name, ns, nodeName, imageName, image, command, args, env, ports, hostNetwork, mutateFunc)
 }
 
@@ -975,8 +1064,8 @@ func (data *TestData) createBusyboxPodOnNode(name string, ns string, nodeName st
 	return data.createPodOnNode(name, ns, nodeName, busyboxImage, []string{"sleep", strconv.Itoa(sleepDuration)}, nil, nil, nil, hostNetwork, nil)
 }
 
-// getFlowAggregator retrieves the name of the Flow-Aggregator Pod (flow-aggregator-*) running on a specific Node.
-func (data *TestData) getFlowAggregator() (*corev1.Pod, error) {
+// GetFlowAggregator retrieves the name of the Flow-Aggregator Pod (flow-aggregator-*) running on a specific Node.
+func (data *TestData) GetFlowAggregator() (*corev1.Pod, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app=flow-aggregator",
 	}
@@ -1216,7 +1305,7 @@ func (data *TestData) deployFlowVisibility(config FlowVisibilitySetUpConfig) (ch
 		}
 
 		// check for Spark Operator Pod ready.
-		if err = data.podWaitForReady(defaultTimeout, sparkOperatorPodName, flowVisibilityNamespace); err != nil {
+		if err = data.PodWaitForReady(defaultTimeout, sparkOperatorPodName, flowVisibilityNamespace); err != nil {
 			return "", err
 		}
 		theiaManagerPodName, err := data.getPodByLabel(theiaManagerPodLabel, flowVisibilityNamespace)
@@ -1225,14 +1314,14 @@ func (data *TestData) deployFlowVisibility(config FlowVisibilitySetUpConfig) (ch
 		}
 
 		// check for Theia Manager Pod ready.
-		if err = data.podWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace); err != nil {
+		if err = data.PodWaitForReady(defaultTimeout, theiaManagerPodName, flowVisibilityNamespace); err != nil {
 			return "", err
 		}
 	}
 
 	// check for ClickHouse Pod ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
 	clickHousePodName := fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
-	if err = data.podWaitForReady(2*defaultTimeout, clickHousePodName, flowVisibilityNamespace); err != nil {
+	if err = data.PodWaitForReady(2*defaultTimeout, clickHousePodName, flowVisibilityNamespace); err != nil {
 		return "", err
 	}
 
@@ -1267,7 +1356,7 @@ func (data *TestData) deployFlowVisibility(config FlowVisibilitySetUpConfig) (ch
 			return "", fmt.Errorf("error when getting the Grafana Pod name: %v", err)
 		}
 		// check for Grafana Pod ready.
-		if err = data.podWaitForReady(defaultTimeout, grafanaPodName, flowVisibilityNamespace); err != nil {
+		if err = data.PodWaitForReady(defaultTimeout, grafanaPodName, flowVisibilityNamespace); err != nil {
 			return "", err
 		}
 	}
@@ -1345,7 +1434,7 @@ func (data *TestData) deployFlowAggregator() error {
 		return fmt.Errorf("error when waiting for the Flow Aggregator rollout to complete. kubectl describe output: %s, logs: %s", stdout, logStdout)
 	}
 	// Check for flow-aggregator pod running again for db connection establishment
-	flowAggPod, err := data.getFlowAggregator()
+	flowAggPod, err := data.GetFlowAggregator()
 	if err != nil {
 		return fmt.Errorf("error when getting flow-aggregator Pod: %v", err)
 	}
@@ -1388,15 +1477,15 @@ func (data *TestData) getPodByLabel(podLabel, ns string) (string, error) {
 	return pod.Name, nil
 }
 
-func (data *TestData) deleteClickHouseOperator(chOperatorYML string) error {
-	rc, _, _, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s -n kube-system --ignore-not-found", clickHouseOperatorYML))
+func (data *TestData) deleteClickHouseOperator(nodeName string) error {
+	rc, _, _, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s -n kube-system --ignore-not-found", clickHouseOperatorYML))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting ClickHouse operator: %v", err)
 	}
 	return nil
 }
 
-func (data *TestData) killProcesses(namespace, podName, containerName, processName string) error {
+func (data *TestData) KillProcesses(namespace, podName, containerName, processName string) error {
 	cmds := []string{"pgrep", "-f", processName}
 	stdout, stderr, err := data.RunCommandFromPod(namespace, podName, containerName, cmds)
 	if err != nil {
@@ -1421,9 +1510,9 @@ func (data *TestData) killProcessesOnPods() error {
 	for _, pod := range pods.Items {
 		podName := pod.Name
 		if strings.Contains(podName, "chi-clickhouse-clickhouse") {
-			err = data.killProcesses("flow-visibility", podName, clickHouseMonitorContName, clickHouseMonitorContName)
+			err = data.KillProcesses("flow-visibility", podName, clickHouseMonitorContName, clickHouseMonitorContName)
 		} else if strings.Contains(podName, theiaManagerContName) {
-			err = data.killProcesses("flow-visibility", podName, theiaManagerContName, theiaManagerContName)
+			err = data.KillProcesses("flow-visibility", podName, theiaManagerContName, theiaManagerContName)
 		}
 		if err != nil {
 			return fmt.Errorf("error when killing processes on pod: %v", err)
@@ -1432,22 +1521,28 @@ func (data *TestData) killProcessesOnPods() error {
 	return nil
 }
 
-func teardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig) {
+func TeardownFlowVisibility(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig, nodeName string) {
 	data.killProcessesOnPods()
 	if config.withFlowAggregator {
 		if err := data.DeleteNamespace(flowAggregatorNamespace, defaultTimeout); err != nil {
 			tb.Logf("Error when tearing down flow aggregator: %v", err)
 		}
+		if config.flowAggregatorOnly {
+			return
+		}
 	}
-	if err := data.deleteFlowVisibility(config); err != nil {
+	if nodeName == "" {
+		nodeName = controlPlaneNodeName()
+	}
+	if err := data.deleteFlowVisibility(config, nodeName); err != nil {
 		tb.Logf("Error when deleting K8s resources created by flow visibility: %v", err)
 	}
-	if err := data.deleteClickHouseOperator(clickHouseOperatorYML); err != nil {
+	if err := data.deleteClickHouseOperator(nodeName); err != nil {
 		tb.Logf("Error when deleting ClickHouse Operator: %v", err)
 	}
 }
 
-func (data *TestData) deleteFlowVisibility(config FlowVisibilitySetUpConfig) error {
+func (data *TestData) deleteFlowVisibility(config FlowVisibilitySetUpConfig, nodeName string) error {
 	var flowVisibilityManifest string
 	if !config.withGrafana && !config.withSparkOperator {
 		flowVisibilityManifest = flowVisibilityChOnlyYML
@@ -1460,12 +1555,11 @@ func (data *TestData) deleteFlowVisibility(config FlowVisibilitySetUpConfig) err
 	defer func() {
 		log.Infof("Deleting K8s resources created by flow visibility YAML took %v", time.Since(startTime))
 	}()
-	rc, _, stderr, err := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n %s", flowVisibilityNamespace))
+	rc, _, stderr, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n %s --ignore-not-found", flowVisibilityNamespace))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting ClickHouse StatefulSet: %v, stderr: %s", err, stderr)
 	}
-
-	rc, _, stderr, err = data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl delete -f %s --ignore-not-found=true", flowVisibilityManifest))
+	rc, _, stderr, err = data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s --ignore-not-found", flowVisibilityManifest))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting K8s resources created by flow visibility YAML: %v, stderr: %s", err, stderr)
 	}
@@ -1553,6 +1647,59 @@ func (data *TestData) CleanCGs() error {
 	return nil
 }
 
+func (data *TestData) MutateFlowAggregatorConfigMap(datbaseURL string, security bool) error {
+	configMap, err := data.GetFlowAggregatorConfigMap()
+	if err != nil {
+		return err
+	}
+
+	var flowAggregatorConf flowaggregator.FlowAggregatorConfig
+	if err := yaml.Unmarshal([]byte(configMap.Data[flowAggregatorConfName]), &flowAggregatorConf); err != nil {
+		return fmt.Errorf("failed to unmarshal FlowAggregator config from ConfigMap: %v", err)
+	}
+	flowAggregatorConf.ClickHouse = flowaggregator.ClickHouseConfig{
+		Enable:         true,
+		CommitInterval: aggregatorClickHouseCommitInterval.String(),
+	}
+	flowAggregatorConf.ActiveFlowRecordTimeout = aggregatorActiveFlowRecordTimeout.String()
+	flowAggregatorConf.InactiveFlowRecordTimeout = aggregatorInactiveFlowRecordTimeout.String()
+	flowAggregatorConf.RecordContents.PodLabels = true
+	flowAggregatorConf.ClickHouse.DatabaseURL = datbaseURL
+	flowAggregatorConf.ClickHouse.TLS.CACert = security
+
+	b, err := yaml.Marshal(&flowAggregatorConf)
+	if err != nil {
+		return fmt.Errorf("failed to marshal FlowAggregator config")
+	}
+	configMap.Data[flowAggregatorConfName] = string(b)
+	if _, err := data.clientset.CoreV1().ConfigMaps(flowAggregatorNamespace).Update(context.TODO(), configMap, metav1.UpdateOptions{}); err != nil {
+		return fmt.Errorf("failed to update ConfigMap %s: %v", configMap.Name, err)
+	}
+	return nil
+}
+
+func (data *TestData) GetFlowAggregatorConfigMap() (*corev1.ConfigMap, error) {
+	deployment, err := data.clientset.AppsV1().Deployments(flowAggregatorNamespace).Get(context.TODO(), flowAggregatorDeployment, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve Flow aggregator deployment: %v", err)
+	}
+	var configMapName string
+	for _, volume := range deployment.Spec.Template.Spec.Volumes {
+		if volume.ConfigMap != nil && volume.Name == flowAggregatorConfigVolume {
+			configMapName = volume.ConfigMap.Name
+			break
+		}
+	}
+	if len(configMapName) == 0 {
+		return nil, fmt.Errorf("failed to locate %s ConfigMap volume", flowAggregatorConfigVolume)
+	}
+	configMap, err := data.clientset.CoreV1().ConfigMaps(flowAggregatorNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
+	}
+	return configMap, nil
+}
+
 func (data *TestData) Cleanup(namespaces []string) {
 	// Cleanup any cluster-scoped resources.
 	if err := data.CleanACNPs(); err != nil {
@@ -1572,7 +1719,7 @@ func (data *TestData) Cleanup(namespaces []string) {
 
 func flowVisibilityCleanup(tb testing.TB, data *TestData, config FlowVisibilitySetUpConfig) {
 	teardownTest(tb, data)
-	teardownFlowVisibility(tb, data, config)
+	TeardownFlowVisibility(tb, data, config, controlPlaneNodeName())
 }
 
 func SetupClickHouseConnection(clientset kubernetes.Interface, kubeconfig string) (connect *sql.DB, portForward *portforwarder.PortForwarder, err error) {
@@ -1608,4 +1755,74 @@ func randInt(t *testing.T, limit int64) int64 {
 	randNum, error := rand.Int(rand.Reader, big.NewInt(limit))
 	assert.NoError(error)
 	return randNum.Int64()
+}
+
+func (data *TestData) GetClientSet() kubernetes.Interface {
+	return data.clientset
+}
+
+func (data *TestData) GetClusterName() string {
+	return data.clusterName
+}
+
+func (data *TestData) GetPodV4NetworkCIDR() string {
+	return data.podV4NetworkCIDR
+}
+
+func (data *TestData) GetPodV6NetworkCIDR() string {
+	return data.podV6NetworkCIDR
+}
+
+func (data *TestData) SetClusterName(name string) {
+	data.clusterName = name
+}
+
+func (data *TestData) CollectPodCIDRInfo(controlPlaneName string) error {
+	retrieveCIDRs := func(cmd string, reg string) ([]string, error) {
+		res := make([]string, 2)
+		rc, stdout, _, err := data.RunCommandOnNode(controlPlaneName, cmd)
+		if err != nil || rc != 0 {
+			return res, fmt.Errorf("error when running the following command `%s` on control-plane Node: %v, %s", cmd, err, stdout)
+		}
+		re := regexp.MustCompile(reg)
+		matches := re.FindStringSubmatch(stdout)
+		if len(matches) == 0 {
+			return res, fmt.Errorf("cannot retrieve CIDR, unexpected kubectl output: %s", stdout)
+		}
+		cidrs := strings.Split(matches[1], ",")
+		if len(cidrs) == 1 {
+			_, cidr, err := net.ParseCIDR(cidrs[0])
+			if err != nil {
+				return res, fmt.Errorf("CIDR cannot be parsed: %s", cidrs[0])
+			}
+			if cidr.IP.To4() != nil {
+				res[0] = cidrs[0]
+			} else {
+				res[1] = cidrs[0]
+			}
+		} else if len(cidrs) == 2 {
+			_, cidr, err := net.ParseCIDR(cidrs[0])
+			if err != nil {
+				return res, fmt.Errorf("CIDR cannot be parsed: %s", cidrs[0])
+			}
+			if cidr.IP.To4() != nil {
+				res[0] = cidrs[0]
+				res[1] = cidrs[1]
+			} else {
+				res[0] = cidrs[1]
+				res[1] = cidrs[0]
+			}
+		} else {
+			return res, fmt.Errorf("unexpected cluster CIDR: %s", matches[1])
+		}
+		return res, nil
+	}
+	// retrieve cluster CIDRs
+	podCIDRs, err := retrieveCIDRs("kubectl cluster-info dump | grep cluster-cidr", `cluster-cidr=([^"]+)`)
+	if err != nil {
+		return err
+	}
+	data.podV4NetworkCIDR = podCIDRs[0]
+	data.podV6NetworkCIDR = podCIDRs[1]
+	return nil
 }

@@ -357,23 +357,27 @@ function deliver_antrea {
 
     # delete old images first
     set +e
-    docker image prune -f --filter "until=1h" || true > /dev/null
+    docker system prune --force --all --filter until=1h > /dev/null
     docker images | grep 'theia' | awk '{print $3}' | xargs -r docker rmi -f || true
     docker images | grep '<none>' | awk '{print $3}' | xargs -r docker rmi || true
     set -e
 
     # copy images
+    # UPDATE: replace with custom registry.
     docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
 
-    docker pull antrea/antrea-ubuntu:latest
-    docker pull antrea/flow-aggregator:latest
+    docker pull ${DOCKER_REGISTRY}/antrea/antrea-ubuntu:latest
+    docker pull ${DOCKER_REGISTRY}/antrea/flow-aggregator:latest
     docker pull projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker pull projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
 
+    docker tag ${DOCKER_REGISTRY}/antrea/antrea-ubuntu:latest antrea/antrea-ubuntu:latest
+    docker tag ${DOCKER_REGISTRY}/antrea/flow-aggregator:latest antrea/flow-aggregator:latest
     docker save -o antrea-ubuntu.tar antrea/antrea-ubuntu:latest
     docker save -o flow-aggregator.tar antrea/flow-aggregator:latest
     docker save -o theia-spark-operator.tar projects.registry.vmware.com/antrea/theia-spark-operator:v1beta2-1.3.3-3.1.1
     docker save -o theia-zookeeper.tar projects.registry.vmware.com/antrea/theia-zookeeper:3.8.0
+
 
     (cd $GIT_CHECKOUT_DIR && make clickhouse-monitor && make clickhouse-server && make theia-manager && make spark-jobs)
     docker save -o theia-spark-jobs.tar projects.registry.vmware.com/antrea/theia-spark-jobs:latest

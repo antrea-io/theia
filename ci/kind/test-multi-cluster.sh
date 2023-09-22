@@ -42,16 +42,6 @@ EAST_CLUSTER_CONFIG="--kubeconfig=$MULTICLUSTER_KUBECONFIG_PATH/east"
 WEST_CLUSTER_CONFIG="--kubeconfig=$MULTICLUSTER_KUBECONFIG_PATH/west"
 CLUSTER_NAMES=("east" "west")
 
-function quit {
-  result=$?
-  if [[ $setup_only || $test_only ]]; then
-    exit $result
-  fi
-  echoerr "Cleaning testbed"
-  $TESTBED_CMD destroy east
-  $TESTBED_CMD destroy west
-}
-
 coverage=false
 while [[ $# -gt 0 ]]
 do

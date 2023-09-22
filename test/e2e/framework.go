@@ -1478,7 +1478,7 @@ func (data *TestData) getPodByLabel(podLabel, ns string) (string, error) {
 }
 
 func (data *TestData) deleteClickHouseOperator(nodeName string) error {
-	rc, _, _, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s -n kube-system --ignore-not-found=true", clickHouseOperatorYML))
+	rc, _, _, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s -n kube-system --ignore-not-found", clickHouseOperatorYML))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting ClickHouse operator: %v", err)
 	}
@@ -1555,11 +1555,11 @@ func (data *TestData) deleteFlowVisibility(config FlowVisibilitySetUpConfig, nod
 	defer func() {
 		log.Infof("Deleting K8s resources created by flow visibility YAML took %v", time.Since(startTime))
 	}()
-	rc, _, stderr, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n %s --ignore-not-found=true", flowVisibilityNamespace))
+	rc, _, stderr, err := data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete clickhouseinstallation.clickhouse.altinity.com clickhouse -n %s --ignore-not-found", flowVisibilityNamespace))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting ClickHouse StatefulSet: %v, stderr: %s", err, stderr)
 	}
-	rc, _, stderr, err = data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s --ignore-not-found=true", flowVisibilityManifest))
+	rc, _, stderr, err = data.provider.RunCommandOnNode(nodeName, fmt.Sprintf("kubectl delete -f %s --ignore-not-found", flowVisibilityManifest))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deleting K8s resources created by flow visibility YAML: %v, stderr: %s", err, stderr)
 	}

@@ -16,10 +16,8 @@ package e2e_mc
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
@@ -86,7 +84,7 @@ func TestMultiCluster(t *testing.T) {
 	t.Logf("Verifying records in ClickHouse")
 	require.GreaterOrEqualf(t, len(clickHouseRecordsW), expectedNumDataRecords, "ClickHouse should receive expected number of flow records. Considered records: %v", clickHouseRecordsW)
 	t.Logf("Verifying cluster UUID in East/West cluster are different")
-	require.NotEqual(t, clickHouseRecordsE[0].ClusterUUID, clickHouseRecordsW[0].ClusterUUID)
+	require.NotEqualf(t, clickHouseRecordsE[0].ClusterUUID, clickHouseRecordsW[0].ClusterUUID, "ClusterUUID for EAST/WEST cluster should be different\n. Records of EAST cluster: %v\nRecords of EAST cluster: %v", clickHouseRecordsE, clickHouseRecordsW)
 }
 
 func createPerftestPods(data *MCTestData) (podAIPs *e2e.PodIPs, podBIPs *e2e.PodIPs, podCIPs *e2e.PodIPs, podDIPs *e2e.PodIPs, err error) {
@@ -126,29 +124,4 @@ func createPerftestPods(data *MCTestData) (podAIPs *e2e.PodIPs, podBIPs *e2e.Pod
 func failOnError(err error, t *testing.T, data *MCTestData) {
 	flowVisibilityCleanup(t, data)
 	t.Fatalf("test failed: %v", err)
-}
-
-func TestMCCoverageAndCleanup(t *testing.T) {
-	if os.Getenv("COVERAGE") == "" {
-		t.Skipf("COVERAGE env variable is not set until all tests are run, skipping test.")
-	}
-	workerNodeNames := []string{"east-worker", "west-worker"}
-	covDirs := []string{".coverage/clickhouse-monitor-coverage", ".coverage/theia-manager-coverage"}
-	covDirPrefixes := []string{"cm", "tm"}
-	tearDownBothNodes(workerNodeNames, covDirs, covDirPrefixes)
-}
-
-func tearDownBothNodes(workerNodeNames, covDirs, covDirPrefixes []string) error {
-	log.Infof("Running final coverage copy and cleanup.\n")
-	for _, workerNode := range workerNodeNames {
-		for i := range covDirPrefixes {
-			if err := e2e.CopyCovFolder(workerNode, covDirs[i], covDirPrefixes[i]); err != nil {
-				return err
-			}
-			if err := e2e.ClearCovFolder(workerNode, covDirPrefixes[i]); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }

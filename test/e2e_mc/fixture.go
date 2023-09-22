@@ -1,4 +1,4 @@
-// Copyright 2022 Antrea Authors
+// Copyright 2023 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ func (data *MCTestData) setupLogDirectoryForTest(testName string) error {
 	path := filepath.Join(testOptions.logsExportDir, testName)
 	// remove directory if it already exists. This ensures that we start with an empty
 	// directory
-	_ = os.RemoveAll(path)
+	os.RemoveAll(path)
 	err := createDirectory(path)
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-// Copyright 2022 Antrea Authors
+// Copyright 2023 Antrea Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ import (
 var (
 	homedir, _        = os.UserHomeDir()
 	clickHousePodName = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
+	workerNodeNames   = []string{eastWorkerNode, westWorkerNode}
+	covDirs           = []string{".coverage/clickhouse-monitor-coverage", ".coverage/theia-manager-coverage"}
+	covDirPrefixes    = []string{"cm", "tm"}
 )
 
 const (
@@ -61,6 +64,8 @@ const (
 	multiClusterTestNamespace string = "antrea-multicluster-test"
 	eastCluster               string = "east-cluster"
 	westCluster               string = "west-cluster"
+	eastWorkerNode            string = "east-worker"
+	westWorkerNode            string = "west-worker"
 )
 
 type TestOptions struct {
@@ -366,6 +371,29 @@ func flowVisibilityCleanup(tb testing.TB, data *MCTestData) {
 	e2e.TeardownFlowVisibility(tb, data.clusterTestDataMap[eastCluster], e2e.CreateFlowVisibilitySetUpConfig(false, false, false, true, false), data.controlPlaneNames[eastCluster])
 	tb.Logf("Cleaning Flow Visibility in Cluster west")
 	e2e.TeardownFlowVisibility(tb, data.clusterTestDataMap[westCluster], e2e.CreateFlowVisibilitySetUpConfig(false, false, false, true, true), data.controlPlaneNames[westCluster])
+	if os.Getenv("COVERAGE") == "" {
+		tb.Logf("COVERAGE env variable is not set, skip collecting coverage files")
+		return
+	}
+	err := collectCovFromNodes()
+	if err != nil {
+		tb.Fatalf("failed to collect coverage file: %v", err)
+	}
+}
+
+func collectCovFromNodes() error {
+	log.Infof("Running final coverage copy and cleanup.\n")
+	for _, workerNode := range workerNodeNames {
+		for i := range covDirPrefixes {
+			if err := e2e.CopyCovFolder(workerNode, covDirs[i], covDirPrefixes[i]); err != nil {
+				return err
+			}
+			if err := e2e.ClearCovFolder(workerNode, covDirPrefixes[i]); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (data *MCTestData) collectPodCIDRInfo() error {

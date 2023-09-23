@@ -33,7 +33,7 @@ function print_usage {
 
 
 TESTBED_CMD=$(dirname $0)"/kind-setup.sh"
-FLOW_VISIBILITY_CH_ONLY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --no-grafana --node-port --secure-connection"
+FLOW_VISIBILITY_CH_ONLY_CMD=$(dirname $0)"/../../hack/generate-manifest.sh --ch-only --node-port --secure-connection"
 CH_OPERATOR_YML=$(dirname $0)"/../../build/charts/theia/crds/clickhouse-operator-install-bundle.yaml"
 
 WORKDIR=$HOME
@@ -98,7 +98,7 @@ function setup_multi_cluster {
 
   echo "creating test bed with args $args"
   for i in {0..1}; do
-      eval "timeout 600 $TESTBED_CMD create ${CLUSTER_NAMES[$i]} --num-workers 1"
+      eval "timeout 600 $TESTBED_CMD create ${CLUSTER_NAMES[$i]} $args --num-workers 1"
   done
 
   for name in ${CLUSTER_NAMES[*]}; do

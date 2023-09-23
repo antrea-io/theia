@@ -217,6 +217,10 @@ jobs:
           docker tag antrea/theia-clickhouse-monitor:latest projects.registry.vmware.com/antrea/theia-clickhouse-monitor:latest
           docker load -i clickhouse-server.tar
           docker tag antrea/theia-clickhouse-server:latest projects.registry.vmware.com/antrea/theia-clickhouse-server:latest
+      - name: Remove Theia images tar files
+        run: |
+          rm -rf clickhouse-server.tar
+          rm -rf clickhouse-monitor.tar
       - name: Install Kind
         run: |
           curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-$(uname)-amd64

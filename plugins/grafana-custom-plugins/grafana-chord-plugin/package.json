@@ -27,7 +27,7 @@
     "@grafana/ui": "latest",
     "@types/d3": "^7.1.0",
     "@types/enzyme": "^3.10.13",
-    "@types/enzyme-adapter-react-16": "^1.0.6",
+    "@types/enzyme-adapter-react-16": "^1.0.7",
     "@types/my-d3": "npm:@types/d3@7.1.0",
     "emotion": "11.0.0"
   },

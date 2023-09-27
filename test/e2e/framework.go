@@ -168,8 +168,9 @@ const (
 )
 
 var (
-	errConnectionLost = fmt.Errorf("http2: client connection lost")
-	clickHousePodName = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
+	errConnectionLost         = fmt.Errorf("http2: client connection lost")
+	clickHousePodName         = fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
+	clickHouseStatefulSetName = fmt.Sprintf("%s-0-0", clickHousePodNamePrefix)
 )
 
 type FlowVisibilitySetUpConfig struct {
@@ -1320,7 +1321,6 @@ func (data *TestData) deployFlowVisibility(config FlowVisibilitySetUpConfig) (ch
 	}
 
 	// check for ClickHouse Pod ready. Wait for 2x timeout as ch operator needs to be running first to handle chi
-	clickHousePodName := fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 	if err = data.PodWaitForReady(2*defaultTimeout, clickHousePodName, flowVisibilityNamespace); err != nil {
 		return "", err
 	}
@@ -1395,7 +1395,6 @@ func (data *TestData) waitForClickHousePod() error {
 	// ClickHouse Operator takes around 2 minute to restart the ClickHouse Pod
 	// which requires more time to make sure that ClickHouse Pod is ready.
 	err := wait.Poll(defaultInterval, defaultTimeout*4, func() (bool, error) {
-		clickHouseStatefulSetName := fmt.Sprintf("%s-0-0", clickHousePodNamePrefix)
 		ss, err := data.clientset.AppsV1().StatefulSets(flowVisibilityNamespace).Get(context.TODO(), clickHouseStatefulSetName, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("error when getting ClickHouse statefulset: %v", err)
@@ -1411,10 +1410,13 @@ func (data *TestData) waitForClickHousePod() error {
 		return ss.Status.CurrentRevision == ss.Status.UpdateRevision, nil
 	})
 	if err == wait.ErrWaitTimeout {
-		clickHousePodName := fmt.Sprintf("%s-0-0-0", clickHousePodNamePrefix)
 		_, stdout, _, _ := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s describe pod %s", flowVisibilityNamespace, clickHousePodName))
 		return fmt.Errorf("ClickHouse StatefulSet not ready within %v; kubectl describe pod output: %v", defaultTimeout*2, stdout)
 	} else if err != nil {
+		return err
+	}
+	// check for ClickHouse Pod ready.
+	if err = data.PodWaitForReady(defaultTimeout, clickHousePodName, flowVisibilityNamespace); err != nil {
 		return err
 	}
 	return nil

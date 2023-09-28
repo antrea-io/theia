@@ -6,7 +6,7 @@
     org_repo: antrea-io/theia
     jobs:
       - '{name}-{test_name}-for-period':
-         test_name: daily-flow-visibility-validate
+         test_name: daily-validate
          node: 'antrea-test-node'
          description: 'This is for validating the flow visibility manifest daily'
          builders:

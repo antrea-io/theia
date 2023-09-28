@@ -24,7 +24,7 @@ require (
 	github.com/pulumi/pulumi/sdk/v3 v3.39.3
 	github.com/snowflakedb/gosnowflake v1.6.24
 	github.com/spf13/cobra v1.5.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.23.0
 )
 

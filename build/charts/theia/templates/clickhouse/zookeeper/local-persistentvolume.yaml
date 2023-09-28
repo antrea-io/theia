@@ -1,0 +1,31 @@
+{{- if (eq (len .Values.clickhouse.cluster.zookeeperHosts) 0) }}
+{{- with .Values.clickhouse.cluster.installZookeeper.storage }}
+{{- if eq .createPersistentVolume.type "Local" }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zookeeper-pv
+spec:
+  storageClassName: zookeeper-storage
+  capacity:
+    storage: {{ .size }}
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  local:
+    path: {{ .createPersistentVolume.local.path }}
+  nodeAffinity:
+  {{- if .createPersistentVolume.local.affinity }}
+  {{- with .createPersistentVolume.local.affinity }}
+    {{- toYaml . | trim | nindent 4 }}
+  {{- end }}
+  {{- else }}
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: antrea.io/zookeeper-data-node
+          operator: Exists
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -286,9 +286,21 @@ will lead to a complete data loss. In that case, please refer to the
 to recover the data.
 
 ClickHouse cluster can be deployed with default Local PV or NFS PV by setting
-`clickhouse.storage.createPersistentVolume`. To have more flexibility in the
-PV creation, you can configure a customized `StorageClass` in
+`clickhouse.storage.createPersistentVolume`. To have more flexibility in the PV
+creation, you can configure a customized `StorageClass` in
 `clickhouse.storage.persistentVolumeClaimSpec`.
+
+From Theia 0.8, we also offer the option of deploying Zookeeper with Persistent
+Volume. You can deploy Zookeeper with either the default Local PV or NFS PV by
+adjusting the `clickhouse.cluster.installZookeeper.storage.createPersistentVolume`
+setting. For greater flexibility in creating Persistent Volumes, you have the
+option to configure a customized StorageClass within the
+`clickhouse.cluster.installZookeeper.storage.persistentVolumeClaimSpec`.
+
+When choosing to deploy ClickHouse with Persistent Volumes, it is crucial to
+ensure that ZooKeeper is provisioned with a Persistent Volume. This is because
+if the in-memory ZooKeeper crashes, it can result in data loss, causing
+ClickHouse to repeatedly crash.
 
 ##### Secure Connection
 
@@ -494,8 +506,8 @@ grows from 1s to 8s. A commit interval larger than 8s provides little improvemen
 
 ###### Persistent Volumes
 
-By default, ClickHouse is deployed in memory. We support deploying ClickHouse with
-Persistent Volumes.
+By default, ClickHouse and ZooKeeper are deployed in memory. We support deploying
+ClickHouse and ZooKeeper with Persistent Volumes.
 
 [PersistentVolume](https://kubernetes.io/docs/concepts/storage/persistent-volumes/)
 (PV) is a piece of storage in the K8s cluster, which requires to be manually
@@ -590,7 +602,7 @@ two simple examples for your reference.
     if you no long need the data for future use, you may need to manually clean
     up the data on the local disk or NFS server.
 
-1. Request the PV for ClickHouse. Please add a `volumeClaimTemplate` section
+2. Request the PV for ClickHouse. Please add a `volumeClaimTemplate` section
 under `.spec.templates` for the resource `ClickHouseInstallation` in
 `flow-visibility.yml` as shown in the example below. `storageClassName` should
 be set to your own `StorageClass` name, and `.resources.requests.storage`
@@ -618,7 +630,7 @@ should be set to your storage size.
         serviceTemplate: service-template
     ```
 
-1. Remove the in-memory related deployment options, by removing the appropriate
+3. Remove the in-memory related deployment options, by removing the appropriate
 `volume` and `volumeMount` for the `ClickHouseInstallation` resource in
 `flow-visibility.yml`.
 
@@ -636,6 +648,79 @@ should be set to your storage size.
         medium: Memory
         sizeLimit: 8Gi
       name: clickhouse-storage-volume
+    ```
+
+From Theia 0.8, if you want to deploy ZooKeeper with Persistent Volumes, please
+follow the steps outlined below. We will illustrate the process using Local PV
+as an example and follow the similar steps as previously mentioned.
+
+1. Create a `StorageClass` shown in the section below.
+
+      ```yaml
+      apiVersion: storage.k8s.io/v1
+      kind: StorageClass
+      metadata:
+        name: zookeeper-storage
+      provisioner: kubernetes.io/no-provisioner
+      volumeBindingMode: WaitForFirstConsumer
+      reclaimPolicy: Retain
+      allowVolumeExpansion: True
+      ```
+
+2. Create a Local PV. Please replace `LOCAL_PATH` with the path to store the
+   ZooKeeper data and label the Node used to store the ZooKeeper data with
+   `antrea.io/zookeeper-data-node=`.
+
+      ```yaml
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: zookeeper-pv
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        capacity:
+          storage: 8Gi
+        local:
+          path: LOCAL_PATH
+        nodeAffinity:
+          required:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: antrea.io/zookeeper-data-node
+                operator: Exists
+        storageClassName: zookeeper-storage
+        volumeMode: Filesystem
+      ```
+
+3. Request the PV for ZooKeeper. Please add a `volumeClaimTemplate` section
+   under `.spec` for the resource `StatefulSet` named as `zookeeper` in
+   `flow-visibility.yml` as shown in the example below.
+
+    ```yaml
+    volumeClaimTemplates:
+    - metadata:
+        name: datadir-volume
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+        storageClassName: zookeeper-storage
+    ```
+
+4. To eliminate the deployment option related to in-memory storage, you can do
+   so by deleting the corresponding `volume` configuration for the `StatefulSet`
+   resource named as `zookeeper` in the `flow-visibility.yml` file.
+
+   The `volumes` entry to be removed is:
+
+    ```yaml
+    - emptyDir:
+        medium: ""
+        sizeLimit: 5Gi
+      name: datadir-volume
     ```
 
 ## Grafana Dashboards

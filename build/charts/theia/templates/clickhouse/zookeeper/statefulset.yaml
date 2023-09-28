@@ -1,4 +1,5 @@
 {{- if (eq (len .Values.clickhouse.cluster.zookeeperHosts) 0) }}
+{{- $enablePV := or .Values.clickhouse.cluster.installZookeeper.storage.createPersistentVolume.type .Values.clickhouse.cluster.installZookeeper.storage.persistentVolumeClaimSpec }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -180,8 +181,14 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+      {{- if not $enablePV }}
         - name: datadir-volume
           emptyDir:
             medium: ""
-            sizeLimit: {{ .Values.clickhouse.cluster.installZookeeper.size }}
+            sizeLimit: {{ .Values.clickhouse.cluster.installZookeeper.storage.size }}
+      {{- else }}
+        - name: datadir-volume
+          persistentVolumeClaim:
+            claimName: zookeeper-pvc
+      {{- end }}
 {{- end }}

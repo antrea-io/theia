@@ -131,10 +131,6 @@ clickhouse:
     # Specification to install a default ZooKeeper cluster. This is ignored
     # if zookeeperHosts are provided. 
     installZookeeper:
-      # -- Memory size for each ZooKeeper pod. Can be a plain integer or as a
-      # fixed-point number using one of these quantity suffixes: E, P, T, G, M, K.
-      # Or the power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki.
-      size: "5Gi"
       # -- Number of ZooKeeper replicas. It is recommended to be odd. When deploying
       # ClickHouse cluster with more than 1 replica, 3 is the minimum number of ZooKeeper
       # hosts required to manage replication and fault tolerance. Please refer to
@@ -150,7 +146,40 @@ clickhouse:
       # Use a specific uid, gid for zookeeper.
       securityContext:
         runAsUser: 1000
-        fsGroup: 1000 
+        fsGroup: 1000
+      storage:
+        # -- Zookeeper storage size. Can be a plain integer or as a fixed-point
+        # number using one of these quantity suffixes: E, P, T, G, M, K. Or the
+        # power-of-two equivalents: Ei, Pi, Ti, Gi, Mi, Ki.
+        size: "5Gi"
+        createPersistentVolume:
+          # -- Type of PersistentVolume. Can be set to "Local" or "NFS". Please set
+          # this value to use a PersistentVolume created by Theia.
+          type: ""
+          local:
+            # -- The local path. Required when type is "Local".
+            path: "/data/zookeeper"
+            # -- Affinity for the Local PersistentVolume. By default it requires to
+            # label the Node used to store the Zookeeper data with
+            # "antrea.io/zookeeper-data-node=".
+            affinity: {}
+          nfs:
+            # -- The NFS server hostname or IP address. Required when type is "NFS".
+            host: ""
+            # -- The path exported on the NFS server. Required when type is "NFS".
+            path: ""
+        # -- Specification for PersistentVolumeClaim. This is ignored if
+        # createPersistentVolume.type is non-empty. To use a custom PersistentVolume,
+        # please set
+        # storageClassName: ""
+        # volumeName: "<my-pv>".
+        # To dynamically provision a PersistentVolume, please set
+        # storageClassName: "<my-storage-class>".
+        # Memory storage is used if both createPersistentVolume.type and
+        # persistentVolumeClaimSpec are empty.
+        persistentVolumeClaimSpec: {}
+        # storageClassName: ""
+        # volumeName: ""
     # -- Affinity for the ClickHouse Pods. By default, it allows only one ClickHouse
     # instance per Node. Please refer to
     # <https://github.com/Altinity/clickhouse-operator/blob/master/docs/chi-examples/99-clickhouseinstallation-max.yaml>

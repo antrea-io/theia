@@ -212,9 +212,3 @@ ALTER TABLE tadetector_local
     DROP COLUMN aggType,
     DROP COLUMN direction,
     DROP COLUMN podName;
-ALTER TABLE flows
-    DROP COLUMN isL7,
-    DROP COLUMN httpVals;
-ALTER TABLE flows_local
-    DROP COLUMN isL7,
-    DROP COLUMN httpVals;

@@ -80,7 +80,7 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         clusterUUID String,
         egressName String,
         egressIP String,
-        isL7 Bool,
+        appProtocolName String,
         httpVals String,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')

@@ -151,9 +151,3 @@ ALTER TABLE tadetector_local
     ADD COLUMN aggType String,
     ADD COLUMN direction String,
     ADD COLUMN podName String;
-ALTER TABLE flows
-    ADD COLUMN isL7 Bool,
-    ADD COLUMN httpVals String;
-ALTER TABLE flows_local
-    ADD COLUMN isL7 Bool,
-    ADD COLUMN httpVals String;

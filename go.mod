@@ -3,7 +3,7 @@ module antrea.io/theia
 go 1.21
 
 require (
-	antrea.io/antrea v1.13.0
+	antrea.io/antrea v1.13.1
 	github.com/ClickHouse/clickhouse-go v1.5.4
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/containernetworking/plugins v1.1.1

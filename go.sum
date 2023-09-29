@@ -1,5 +1,5 @@
-antrea.io/antrea v1.13.0 h1:8dUjk1TRljsAy/oE+vVtTSnFPveSXm/3iyedbvcCI0M=
-antrea.io/antrea v1.13.0/go.mod h1:NsrOE4u5w2AC+qBk/x06gYxOdYOE0Y/OwrRhA3y2Hyc=
+antrea.io/antrea v1.13.1 h1:20ysY6rxmtRi0hNgXNDOKDtEK1PYVUd+gUAM4PTKJAY=
+antrea.io/antrea v1.13.1/go.mod h1:NsrOE4u5w2AC+qBk/x06gYxOdYOE0Y/OwrRhA3y2Hyc=
 antrea.io/libOpenflow v0.12.1 h1:5l+/SHEfJuuDbjkqF+YuZmk3oGjsQ1QS21K50EfqqOA=
 antrea.io/libOpenflow v0.12.1/go.mod h1:WNcqu1927fBdc4G9wocmi58+bfxaLmZOTaTGROEcM8I=
 antrea.io/ofnet v0.9.0 h1:Fcpi32GXcp4XCV/KQYDUtQ8b3HNqYxOCjTlcL0GIJ44=

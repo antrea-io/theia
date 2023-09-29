@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"testing"
 
-	s3clienttesting "antrea.io/theia/snowflake/pkg/aws/client/s3/testing"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/go-logr/logr/testr"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	s3clienttesting "antrea.io/theia/snowflake/pkg/aws/client/s3/testing"
 )
 
 func TestDeleteS3Objects(t *testing.T) {

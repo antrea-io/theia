@@ -267,6 +267,7 @@ func declareSnowflakeDatabase(
 		}
 
 		// add random seeding for generator
+		// #nosec G404: random number generator not used for security purposes
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		// ideally this would be a dynamic provider: https://www.pulumi.com/docs/intro/concepts/resources/dynamic-providers/
 		// however, dynamic providers are not supported at the moment for Golang
@@ -323,7 +324,7 @@ func declareSnowflakeDatabase(
 
 func declareStack(warehouseName string) func(ctx *pulumi.Context) error {
 	declareFunc := func(ctx *pulumi.Context) error {
-		randomString, err := random.NewRandomString(ctx, "antrea-flows-random-pet-suffix", &random.RandomStringArgs{
+		randomString, _ := random.NewRandomString(ctx, "antrea-flows-random-pet-suffix", &random.RandomStringArgs{
 			Length:  pulumi.Int(16),
 			Lower:   pulumi.Bool(true),
 			Upper:   pulumi.Bool(false),

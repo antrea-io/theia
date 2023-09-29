@@ -19,11 +19,12 @@ import (
 	"context"
 	"testing"
 
-	sqsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/sqs/testing"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	sqsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/sqs/testing"
 )
 
 func TestReceiveSQSMessage(t *testing.T) {

@@ -25,7 +25,7 @@ require (
 	github.com/snowflakedb/gosnowflake v1.6.24
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.4
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.26.0
 )
 
 require (
@@ -117,8 +117,7 @@ require (
 	github.com/xanzy/ssh-agent v0.3.2 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/goleak v1.1.12 // indirect
-	go.uber.org/multierr v1.6.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.12.0 // indirect

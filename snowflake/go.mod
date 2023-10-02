@@ -19,7 +19,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0
 	github.com/pulumi/pulumi-command/sdk v0.5.1
-	github.com/pulumi/pulumi-random/sdk/v4 v4.8.2
+	github.com/pulumi/pulumi-random/sdk/v4 v4.14.0
 	github.com/pulumi/pulumi-snowflake/sdk v0.32.0
 	github.com/pulumi/pulumi/sdk/v3 v3.86.0
 	github.com/snowflakedb/gosnowflake v1.6.24

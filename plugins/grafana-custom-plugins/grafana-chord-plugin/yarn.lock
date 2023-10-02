@@ -1574,13 +1574,41 @@
     uplot "1.6.22"
     xss "1.0.11"
 
-"@grafana/data@9.5.1", "@grafana/data@latest":
+"@grafana/data@9.5.1":
   version "9.5.1"
   resolved "https://registry.yarnpkg.com/@grafana/data/-/data-9.5.1.tgz#1592f15850e768441bbe8693722d47e3e1ef4f5a"
   integrity sha512-XXOV6cSGtBYQkSlQzVG4LaCjCdM49qacajTMU7a1wOKmDY9QJsFiKTbom7vQ1hHd+X83RqjndSJJiCFt7JX9LA==
   dependencies:
     "@braintree/sanitize-url" "6.0.2"
     "@grafana/schema" "9.5.1"
+    "@types/d3-interpolate" "^3.0.0"
+    d3-interpolate "3.0.1"
+    date-fns "2.29.3"
+    dompurify "^2.4.3"
+    eventemitter3 "5.0.0"
+    fast_array_intersect "1.1.0"
+    history "4.10.1"
+    lodash "4.17.21"
+    marked "4.2.12"
+    moment "2.29.4"
+    moment-timezone "0.5.41"
+    ol "7.2.2"
+    papaparse "5.3.2"
+    react-use "17.4.0"
+    regenerator-runtime "0.13.11"
+    rxjs "7.8.0"
+    tinycolor2 "1.6.0"
+    tslib "2.5.0"
+    uplot "1.6.24"
+    xss "^1.0.14"
+
+"@grafana/data@latest":
+  version "9.5.12"
+  resolved "https://registry.yarnpkg.com/@grafana/data/-/data-9.5.12.tgz#8acab62488bff8e8cf392f1e2c95529e1ea21a77"
+  integrity sha512-htq1DYx6skPjC9KBc8KwD+Ix04QTNGhBa+UktadNTOkQS6fX1L8zI/4kt0+w4nbJx9+m8fpULBMa6sK9XmCP1A==
+  dependencies:
+    "@braintree/sanitize-url" "6.0.2"
+    "@grafana/schema" "9.5.12"
     "@types/d3-interpolate" "^3.0.0"
     d3-interpolate "3.0.1"
     date-fns "2.29.3"
@@ -1663,6 +1691,13 @@
   version "9.5.1"
   resolved "https://registry.yarnpkg.com/@grafana/schema/-/schema-9.5.1.tgz#bd96c7f5f4793a0573ddd1b16c7501ce8181caa3"
   integrity sha512-mLLeybp4HFqwmDbbu5lrJFq8cagHIPcRlvTlFllJfUO5KFNyCAUt2wERTZo85tKsuYQUxMgcR3qFkecH0aRrBw==
+  dependencies:
+    tslib "2.5.0"
+
+"@grafana/schema@9.5.12":
+  version "9.5.12"
+  resolved "https://registry.yarnpkg.com/@grafana/schema/-/schema-9.5.12.tgz#1d405ba745776148d4af04260147c412e697a1e2"
+  integrity sha512-hF2h3L9/vBWlvzErHjbbWnKc0fu0WpYXVoQRr2FFtj1W1KTVKchoWbNL/BOl50b9lp9erseVtwtLKy8Y6szXVg==
   dependencies:
     tslib "2.5.0"
 

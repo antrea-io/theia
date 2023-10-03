@@ -4,6 +4,6 @@
 
 ### Fixed
 
-- Add persistent volume option for zookeeper ([#470](https://github.com/antrea-io/theia/pull/336), [@yuntanghsu])
+- Add persistent volume option for zookeeper ([#470](https://github.com/antrea-io/theia/pull/470), [@yuntanghsu])
 
 [@yuntanghsu]: https://github.com/@yuntanghsu

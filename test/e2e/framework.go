@@ -1066,18 +1066,28 @@ func (data *TestData) createBusyboxPodOnNode(name string, ns string, nodeName st
 }
 
 // GetFlowAggregator retrieves the name of the Flow-Aggregator Pod (flow-aggregator-*) running on a specific Node.
-func (data *TestData) GetFlowAggregator() (*corev1.Pod, error) {
+func (data *TestData) GetFlowAggregator() (string, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app=flow-aggregator",
 	}
-	pods, err := data.clientset.CoreV1().Pods(flowAggregatorNamespace).List(context.TODO(), listOptions)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list Flow Aggregator Pod: %v", err)
+	var pod *corev1.Pod
+	if err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
+		pods, err := data.clientset.CoreV1().Pods(flowAggregatorNamespace).List(context.TODO(), listOptions)
+		if err != nil {
+			return false, fmt.Errorf("failed to list Flow Aggregator Pod: %v", err)
+		}
+		if len(pods.Items) != 1 {
+			return false, nil
+		}
+		pod = &pods.Items[0]
+		return true, nil
+	}); err != nil {
+		if err == wait.ErrWaitTimeout {
+			return "", fmt.Errorf("failed to get *exactly* one Pod in %s", defaultTimeout.String())
+		}
+		return "", err
 	}
-	if len(pods.Items) != 1 {
-		return nil, fmt.Errorf("expected *exactly* one Pod")
-	}
-	return &pods.Items[0], nil
+	return pod.Name, nil
 }
 
 // RunCommandFromPod Run the provided command in the specified Container for the give Pod and returns the contents of
@@ -1429,29 +1439,34 @@ func (data *TestData) deployFlowAggregator() error {
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deploying the Flow Aggregator; %s not available on the control-plane Node", flowAggYaml)
 	}
-
-	if rc, _, _, err = data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s rollout status deployment/%s --timeout=%v", flowAggregatorNamespace, flowAggregatorDeployment, 2*defaultTimeout)); err != nil || rc != 0 {
-		_, stdout, _, _ := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s describe pod", flowAggregatorNamespace))
-		_, logStdout, _, _ := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl -n %s logs -l app=flow-aggregator", flowAggregatorNamespace))
-		return fmt.Errorf("error when waiting for the Flow Aggregator rollout to complete. kubectl describe output: %s, logs: %s", stdout, logStdout)
-	}
-	// Check for flow-aggregator pod running again for db connection establishment
-	flowAggPod, err := data.GetFlowAggregator()
+	// Check for flow-aggregator pod running and for db connection establishment.
+	flowAggPodName, err := data.GetFlowAggregator()
 	if err != nil {
 		return fmt.Errorf("error when getting flow-aggregator Pod: %v", err)
 	}
-	podName := flowAggPod.Name
-	_, err = data.PodWaitFor(defaultTimeout*2, podName, flowAggregatorNamespace, func(p *corev1.Pod) (bool, error) {
-		for _, condition := range p.Status.Conditions {
-			if condition.Type == corev1.PodReady {
-				return condition.Status == corev1.ConditionTrue, nil
-			}
+	err = data.PodWaitForReady(2*defaultTimeout, flowAggPodName, flowAggregatorNamespace)
+	if err != nil {
+		_, stdout, stderr, podErr := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl get pod %s -n %s -o yaml", flowAggPodName, flowAggregatorNamespace))
+		return fmt.Errorf("error when waiting for flow-aggregator Ready: %v; stdout %s, stderr: %s, %v", err, stdout, stderr, podErr)
+	}
+	var errLog error
+	// Check log of flow-aggregator pod to make sure ClickHouse is enabled and connected to flow-aggregator
+	if err := wait.Poll(defaultInterval, defaultTimeout, func() (bool, error) {
+		logString, err := data.GetPodLogs(flowAggregatorNamespace, flowAggPodName, &corev1.PodLogOptions{})
+		if err != nil {
+			errLog = fmt.Errorf("error when getting Flow Aggregaotr logs: %v", err)
+			return false, nil
+		}
+		if strings.Contains(logString, "error when creating ClickHouse export process") {
+			errLog = fmt.Errorf("error when creating ClickHouse export process")
+			return false, nil
+		}
+		if strings.Contains(logString, "Starting ClickHouse exporting process") {
+			return true, nil
 		}
 		return false, nil
-	})
-	if err != nil {
-		_, stdout, stderr, podErr := data.provider.RunCommandOnNode(controlPlaneNodeName(), fmt.Sprintf("kubectl get pod %s -n %s -o yaml", podName, flowAggregatorNamespace))
-		return fmt.Errorf("error when waiting for flow-aggregator Ready: %v; stdout %s, stderr: %s, %v", err, stdout, stderr, podErr)
+	}); err != nil {
+		return fmt.Errorf("error when checking log for Flow Aggregator: %v", errLog)
 	}
 	return nil
 }

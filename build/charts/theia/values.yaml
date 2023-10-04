@@ -225,7 +225,7 @@ grafana:
   image: 
     repository: "projects.registry.vmware.com/antrea/theia-grafana"
     pullPolicy: "IfNotPresent"
-    tag: "8.3.3"
+    tag: "9.1.6"
   # -- Credentials to login to Grafana. They will be stored in a Secret.
   loginSecret:
     username: "admin"
@@ -241,7 +241,7 @@ grafana:
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin
-    - grafana-clickhouse-datasource 1.0.1
+    - grafana-clickhouse-datasource 2.2.0
   # -- The dashboards to be displayed in Grafana UI. The files must be put under
   # provisioning/dashboards.
   dashboards:

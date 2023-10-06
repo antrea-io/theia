@@ -289,8 +289,8 @@ github.com/pulumi/pulumi-command/sdk v0.9.1 h1:mYwCv2fJuEuka6gyZHOcRozQ+Il5f9Wjy
 github.com/pulumi/pulumi-command/sdk v0.9.1/go.mod h1:AoZMftEj3cWUhoBSFwGx5Z9/RXxaYEfinyZS8Wl0jdg=
 github.com/pulumi/pulumi-random/sdk/v4 v4.14.0 h1:ljy/gUeur2kZZWL3JPy0J9zLDYKKA0zMd1mT7xrpI7s=
 github.com/pulumi/pulumi-random/sdk/v4 v4.14.0/go.mod h1:XqGATLB6KKuWRDhWvHO6YVwv0DRW/cK/pWzNkuhMB24=
-github.com/pulumi/pulumi-snowflake/sdk v0.32.0 h1:4HTaVJpWbiIxbHsAez24+D0eZsIw/wAlsSTaTBNB/QU=
-github.com/pulumi/pulumi-snowflake/sdk v0.32.0/go.mod h1:0v9G0x5PkNOK8tnM3fkOFBY06cjA1Icma+yMl39A8Xo=
+github.com/pulumi/pulumi-snowflake/sdk v0.36.0 h1:WuQPAe2lAgXxnxaPJS2H2VkoFtt3ZngClaLLkafTOr0=
+github.com/pulumi/pulumi-snowflake/sdk v0.36.0/go.mod h1:dh1EUXpIyni9mGfjDZsq5tcx5E3qjkayLguNaDWOozA=
 github.com/pulumi/pulumi/sdk/v3 v3.86.0 h1:Cxg0rGdvMt9GqGvesFTj8+WaO/ihmALYlQf4zm1GzFw=
 github.com/pulumi/pulumi/sdk/v3 v3.86.0/go.mod h1:vexSGJ5L834l3T7Fo/KpdywjGAgZ2CvChuqGFl+ebS0=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=

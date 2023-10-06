@@ -20,7 +20,7 @@ require (
 	github.com/pulumi/pulumi-aws/sdk/v5 v5.42.0
 	github.com/pulumi/pulumi-command/sdk v0.9.1
 	github.com/pulumi/pulumi-random/sdk/v4 v4.14.0
-	github.com/pulumi/pulumi-snowflake/sdk v0.32.0
+	github.com/pulumi/pulumi-snowflake/sdk v0.36.0
 	github.com/pulumi/pulumi/sdk/v3 v3.86.0
 	github.com/snowflakedb/gosnowflake v1.6.25
 	github.com/spf13/cobra v1.7.0

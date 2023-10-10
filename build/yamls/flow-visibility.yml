@@ -6820,7 +6820,7 @@ spec:
       - env:
         - name: GF_INSTALL_PLUGINS
           value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
-            1.0.1
+            2.2.0
         - name: CLICKHOUSE_USERNAME
           valueFrom:
             secretKeyRef:
@@ -6861,7 +6861,7 @@ spec:
           value: "true"
         - name: GF_LOG_FILE_MAX_DAYS
           value: "7"
-        image: projects.registry.vmware.com/antrea/theia-grafana:8.3.3
+        image: projects.registry.vmware.com/antrea/theia-grafana:9.1.6
         imagePullPolicy: IfNotPresent
         livenessProbe:
           failureThreshold: 3

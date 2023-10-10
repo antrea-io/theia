@@ -46,7 +46,7 @@
     "@types/d3": "^7.1.0",
     "@types/enzyme": "^3.10.14",
     "@types/enzyme-adapter-react-16": "^1.0.7",
-    "@types/jest": "^29.5.0",
+    "@types/jest": "^29.5.5",
     "@types/lodash": "^4.14.194",
     "@types/my-d3": "npm:@types/d3@7.1.0",
     "@types/node": "^18.15.11",

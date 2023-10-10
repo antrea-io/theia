@@ -238,8 +238,8 @@ grafana:
     tcpPort: 3000
   # -- Grafana plugins to install.
   installPlugins:
-    - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.2.zip;theia-grafana-sankey-plugin
-    - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.1.zip;theia-grafana-chord-plugin
+    - https://github.com/yuntanghsu/grafana_sankey_plugin/archive/refs/tags/v1.0.1.zip;theia-grafana-sankey-plugin
+    - https://github.com/yuntanghsu/grafana_chord_plugin/archive/refs/tags/v1.0.1.zip;theia-grafana-chord-plugin
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin
     - grafana-clickhouse-datasource 2.2.0
   # -- The dashboards to be displayed in Grafana UI. The files must be put under

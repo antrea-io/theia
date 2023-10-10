@@ -8,14 +8,22 @@ interface Props extends Themeable2, PanelProps<ChordOptions> {}
 
 export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, height, theme }) => {
   const d3Container = useRef(null);
-
   // GetFieldVal reads field's value from data series
   function GetFieldVal(fieldName: string) {
     return data.series
       .map((series: DataFrame) => series.fields.find((field: any) => field.name.toLowerCase() === fieldName.toLowerCase()))
       .map((field: any) => {
         let record = field?.values as any;
-        return record?.buffer;
+        // The variable 'record' has different types when used with Jest and Webpack.
+        // In the Webpack environment, it is a 'vectorArray,' and 'record?.buffer' is an array.
+        // In the Jest environment, 'record' is already an array, and 'record?.buffer' will be 'undefined',
+        // which can break the test. The following 'if' condition is added to ensure
+        // successful unit test execution with Jest.
+        if(Array.isArray(record)) {
+          return record
+        } else {
+          return record?.buffer;
+        }
       })[0];
   }
 
@@ -187,7 +195,7 @@ export const UnthemedChordPanel: React.FC<Props> = ({ options, data, width, heig
           }
         });
 
-      // Give the data matrix to d3.chord(): it will calculates all the info we
+      // Give the data matrix to d3.chord(): it will calculate all the info we
       // need to draw arcs and ribbons
       const res = chord(matrix);
 

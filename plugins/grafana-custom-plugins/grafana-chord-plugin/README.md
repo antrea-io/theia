@@ -106,7 +106,7 @@ installed panels will appear. For more information, visit the docs on [Grafana p
 
 ## Customization
 
-This plugin is built with [@grafana/toolkit](https://www.npmjs.com/package/@grafana/toolkit),
+This plugin is built with [@grafana/create-plugin](https://www.npmjs.com/package/@grafana/create-plugin),
 which is a CLI that enables efficient development of Grafana plugins. To customize
 the plugin and do local testings:
 

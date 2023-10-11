@@ -16,8 +16,9 @@ package cmd
 import (
 	"fmt"
 
-	"antrea.io/theia/snowflake/pkg/version"
 	"github.com/spf13/cobra"
+
+	"antrea.io/theia/snowflake/pkg/version"
 )
 
 // versionCmd represents the version command

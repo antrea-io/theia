@@ -18,12 +18,13 @@ import (
 	"context"
 	"testing"
 
-	kmsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/kms/testing"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
 	"github.com/go-logr/logr/testr"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	kmsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/kms/testing"
 )
 
 func TestCreateKey(t *testing.T) {

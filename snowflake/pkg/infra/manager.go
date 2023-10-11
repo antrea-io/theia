@@ -89,7 +89,7 @@ func installPulumiCLI(ctx context.Context, logger logr.Logger, dir string) error
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, ".pulumi-version"), []byte(pulumiVersion), 0660); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".pulumi-version"), []byte(pulumiVersion), 0600); err != nil {
 		logger.Error(err, "Error when writing pulumi version to cache file")
 	}
 	logger.Info("Installed Pulumi")
@@ -122,7 +122,7 @@ func installMigrateSnowflakeCLI(ctx context.Context, logger logr.Logger, dir str
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(dir, ".migrate-sf-version"), []byte(migrateSnowflakeVersion), 0660); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".migrate-sf-version"), []byte(migrateSnowflakeVersion), 0600); err != nil {
 		logger.Error(err, "Error when writing Migrate Snowflake version to cache file")
 	}
 	logger.Info("Installed Migrate Snowflake")

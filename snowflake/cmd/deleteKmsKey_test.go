@@ -19,11 +19,12 @@ import (
 	"testing"
 	"time"
 
-	kmsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/kms/testing"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/go-logr/logr/testr"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+
+	kmsclienttesting "antrea.io/theia/snowflake/pkg/aws/client/kms/testing"
 )
 
 func TestScheduleKeyDeletion(t *testing.T) {

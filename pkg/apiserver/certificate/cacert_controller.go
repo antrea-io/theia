@@ -17,7 +17,6 @@ package certificate
 import (
 	"context"
 	"fmt"
-	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -39,8 +38,6 @@ const (
 // CACertController is responsible for taking the CA certificate from the
 // caContentProvider and publishing it to the ConfigMap and the APIServices.
 type CACertController struct {
-	mutex sync.RWMutex
-
 	// caContentProvider provides the very latest content of the ca bundle.
 	caContentProvider dynamiccertificates.CAContentProvider
 	// queue only ever has one item, but it has nice error handling backoff/retry semantics

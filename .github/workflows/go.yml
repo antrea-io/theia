@@ -112,6 +112,25 @@ jobs:
     - name: Run golangci-lint
       run: make golangci
 
+  snowflake-golangci-lint:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    name: Snowflake-golangci-lint
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - name: Check-out code
+      uses: actions/checkout@v4
+    - name: Set up Go using version from go.mod
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'snowflake/go.mod'
+        cache-dependency-path: '**/snowflake/go.sum'
+    - name: Run snowflake golangci-lint
+      run: cd snowflake ; make golangci
+
   tidy-manifest:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
@@ -131,6 +150,22 @@ jobs:
       run: ./ci/check-manifest.sh
     - name: Check copyright
       run: ./ci/check-copyright.sh
+  
+  tidy-snowflake-tidy:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.has_changes == 'yes' }}
+    name: Check tidy and manifest
+    runs-on: [ubuntu-latest]
+    steps:
+    - name: Check-out code
+      uses: actions/checkout@v4
+    - name: Set up Go using version from go.mod
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: 'go.mod'
+        cache-dependency-path: '**/go.sum'
+    - name: Check tidy for Snowflake
+      run: cd snowflake; make test-tidy
 
   verify:
     name: Verify docs and spelling

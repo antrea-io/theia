@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -28,6 +29,8 @@ import (
 
 	"github.com/go-logr/logr"
 )
+
+const maxCopySize = 100 * 1024 * 1024 // Limit to 100 MB
 
 func Download(ctx context.Context, logger logr.Logger, url string, dir string, filename string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -78,7 +81,10 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 		if err != nil {
 			return err
 		}
-		dest := filepath.Join(dir, hdr.Name)
+		dest := filepath.Join(dir, filepath.Clean(hdr.Name))
+		if strings.Contains(dest, "..") {
+			return fmt.Errorf("illegal path: %s, potential directory traversal detected", dest)
+		}
 		logger.V(4).Info("Untarring", "path", hdr.Name)
 		if hdr.Typeflag != tar.TypeReg {
 			continue
@@ -91,7 +97,7 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 			defer f.Close()
 
 			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil {
+			if _, err := io.Copy(f, io.LimitReader(tr, maxCopySize)); err != nil {
 				return err
 			}
 			return nil

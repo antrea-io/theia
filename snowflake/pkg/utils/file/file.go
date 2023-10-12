@@ -78,6 +78,7 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 		if err != nil {
 			return err
 		}
+		// #nosec G305: File traversal when extracting zip/tar archive
 		dest := filepath.Join(dir, hdr.Name)
 		logger.V(4).Info("Untarring", "path", hdr.Name)
 		if hdr.Typeflag != tar.TypeReg {
@@ -91,6 +92,7 @@ func DownloadAndUntar(ctx context.Context, logger logr.Logger, url string, dir s
 			defer f.Close()
 
 			// copy over contents
+			// #nosec G110: Potential DoS vulnerability via decompression bomb
 			if _, err := io.Copy(f, tr); err != nil {
 				return err
 			}

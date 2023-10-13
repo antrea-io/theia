@@ -10,7 +10,7 @@ spec:
   storageClassName: zookeeper-storage
   {{- else }}
   {{- with .Values.clickhouse.cluster.installZookeeper.storage.persistentVolumeClaimSpec }}
-  {{- toYaml . | trim | nindent 10 }}
+  {{- toYaml . | trim | nindent 2 }}
   {{- end }}
   {{- end }}
   accessModes:

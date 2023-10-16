@@ -7238,7 +7238,11 @@ spec:
         type: MaxNumberPerNode
       spec:
         containers:
-        - env:
+        - command:
+          - /bin/sh
+          - -c
+          - chown -R clickhouse:clickhouse /var/lib/clickhouse && /entrypoint.sh
+          env:
           - name: THEIA_VERSION
             value: 0.8.0
           - name: CLICKHOUSE_INIT_TIMEOUT

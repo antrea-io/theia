@@ -46,6 +46,10 @@
 - name: clickhouse
   image: {{ include "clickHouseServerImage" . | quote }}
   imagePullPolicy: {{ $clickhouse.image.pullPolicy }}
+  command:
+    - /bin/sh
+    - -c
+    - chown -R clickhouse:clickhouse /var/lib/clickhouse && /entrypoint.sh
   volumeMounts:
     - name: clickhouse-configmap-volume
       mountPath: /docker-entrypoint-initdb.d

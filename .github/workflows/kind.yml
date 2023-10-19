@@ -402,6 +402,7 @@ jobs:
     - build-clickhouse-server-image
     - build-theia-manager-image
     - test-e2e-encap
+    - test-e2e-multicluster
     - test-upgrade-from-N-1
     - test-ClickHouse-migrate-from-N-1
     runs-on: [ubuntu-latest]

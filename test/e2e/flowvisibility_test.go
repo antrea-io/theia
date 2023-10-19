@@ -117,7 +117,7 @@ const (
 
 var (
 	// Single iperf run results in two connections with separate ports (control connection and actual data connection).
-	// As 2s is the export active timeout of flow exporter and iperf traffic runs for 12s, we expect totally 12 records
+	// As 2s is the export active timeout of flow exporter and iperf traffic runs for 12s, we expect totally 6 records
 	// exporting to the flow aggregator at time 2s, 4s, 6s, 8s, 10s, and 12s after iperf traffic begins.
 	// Since flow aggregator will aggregate records based on 5-tuple connection key and active timeout is 3.5 seconds,
 	// we expect 3 records at time 5.5s, 9s, and 12.5s after iperf traffic begins.
@@ -177,18 +177,6 @@ func testHelper(t *testing.T, data *TestData, podAIPs, podBIPs, podCIPs, podDIPs
 	if err != nil {
 		failOnError(fmt.Errorf("error when creating perftest Services: %v", err), t, data)
 	}
-
-	// FlowAggregator takes up to 20s to set up the initial connection with
-	// ClickHouse DB. Most of the wait happens when looking up for ClickHouse
-	// on kube-dns. During the wait, FlowAggregator Pod is also likely to crash
-	// and restart once due to ping timeout. It usually does not introduce too
-	// much issue in real-life use cases, but will fail the e2e tests, as we
-	// start the iPerf traffic right away and we check whether ClickHouse
-	// receive every record. Here we add a workaround to wait 30s before
-	// starting sending iPerf traffic to avoid missing the first a few records.
-	// We should consider support a method to check the connection setup status
-	// later on, e.g. a new Antctl command.
-	time.Sleep(30 * time.Second)
 
 	// IntraNodeFlows tests the case, where Pods are deployed on same Node
 	// and their flow information is exported as IPFIX flow records.

@@ -84,7 +84,7 @@ func TestMultiCluster(t *testing.T) {
 	t.Logf("Verifying records in ClickHouse")
 	require.GreaterOrEqualf(t, len(clickHouseRecordsW), expectedNumDataRecords, "ClickHouse should receive expected number of flow records. Considered records: %v", clickHouseRecordsW)
 	t.Logf("Verifying cluster UUID in East/West cluster are different")
-	require.NotEqualf(t, clickHouseRecordsE[0].ClusterUUID, clickHouseRecordsW[0].ClusterUUID, "ClusterUUID for EAST/WEST cluster should be different.\n Records of EAST cluster: %v\nRecords of EAST cluster: %v", clickHouseRecordsE, clickHouseRecordsW)
+	require.NotEqualf(t, clickHouseRecordsE[0].ClusterUUID, clickHouseRecordsW[0].ClusterUUID, "ClusterUUID for EAST/WEST cluster should be different.\n EAST ClusterUUID: %s\nWEST ClusterUUID: %s", clickHouseRecordsE[0].ClusterUUID, clickHouseRecordsW[0].ClusterUUID)
 }
 
 func createPerftestPods(data *MCTestData) (podAIPs *e2e.PodIPs, podBIPs *e2e.PodIPs, podCIPs *e2e.PodIPs, podDIPs *e2e.PodIPs, err error) {

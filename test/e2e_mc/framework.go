@@ -239,7 +239,11 @@ func (data *MCTestData) deployClickHouse(td *e2e.TestData) (string, int32, error
 func (data *MCTestData) deployFlowAggregator(td *e2e.TestData, databaseURL string, security bool) error {
 
 	flowAggYaml := flowAggregatorYML
-	rc, _, _, err := td.RunCommandOnNode(data.controlPlaneNames[td.GetClusterName()], fmt.Sprintf("kubectl apply -f %s", flowAggYaml))
+	controlPlaneName, ok := data.controlPlaneNames[td.GetClusterName()]
+	if !ok {
+		return fmt.Errorf("cannot find the name of control plane Node")
+	}
+	rc, _, _, err := td.RunCommandOnNode(controlPlaneName, fmt.Sprintf("kubectl apply -f %s", flowAggYaml))
 	if err != nil || rc != 0 {
 		return fmt.Errorf("error when deploying the Flow Aggregator; %s not available on the control-plane Node", flowAggYaml)
 	}
@@ -268,18 +272,20 @@ func (data *MCTestData) deployFlowAggregator(td *e2e.TestData, databaseURL strin
 	if err = td.MutateFlowAggregatorConfigMap(databaseURL, security); err != nil {
 		return err
 	}
-	if rc, _, _, err = td.RunCommandOnNode(data.controlPlaneNames[td.GetClusterName()], fmt.Sprintf("kubectl -n %s rollout status deployment/%s --timeout=%v", flowAggregatorNamespace, flowAggregatorDeployment, 2*defaultTimeout)); err != nil || rc != 0 {
-		_, stdout, _, _ := td.RunCommandOnNode(data.controlPlaneNames[td.GetClusterName()], fmt.Sprintf("kubectl -n %s describe pod", flowAggregatorNamespace))
-		_, logStdout, _, _ := td.RunCommandOnNode(data.controlPlaneNames[td.GetClusterName()], fmt.Sprintf("kubectl -n %s logs -l app=flow-aggregator", flowAggregatorNamespace))
+	if rc, _, _, err = td.RunCommandOnNode(controlPlaneName, fmt.Sprintf("kubectl -n %s rollout status deployment/%s --timeout=%v", flowAggregatorNamespace, flowAggregatorDeployment, 2*defaultTimeout)); err != nil || rc != 0 {
+		_, stdout, _, _ := td.RunCommandOnNode(controlPlaneName, fmt.Sprintf("kubectl -n %s describe pod", flowAggregatorNamespace))
+		_, logStdout, _, _ := td.RunCommandOnNode(controlPlaneName, fmt.Sprintf("kubectl -n %s logs -l app=flow-aggregator", flowAggregatorNamespace))
 		return fmt.Errorf("error when waiting for the Flow Aggregator rollout to complete. kubectl describe output: %s, logs: %s", stdout, logStdout)
 	}
 	// Check for flow-aggregator Pod running again for db connection establishment
-	flowAggPod, err := td.GetFlowAggregator()
+	flowAggPodName, err := td.GetFlowAggregator()
 	if err != nil {
 		return fmt.Errorf("error when getting flow-aggregator Pod: %v", err)
 	}
-	if err = td.PodWaitForReady(2*defaultTimeout, flowAggPod.Name, flowAggregatorNamespace); err != nil {
-		return err
+	err = td.PodWaitForReady(2*defaultTimeout, flowAggPodName, flowAggregatorNamespace)
+	if err != nil {
+		_, stdout, stderr, podErr := td.RunCommandOnNode(controlPlaneName, fmt.Sprintf("kubectl get pod %s -n %s -o yaml", flowAggPodName, flowAggregatorNamespace))
+		return fmt.Errorf("error when waiting for flow-aggregator Ready: %v; stdout %s, stderr: %s, %v", err, stdout, stderr, podErr)
 	}
 	return nil
 }

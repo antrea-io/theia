@@ -32,7 +32,9 @@ updates:
     directory: "/snowflake/"
     schedule:
       interval: "daily"
-    open-pull-requests-limit: 5
+    # Changing open pull request limit to zero as Snowflake account
+    # is not available for testing
+    open-pull-requests-limit: 0
     ignore:
     - dependency-name: "k8s.io/*"
     - dependency-name: "sigs.k8s.io/*"

@@ -1287,7 +1287,7 @@
     uplot "1.6.24"
     xss "^1.0.14"
 
-"@grafana/data@10.1.5", "@grafana/data@^10.1.5":
+"@grafana/data@10.1.5":
   version "10.1.5"
   resolved "https://registry.yarnpkg.com/@grafana/data/-/data-10.1.5.tgz#26cbac07e054a9655838894f9870c20b8df6383d"
   integrity sha512-wZQ2IdLPY8jXsbruK3bRyYcl4dLIwLLokhuAggpbCUOkiuRdiV5hQYvspuwnbN7/panhcJXLghWats165JQxkg==
@@ -1316,6 +1316,37 @@
     tinycolor2 "1.6.0"
     tslib "2.6.0"
     uplot "1.6.24"
+    xss "^1.0.14"
+
+"@grafana/data@^10.2.0":
+  version "10.2.0"
+  resolved "https://registry.yarnpkg.com/@grafana/data/-/data-10.2.0.tgz#116190f47f51f2eebd608bd5299d7ce278899bbe"
+  integrity sha512-MPUmkokQY7AWbJKVundp9AtTZdk4HqZHUCNvM1TFkTACUW9rVCi5fmmjwJQFLfTJ9JL2fkls8Z6S1l9Hd9ViTw==
+  dependencies:
+    "@braintree/sanitize-url" "6.0.2"
+    "@grafana/schema" "10.2.0"
+    "@types/d3-interpolate" "^3.0.0"
+    "@types/string-hash" "1.1.1"
+    d3-interpolate "3.0.1"
+    date-fns "2.30.0"
+    dompurify "^2.4.3"
+    eventemitter3 "5.0.1"
+    fast_array_intersect "1.1.0"
+    history "4.10.1"
+    lodash "4.17.21"
+    marked "5.1.1"
+    marked-mangle "1.1.0"
+    moment "2.29.4"
+    moment-timezone "0.5.43"
+    ol "7.4.0"
+    papaparse "5.4.1"
+    react-use "17.4.0"
+    regenerator-runtime "0.13.11"
+    rxjs "7.8.1"
+    string-hash "^1.1.3"
+    tinycolor2 "1.6.0"
+    tslib "2.6.0"
+    uplot "1.6.26"
     xss "^1.0.14"
 
 "@grafana/e2e-selectors@10.0.3":
@@ -1435,6 +1466,13 @@
   version "10.1.5"
   resolved "https://registry.yarnpkg.com/@grafana/schema/-/schema-10.1.5.tgz#f3c431cc84bb48b6002218c46849a5a1bfdfb8a4"
   integrity sha512-mrahunqx5rR8ZGcba1AqNNkU5ToSFjmdezqpba2xY0WOFunlHFIBKr9xr9RPftQ9e9tV6JSnSdjcVRXPZ2bQ7w==
+  dependencies:
+    tslib "2.6.0"
+
+"@grafana/schema@10.2.0":
+  version "10.2.0"
+  resolved "https://registry.yarnpkg.com/@grafana/schema/-/schema-10.2.0.tgz#4b21aed47cd521484c899ef26737b5e4cc2ea323"
+  integrity sha512-IvjlezsOfIRjnsOwTJ1qu1GWbq9Rz3ofFi2Pd+1Brza6Gn951Hv/5MlLwqIuZJ+VnSVs35ZlNOl3sz9uSq2ibg==
   dependencies:
     tslib "2.6.0"
 
@@ -5800,6 +5838,11 @@ eventemitter3@5.0.0:
   resolved "https://registry.yarnpkg.com/eventemitter3/-/eventemitter3-5.0.0.tgz#084eb7f5b5388df1451e63f4c2aafd71b217ccb3"
   integrity sha512-riuVbElZZNXLeLEoprfNYoDSwTBRR44X3mnhdI1YcnENpWTCsTTVZ2zFuqQcpoyqPQIUXdiPEU0ECAq0KQRaHg==
 
+eventemitter3@5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/eventemitter3/-/eventemitter3-5.0.1.tgz#53f5ffd0a492ac800721bb42c66b841de96423c4"
+  integrity sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==
+
 events@^3.2.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/events/-/events-3.3.0.tgz#31a95ad0a924e2d2c419a813aeb2c4e878ea7400"
@@ -8044,6 +8087,13 @@ moment-timezone@0.5.41:
   dependencies:
     moment "^2.29.4"
 
+moment-timezone@0.5.43:
+  version "0.5.43"
+  resolved "https://registry.yarnpkg.com/moment-timezone/-/moment-timezone-0.5.43.tgz#3dd7f3d0c67f78c23cd1906b9b2137a09b3c4790"
+  integrity sha512-72j3aNyuIsDxdF1i7CEgV2FfxM1r6aaqJyLB2vwb33mXYyoyLly+F1zbWqhA3/bVIoJ4szlUoMbUnVdid32NUQ==
+  dependencies:
+    moment "^2.29.4"
+
 moment@2.29.4, moment@2.x, moment@^2.29.4:
   version "2.29.4"
   resolved "https://registry.yarnpkg.com/moment/-/moment-2.29.4.tgz#3dbe052889fe7c1b2ed966fcb3a77328964ef108"
@@ -9673,7 +9723,7 @@ rxjs@7.8.0:
   dependencies:
     tslib "^2.1.0"
 
-rxjs@^7.5.1:
+rxjs@7.8.1, rxjs@^7.5.1:
   version "7.8.1"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.1.tgz#6f6f3d99ea8044291efd92e7c7fcf562c4057543"
   integrity sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==
@@ -10725,6 +10775,11 @@ uplot@1.6.24:
   version "1.6.24"
   resolved "https://registry.yarnpkg.com/uplot/-/uplot-1.6.24.tgz#dfa213fa7da92763261920ea972ed1a5f9f6af12"
   integrity sha512-WpH2BsrFrqxkMu+4XBvc0eCDsRBhzoq9crttYeSI0bfxpzR5YoSVzZXOKFVWcVC7sp/aDXrdDPbDZGCtck2PVg==
+
+uplot@1.6.26:
+  version "1.6.26"
+  resolved "https://registry.yarnpkg.com/uplot/-/uplot-1.6.26.tgz#a6012fd141ad4a71741c75af0c71283d0ade45a7"
+  integrity sha512-qN0mveL6UsP40TnHzHAJkUQvpfA3y8zSLXtXKVlJo/sLfj2+vjan/Z3g81MCZjy/hEDUFNtnLftPmETDA4s7Rg==
 
 uri-js@^4.2.2:
   version "4.4.1"

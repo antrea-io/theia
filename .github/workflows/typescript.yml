@@ -46,6 +46,16 @@ jobs:
     - name: Install Yarn
       run: npm install -g yarn
 
+      # This is a known issue that hasn't been solved: https://github.com/iarna/wide-align/issues/63
+      # Adding workaround to unblock this test: https://github.com/nrwl/nx/issues/17229
+    - name: Remove yarn.lock and node_modules
+      run: |
+        cd plugins/grafana-custom-plugins/grafana-sankey-plugin/
+        rm -rf yarn.lock node_modules
+
+        cd ../grafana-chord-plugin/
+        rm -rf yarn.lock node_modules
+
     - name: Install dependencies and run the tests
       run: |
         cd plugins/grafana-custom-plugins/grafana-sankey-plugin/

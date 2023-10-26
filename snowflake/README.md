@@ -1,5 +1,9 @@
 # Theia with Snowflake
 
+## NO LONGER MAINTAINED
+
+This feature is no longer maintained, and was last tested for Theia v0.7.1.
+
 ## Table of Contents
 
 <!-- toc -->

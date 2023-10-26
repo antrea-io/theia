@@ -14,26 +14,47 @@ export const SankeyPanel: React.FC<Props> = ({ options, data, width, height }) =
     .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'source'))
     .map((field) => {
       let record = field?.values as any;
-      return record?.buffer;
+      // The variable 'record' has different types when used with Jest and Webpack.
+      // In the Webpack environment, it is a 'vectorArray,' and 'record?.buffer' is an array.
+      // In the Jest environment, 'record' is already an array, and 'record?.buffer' will be 'undefined',
+      // which can break the test. The following 'if' condition is added to ensure
+      // successful unit test execution with Jest.
+      if(Array.isArray(record)) {
+        return record
+      } else {
+        return record?.buffer;
+      }
     })[0];
   if (sources !== undefined) {
     let destinations = data.series
       .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'destination'))
       .map((field) => {
         let record = field?.values as any;
-        return record?.buffer;
+        if(Array.isArray(record)) {
+          return record
+        } else {
+          return record?.buffer;
+        }
       })[0];
     let destinationIPs = data.series
       .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'destinationip'))
       .map((field) => {
         let record = field?.values as any;
-        return record?.buffer;
+        if(Array.isArray(record)) {
+          return record
+        } else {
+          return record?.buffer;
+        }
       })[0];
     let bytes = data.series
       .map((series) => series.fields.find((field) => field.name.toLowerCase() === 'bytes'))
       .map((field) => {
         let record = field?.values as any;
-        return record?.buffer;
+        if(Array.isArray(record)) {
+          return record
+        } else {
+          return record?.buffer;
+        }
       })[0];
     let n = sources.length;
     for (let i = 0; i < n; i++) {

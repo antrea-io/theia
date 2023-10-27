@@ -7244,7 +7244,7 @@ spec:
           - chown -R clickhouse:clickhouse /var/lib/clickhouse && /entrypoint.sh
           env:
           - name: THEIA_VERSION
-            value: 0.8.0
+            value: 0.9.0
           - name: CLICKHOUSE_INIT_TIMEOUT
             value: "60"
           - name: DB_URL

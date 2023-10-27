@@ -151,7 +151,7 @@ function setup_cluster {
   fi
 
   echo "creating test bed with args $args"
-  eval "timeout 600 $TESTBED_CMD create kind $args"
+  eval "timeout 1200 $TESTBED_CMD create kind $args"
 }
 
 function run_test {

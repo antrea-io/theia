@@ -29,7 +29,9 @@ import (
 	"testing"
 	"time"
 
+	"antrea.io/antrea/pkg/agent/openflow"
 	"antrea.io/antrea/pkg/apis/crd/v1beta1"
+	"antrea.io/antrea/test/e2e/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,9 +41,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	"antrea.io/antrea/pkg/agent/openflow"
-	"antrea.io/antrea/test/e2e/utils"
 )
 
 /* Sample record in ClickHouse table:
@@ -113,6 +112,10 @@ const (
 	grafanaAddr                     = "http://127.0.0.1:5000"
 	grafanaQueryTimeout             = 10 * time.Second
 	grafanaDefaultIntervalMS        = "60000"
+	allocatedSpace                  = 100 * 1024 * 1024
+	clickHouseUsageCheckTimeout     = 5 * time.Second
+	clickHouseUsageCheckPeriod      = 500 * time.Millisecond
+	execInterval                    = 10 * time.Second
 )
 
 var (
@@ -615,6 +618,8 @@ func checkQueryResult(t *testing.T, apiEndpoint, httpMethod string, queries []st
 func checkClickHouseMonitor(t *testing.T, data *TestData, isIPv6 bool, flow testFlow) {
 	checkClickHouseMonitorLogs(t, data, false, 0)
 	var cmdStr string
+	var numRecord int64
+	var memUsage float64
 	// iperf3 has a limit on maximum parallel streams at 128
 	if !isIPv6 {
 		cmdStr = fmt.Sprintf("iperf3 -u -c %s -P 128 -n 1", flow.dstIP)
@@ -623,19 +628,49 @@ func checkClickHouseMonitor(t *testing.T, data *TestData, isIPv6 bool, flow test
 	}
 	log.Infof("Generating flow records to exceed monitor threshold...")
 	for i := 0; i < monitorIperfRounds; i++ {
+		err := wait.Poll(clickHouseUsageCheckPeriod, clickHouseUsageCheckTimeout, func() (bool, error) {
+			memUsage = getClickHouseUsedMemory(t, data)
+			if memUsage > monitorThreshold {
+				// Get the number of records in database before the monitor deletes the records
+				stdout, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT COUNT() FROM default.flows\""})
+				require.NoErrorf(t, err, "Error when querying ClickHouse server: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+				numRecord, err = strconv.ParseInt(strings.TrimSuffix(stdout, "\n"), 10, 64)
+				require.NoErrorf(t, err, "Failed when parsing the number of records %v", err)
+				log.Infof("Current total number of records is %d", numRecord)
+				return true, nil
+			}
+			return false, nil
+		})
+		if err == nil {
+			break
+		}
+		log.Infof("Current memery usage is %f", memUsage)
 		stdout, stderr, err := data.RunCommandFromPod(testNamespace, flow.srcPodName, "perftool", []string{"bash", "-c", cmdStr})
 		require.NoErrorf(t, err, "Error when running iPerf3 client: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
 	}
-	log.Infof("Waiting for the flows to be exported...")
-	time.Sleep(30 * time.Second)
-	// Get the number of records in database before the monitor deletes the records
-	stdout, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT COUNT() FROM default.flows\""})
-	require.NoErrorf(t, err, "Error when querying ClickHouse server: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
-	numRecord, err := strconv.ParseInt(strings.TrimSuffix(stdout, "\n"), 10, 64)
-	require.NoErrorf(t, err, "Failed when parsing the number of records %v", err)
 	log.Infof("Waiting for the monitor to detect and clean up the ClickHouse storage")
-	time.Sleep(2 * time.Minute)
+	time.Sleep(2 * execInterval)
 	checkClickHouseMonitorLogs(t, data, true, numRecord)
+}
+
+func getClickHouseUsedMemory(t *testing.T, data *TestData) float64 {
+	stdout, stderr, err := data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT free_space FROM system.disks;\""})
+	require.NoErrorf(t, err, "Error when querying ClickHouse server: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	freeSpace, err := strconv.ParseInt(strings.TrimSuffix(stdout, "\n"), 10, 64)
+	require.NoErrorf(t, err, "Error when parsing freeSpace: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	stdout, stderr, err = data.RunCommandFromPod(flowVisibilityNamespace, clickHousePodName, "clickhouse", []string{"bash", "-c", "clickhouse client -q \"SELECT SUM(bytes) FROM system.parts;\""})
+	require.NoErrorf(t, err, "Error when querying ClickHouse server: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	usedSpace, err := strconv.ParseInt(strings.TrimSuffix(stdout, "\n"), 10, 64)
+	require.NoErrorf(t, err, "Error when parsing usedSpace: %v,\nstdout:%s\nstderr:%s", err, stdout, stderr)
+	// Total space for ClickHouse is the smaller one of the user allocated space size and the actual space size on the disk
+	var totalSpace int64
+	if (freeSpace + usedSpace) < allocatedSpace {
+		totalSpace = freeSpace + usedSpace
+	} else {
+		totalSpace = allocatedSpace
+	}
+	usagePercentage := float64(usedSpace) / float64(totalSpace)
+	return usagePercentage
 }
 
 func checkClickHouseMonitorLogs(t *testing.T, data *TestData, deleted bool, numRecord int64) {

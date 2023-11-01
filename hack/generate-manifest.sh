@@ -40,6 +40,7 @@ Kustomize, and print it to stdout.
                                             Ei, Pi, Ti, Gi, Mi, Ki. (default is 8Gi)
         --ch-monitor-threshold <threshold>  Deploy the ClickHouse monitor with a specific threshold. Can
                                             vary from 0 to 1. (default is 0.5)
+        --ch-monitor-exec-interval          Deploy the ClickHouse monitor with a specific EXEC_INTERVAL.
         --local <path>                      Create the PersistentVolume for Clickhouse DB with a provided
                                             local path.
         --zookeeper-local <path>            Create the PersistentVolume for ZooKeeper with a provided
@@ -70,6 +71,7 @@ CH_THRESHOLD=0.5
 LOCALPATH=""
 ZK_LOCALPATH=""
 IP_ADDRESS=""
+EXEC_INTERVAL="1m"
 
 while [[ $# -gt 0 ]]
 do
@@ -110,6 +112,10 @@ case $key in
     ;;
     --ch-monitor-threshold)
     CH_THRESHOLD="$2"
+    shift 2
+    ;;
+    --ch-monitor-exec-interval)
+    EXEC_INTERVAL="$2"
     shift 2
     ;;
     --local)
@@ -167,7 +173,7 @@ fi
 
 HELM_VALUES=()
 
-HELM_VALUES+=("clickhouse.storage.size=$CH_SIZE" "clickhouse.monitor.threshold=$CH_THRESHOLD")
+HELM_VALUES+=("clickhouse.storage.size=$CH_SIZE" "clickhouse.monitor.threshold=$CH_THRESHOLD" "clickhouse.monitor.execInterval=$EXEC_INTERVAL")
 
 if [ "$MODE" == "dev" ] && [ -n "$IMG_NAME" ]; then
     HELM_VALUES+=("clickhouse.monitor.image.repository=$IMG_NAME")

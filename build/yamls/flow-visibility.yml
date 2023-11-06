@@ -757,6 +757,34 @@ data:
         ADD COLUMN aggType String,
         ADD COLUMN direction String,
         ADD COLUMN podName String;
+  000006_0-7-0.down.sql: |
+    --Alter table to drop new columns
+    ALTER TABLE flows
+        DROP COLUMN l7ProtocolName,
+        DROP COLUMN httpVals;
+    ALTER TABLE flows_local
+        DROP COLUMN l7ProtocolName,
+        DROP COLUMN httpVals;
+    ALTER TABLE flows_policy_view
+        DROP COLUMN l7ProtocolName String,
+        DROP COLUMN httpVals String;
+    ALTER TABLE flows_policy_view_local
+        DROP COLUMN l7ProtocolName String,
+        DROP COLUMN httpVals String;
+  000006_0-7-0.up.sql: |
+    --Alter table to add new columns
+    ALTER TABLE flows
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_local
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_policy_view
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_policy_view_local
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -831,6 +859,8 @@ data:
             clusterUUID String,
             egressName String,
             egressIP String,
+            l7ProtocolName String,
+            httpVals String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds);
@@ -1020,7 +1050,9 @@ data:
             reverseThroughputFromSourceNode UInt64,
             throughputFromDestinationNode UInt64,
             reverseThroughputFromDestinationNode UInt64,
-            clusterUUID String
+            clusterUUID String,
+            l7ProtocolName String,
+            httpVals String
         ) ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (
             timeInserted,
@@ -1042,7 +1074,9 @@ data:
             destinationServicePort,
             destinationServicePortName,
             destinationIP,
-            clusterUUID);
+            clusterUUID,
+            l7ProtocolName,
+            httpVals);
 
         ALTER TABLE "policy_view_table_local" MODIFY TTL timeInserted + INTERVAL 12 HOUR;
         ALTER TABLE "policy_view_table_local" MODIFY SETTING merge_with_ttl_timeout=14400;
@@ -1068,6 +1102,8 @@ data:
             destinationServicePort,
             destinationServicePortName,
             destinationIP,
+            l7ProtocolName,
+            httpVals,
             sum(octetDeltaCount) AS octetDeltaCount,
             sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
             sum(throughput) AS throughput,
@@ -1098,6 +1134,8 @@ data:
             destinationServicePort,
             destinationServicePortName,
             destinationIP,
+            l7ProtocolName,
+            httpVals,
             clusterUUID;
 
         --Create a table to store the network policy recommendation results
@@ -1186,6 +1224,126 @@ metadata:
 ---
 apiVersion: v1
 data:
+  application_layer_dashboard.json: |
+    {
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "target": {
+              "limit": 100,
+              "matchAny": false,
+              "tags": [],
+              "type": "dashboard"
+            },
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 0,
+      "id": 11,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "gridPos": {
+            "h": 14,
+            "w": 11,
+            "x": 0,
+            "y": 0
+          },
+          "id": 2,
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT CONCAT(sourcePodNamespace, '/', sourcePodName) as srcPod,\nCONCAT(destinationPodNamespace, '/', destinationPodName) as dstPod,\nsourceTransportPort as srcPort,\ndestinationTransportPort as dstPort,\ndestinationServicePort as dstSvcPort,\ndestinationServicePortName as dstSvc,\ndestinationIP as dstIP,\nSUM(octetDeltaCount) as bytes,\nSUM(reverseOctetDeltaCount) as revBytes,\negressNetworkPolicyName,\negressNetworkPolicyRuleAction,\ningressNetworkPolicyName,\ningressNetworkPolicyRuleAction\nfrom flows_policy_view\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND l7ProtocolName!=''\n    AND $__timeFilter(flowEndSeconds)\nGROUP BY srcPod, dstPod, srcPort, dstPort, dstSvcPort, dstSvc, dstIP, egressNetworkPolicyName, egressNetworkPolicyRuleAction, ingressNetworkPolicyName, ingressNetworkPolicyRuleAction\nHAVING bytes > 0\norder by bytes DESC\n",
+              "refId": "A"
+            }
+          ],
+          "title": "Cumulative Bytes of Flows with L7 NetworkPolicy Information",
+          "type": "theia-grafana-chord-plugin"
+        },
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "gridPos": {
+            "h": 18,
+            "w": 24,
+            "x": 0,
+            "y": 14
+          },
+          "id": 4,
+          "options": {
+            "seriesCountSize": "sm",
+            "showSeriesCount": false,
+            "text": "Default value of text input option"
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT sourceIP, sourceTransportPort, destinationIP, destinationTransportPort, httpVals\nFROM flows\nWHERE l7ProtocolName!=''\nORDER BY flowEndSeconds DESC",
+              "refId": "A"
+            }
+          ],
+          "title": "HTTP Values",
+          "type": "theia-grafana-http-table-plugin"
+        }
+      ],
+      "schemaVersion": 37,
+      "style": "dark",
+      "tags": [],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "",
+      "title": "application_layer_dashboard",
+      "uid": "tCTkERMSk",
+      "version": 1,
+      "weekStart": ""
+    }
   flow_records_dashboard.json: |-
     {
       "annotations": {
@@ -2770,7 +2928,7 @@ data:
                 },
                 "id": 27,
                 "options": {
-                    "content": "The following seven dashboards are pre-built and are recommended for network flow\nvisualization.\n\n<span style=\"color:rgb(184, 119, 217)\">Flow Records Dashboard</span> displays the flow records being captured in the selected\ntime range.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Pod Flows Dashboard</span> shows cumulative bytes and throughput of Pod-to-Pod\ntraffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-External Flows Dashboard</span> shows cumulative bytes and throughput of\ntraffic from in-cluster to out-of-cluster. The destination of such a traffic flow\nis represented by the destination IP address.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Service Flows Dashboard</span> shows cumulative bytes and throughput of\nPod-to-Service flows. The destination of such a traffic is represented by the\ndestination Service metadata.\n\n<span style=\"color:rgb(184, 119, 217)\">Node-to-Node Flows Dashboard</span> visualizes the Node-to-Node traffic, including intra-Node\nand inter-Node flows.\n\n<span style=\"color:rgb(184, 119, 217)\">Network-Policy Flows Dashboard</span> visualizes both the traffic with NetworkPolicies enforced,\nand unprotected traffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Network Topology Dashboard</span> visualizes both Pod-to-Pod and Pod-to-Service traffic via a graph.",
+                    "content": "The following eight dashboards are pre-built and are recommended for network flow\nvisualization.\n\n<span style=\"color:rgb(184, 119, 217)\">Flow Records Dashboard</span> displays the flow records being captured in the selected\ntime range.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Pod Flows Dashboard</span> shows cumulative bytes and throughput of Pod-to-Pod\ntraffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-External Flows Dashboard</span> shows cumulative bytes and throughput of\ntraffic from in-cluster to out-of-cluster. The destination of such a traffic flow\nis represented by the destination IP address.\n\n<span style=\"color:rgb(184, 119, 217)\">Pod-to-Service Flows Dashboard</span> shows cumulative bytes and throughput of\nPod-to-Service flows. The destination of such a traffic is represented by the\ndestination Service metadata.\n\n<span style=\"color:rgb(184, 119, 217)\">Node-to-Node Flows Dashboard</span> visualizes the Node-to-Node traffic, including intra-Node\nand inter-Node flows.\n\n<span style=\"color:rgb(184, 119, 217)\">Network-Policy Flows Dashboard</span> visualizes both the traffic with NetworkPolicies enforced,\nand unprotected traffic.\n\n<span style=\"color:rgb(184, 119, 217)\">Network Topology Dashboard</span> visualizes both Pod-to-Pod and Pod-to-Service traffic via a graph.\n\n<span style=\"color:rgb(184, 119, 217)\">Application Visibility Dashboard</span> shows cumulative bytes and throughput for L7 NetworkPolicies\nas well as corresponding HTTP data.",
                     "mode": "markdown"
                 },
                 "pluginVersion": "8.3.3",
@@ -3508,7 +3666,7 @@ data:
         "version": 6,
         "weekStart": ""
     }
-  network_topology_dashboard.json: |
+  network_topology_dashboard.json: |-
     {
       "annotations": {
         "list": [
@@ -3532,8 +3690,8 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 8,
-      "iteration": 1682533463233,
+      "id": 6,
+      "iteration": 1695808205600,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -3543,15 +3701,56 @@ data:
             "uid": "PDEE91DDB90597936"
           },
           "gridPos": {
-            "h": 35,
-            "w": 23,
+            "h": 22,
+            "w": 10,
             "x": 0,
+            "y": 0
+          },
+          "id": 4,
+          "options": {
+            "color": "yellow",
+            "groupByPodLabel": false,
+            "layerFour": true
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ( destinationPodName != '' OR sourcePodName != '' )\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "refId": "A"
+            }
+          ],
+          "title": "Layer 4 Topology",
+          "type": "theia-grafana-dependency-plugin"
+        },
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "description": "The different colors of the lines mean different codes, but are labelled by the content length of the flow.\nGreen: Success",
+          "gridPos": {
+            "h": 22,
+            "w": 10,
+            "x": 10,
             "y": 0
           },
           "id": 2,
           "options": {
             "color": "yellow",
             "groupByLabel": false,
+            "groupByPodLabel": false,
+            "layerFour": false,
             "seriesCountSize": "sm",
             "showSeriesCount": false,
             "text": "Default value of text input option"
@@ -3571,11 +3770,11 @@ data:
                 }
               },
               "queryType": "sql",
-              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, sourceIP, sourceTransportPort, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, destinationIP, destinationTransportPort, octetDeltaCount, httpVals FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ( destinationPodName != '' OR sourcePodName != '' )\nAND octetDeltaCount != 0\nAND httpVals != ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
               "refId": "A"
             }
           ],
-          "title": "Network Topology",
+          "title": "Layer 7 Topology",
           "type": "theia-grafana-dependency-plugin"
         }
       ],
@@ -3613,7 +3812,7 @@ data:
       "timezone": "",
       "title": "network_topology_dashboard",
       "uid": "yRVDEad4k",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
   networkpolicy_dashboard.json: |
@@ -3673,7 +3872,7 @@ data:
                 }
               },
               "queryType": "sql",
-              "rawSql": "SELECT CONCAT(sourcePodNamespace, '/', sourcePodName) as srcPod,\nCONCAT(destinationPodNamespace, '/', destinationPodName) as dstPod,\nsourceTransportPort as srcPort,\ndestinationTransportPort as dstPort,\ndestinationServicePort as dstSvcPort,\ndestinationServicePortName as dstSvc,\ndestinationIP as dstIP,\nSUM(octetDeltaCount) as bytes,\nSUM(reverseOctetDeltaCount) as revBytes,\negressNetworkPolicyName,\negressNetworkPolicyRuleAction,\ningressNetworkPolicyName,\ningressNetworkPolicyRuleAction\nfrom flows_policy_view\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND $__timeFilter(flowEndSeconds)\nGROUP BY srcPod, dstPod, srcPort, dstPort, dstSvcPort, dstSvc, dstIP, egressNetworkPolicyName, egressNetworkPolicyRuleAction, ingressNetworkPolicyName, ingressNetworkPolicyRuleAction\nHAVING bytes > 0\norder by bytes DESC\n",
+              "rawSql": "SELECT CONCAT(sourcePodNamespace, '/', sourcePodName) as srcPod,\nCONCAT(destinationPodNamespace, '/', destinationPodName) as dstPod,\nsourceTransportPort as srcPort,\ndestinationTransportPort as dstPort,\ndestinationServicePort as dstSvcPort,\ndestinationServicePortName as dstSvc,\ndestinationIP as dstIP,\nSUM(octetDeltaCount) as bytes,\nSUM(reverseOctetDeltaCount) as revBytes,\negressNetworkPolicyName,\negressNetworkPolicyRuleAction,\ningressNetworkPolicyName,\ningressNetworkPolicyRuleAction\nfrom flows_policy_view\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\n    AND l7ProtocolName==''\n    AND $__timeFilter(flowEndSeconds)\nGROUP BY srcPod, dstPod, srcPort, dstPort, dstSvcPort, dstSvc, dstIP, egressNetworkPolicyName, egressNetworkPolicyRuleAction, ingressNetworkPolicyName, ingressNetworkPolicyRuleAction\nHAVING bytes > 0\norder by bytes DESC\n",
               "refId": "A"
             }
           ],
@@ -6819,8 +7018,7 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
-            2.2.0
+          value: https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v1.zip;theia-grafana-http-table-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v1.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource 2.2.0
         - name: CLICKHOUSE_USERNAME
           valueFrom:
             secretKeyRef:
@@ -7329,6 +7527,10 @@ spec:
               path: migrators/000005_0-6-0.down.sql
             - key: 000005_0-6-0.up.sql
               path: migrators/000005_0-6-0.up.sql
+            - key: 000006_0-7-0.down.sql
+              path: migrators/000006_0-7-0.down.sql
+            - key: 000006_0-7-0.up.sql
+              path: migrators/000006_0-7-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

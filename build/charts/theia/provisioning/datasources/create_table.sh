@@ -80,6 +80,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         clusterUUID String,
         egressName String,
         egressIP String,
+        l7ProtocolName String,
+        httpVals String,
         trusted UInt8 DEFAULT 0
     ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (timeInserted, flowEndSeconds);
@@ -269,7 +271,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         reverseThroughputFromSourceNode UInt64,
         throughputFromDestinationNode UInt64,
         reverseThroughputFromDestinationNode UInt64,
-        clusterUUID String
+        clusterUUID String,
+        l7ProtocolName String,
+        httpVals String
     ) ENGINE = ReplicatedSummingMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
     ORDER BY (
         timeInserted,
@@ -291,7 +295,9 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePort,
         destinationServicePortName,
         destinationIP,
-        clusterUUID);
+        clusterUUID,
+        l7ProtocolName,
+        httpVals);
 
     ALTER TABLE "policy_view_table_local" MODIFY TTL timeInserted + INTERVAL {{ .Values.clickhouse.ttl }};
     ALTER TABLE "policy_view_table_local" MODIFY SETTING merge_with_ttl_timeout={{ $ttlTimeout }};
@@ -317,6 +323,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePort,
         destinationServicePortName,
         destinationIP,
+        l7ProtocolName,
+        httpVals,
         sum(octetDeltaCount) AS octetDeltaCount,
         sum(reverseOctetDeltaCount) AS reverseOctetDeltaCount,
         sum(throughput) AS throughput,
@@ -347,6 +355,8 @@ clickhouse client -n -h 127.0.0.1 <<-EOSQL
         destinationServicePort,
         destinationServicePortName,
         destinationIP,
+        l7ProtocolName,
+        httpVals,
         clusterUUID;
 
     --Create a table to store the network policy recommendation results

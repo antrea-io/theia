@@ -64,3 +64,37 @@ jobs:
     - name: Uninstall Yarn
       if: always()
       run: npm uninstall -g yarn
+
+  test-unit-dependency:
+    needs: check-typescript-changes
+    if: ${{ needs.check-typescript-changes.outputs.has_changes == 'yes' }}
+    name: Unit test
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [20.7.0]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Install Yarn
+      run: npm install -g yarn
+
+    - name: Install dependencies and run the tests
+      run: |
+        cd plugins/grafana-custom-plugins/grafana-dependency-plugin/
+        yarn install
+        yarn test --coverage
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Uninstall Yarn
+      if: always()
+      run: npm uninstall -g yarn

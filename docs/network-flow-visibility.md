@@ -867,12 +867,19 @@ Mouse out or click on the background will bring all the traffic back.
 
 #### Network Topology Dashboard
 
-Network Topology Dashboard visualizes Pod-to-Pod and Pod-to-Service traffic.
-Pods are visually grouped by Node. Each arrow points from the source to the
-destination, and is labelled by the cumulative amount of data transmitted in
-the selected time range.
+Network Topology Dashboard visualizes Pod-to-Pod and Pod-to-Service traffic
+at layer 4, and IP-to-IP traffic at layer 7.
 
-<img src="https://downloads.antrea.io/static/04132023/flow-visibility-network-topology-0.png" width="400" alt="Network Topology Dashboard service dependency graph">
+In the layer 4 visualization, Pods are visually grouped by Node. Each arrow
+points from the source to the destination, and is labelled by the cumulative
+amount of data transmitted in the selected time range.
+
+In the layer 7 visualization, Pods and IPs with ports are used to depict flows,
+with each arrow representing the data from a singular set of HTTP values. The
+color of each arrow represents the status of the http request, and is labelled
+by the content length of the message or data.
+
+<img src="https://user-images.githubusercontent.com/10016630/271056005-7dfb4072-f64f-4d1e-b4b9-4f81eb7a51fa.png" width="400" alt="Network Topology Dashboard">
 
 By editing the panel, users can group Pods by label, allowing Pod squares in
 the diagram to represent a set of Pods with the same label value. It is also

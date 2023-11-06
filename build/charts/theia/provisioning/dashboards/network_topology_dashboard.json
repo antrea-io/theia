@@ -21,8 +21,8 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 8,
-  "iteration": 1682533463233,
+  "id": 6,
+  "iteration": 1695808205600,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -32,15 +32,55 @@
         "uid": "PDEE91DDB90597936"
       },
       "gridPos": {
-        "h": 35,
-        "w": 23,
+        "h": 22,
+        "w": 10,
         "x": 0,
+        "y": 0
+      },
+      "id": 4,
+      "options": {
+        "color": "yellow",
+        "groupByPodLabel": false,
+        "layerFour": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "meta": {
+            "builderOptions": {
+              "fields": [],
+              "limit": 100,
+              "mode": "list"
+            }
+          },
+          "queryType": "sql",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ( destinationPodName != '' OR sourcePodName != '' )\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Layer 4 Topology",
+      "type": "theia-grafana-dependency-plugin"
+    },
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "PDEE91DDB90597936"
+      },
+      "gridPos": {
+        "h": 22,
+        "w": 10,
+        "x": 10,
         "y": 0
       },
       "id": 2,
       "options": {
         "color": "yellow",
         "groupByLabel": false,
+        "groupByPodLabel": false,
+        "layerFour": false,
         "seriesCountSize": "sm",
         "showSeriesCount": false,
         "text": "Default value of text input option"
@@ -60,11 +100,11 @@
             }
           },
           "queryType": "sql",
-          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, sourceIP, sourceTransportPort, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, destinationIP, destinationTransportPort, octetDeltaCount, httpVals FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND httpVals != ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
           "refId": "A"
         }
       ],
-      "title": "Network Topology",
+      "title": "Layer 7 Topology",
       "type": "theia-grafana-dependency-plugin"
     }
   ],
@@ -102,6 +142,6 @@
   "timezone": "",
   "title": "network_topology_dashboard",
   "uid": "yRVDEad4k",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }

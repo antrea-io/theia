@@ -7018,7 +7018,8 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v1.zip;theia-grafana-http-table-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v1.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource 2.2.0
+          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v1.zip;theia-grafana-dependency-plugin,https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v2.zip;theia-grafana-http-table-plugin,grafana-clickhouse-datasource
+            2.2.0
         - name: CLICKHOUSE_USERNAME
           valueFrom:
             secretKeyRef:

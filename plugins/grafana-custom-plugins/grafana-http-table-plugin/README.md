@@ -75,7 +75,7 @@ _Note: It's not necessary to sign a plugin during development. The docker develo
 
 ## Initial steps
 
-Before signing a plugin please read the Grafana [plugin publishing and signing criteria](https://grafana.com/docs/grafana/latest/developers/plugins/publishing-and-signing-criteria/) documentation carefully.
+Before signing a plugin please read the Grafana [plugin publishing and signing criteria](https://grafana.com/developers/plugin-tools/publish-a-plugin/publishing-and-signing-criteria) documentation carefully.
 
 `@grafana/create-plugin` has added the necessary commands and workflows to make signing and distributing a plugin via the grafana plugins catalog as straightforward as possible.
 
@@ -91,7 +91,7 @@ Before signing a plugin for the first time please consult the Grafana [plugin si
 
 ### Using Github actions release workflow
 
-If the plugin is using the github actions supplied with `@grafana/create-plugin` signing a plugin is included out of the box. The [release workflow](./.github/workflows/release.yml) can prepare everything to make submitting your plugin to Grafana as easy as possible. Before being able to sign the plugin however a secret needs adding to the Github repository.
+If the plugin is using the github actions supplied with `@grafana/create-plugin` signing a plugin is included out of the box. The release workflow can prepare everything to make submitting your plugin to Grafana as easy as possible. Before being able to sign the plugin however a secret needs adding to the Github repository.
 
 1. Please navigate to "settings > secrets > actions" within your repo to create secrets.
 2. Click "New repository secret"

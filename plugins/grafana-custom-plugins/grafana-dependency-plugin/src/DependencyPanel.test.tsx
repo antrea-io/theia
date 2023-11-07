@@ -1,10 +1,9 @@
 import { configure, shallow } from 'enzyme';
 import Adapter from 'enzyme-adapter-react-16';
 import { DependencyPanel } from './DependencyPanel';
+import { DependencyOptions } from 'types';
 import { LoadingState, PanelProps, TimeRange, toDataFrame } from '@grafana/data';
 import React from 'react';
-import { DiagramPanelController } from 'DiagramController';
-import { useTheme2 } from '@grafana/ui';
 
 configure({ adapter: new Adapter() });
 
@@ -17,14 +16,15 @@ describe('Dependency Diagram test', () => {
         toDataFrame({
           refId: 'A',
           fields: [
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
-            { name: '', values: [''] },
+            { name: 'sourcePodName', values: ['web-client3-1'] },
+            { name: 'sourcePodLabels', values: [''] },
+            { name: 'sourcePodNamespace', values: ['antrea-test-3'] },
+            { name: 'sourceNodeName', values: ['kind-worker'] },
+            { name: 'destinationPodName', values: ['web-server-3-86c5d4c9fc-fxqk7'] },
+            { name: 'destinationPodLabels', values: [''] },
+            { name: 'destinationNodeName', values: ['kind-worker'] },
+            { name: 'destinationServicePortName', values: ['antrea-test-3/iperf3-3:tcp'] },
+            { name: 'octetDeltaCount', values: ['162891768'] },
           ],
         }),
       ],
@@ -33,13 +33,12 @@ describe('Dependency Diagram test', () => {
     };
     props.width = 600,
     props.height = 600;
-    props.options = {};
+    props.options = {groupByPodLabel: false, layerFour: true, labelName: '', color: 'red'} as DependencyOptions;
+    let expectedGraphString = 'graph LR;\nsubgraph kind-worker\nkind-worker_pod_web-client3-1(web-client3-1);\nkind-worker_pod_web-server-3-86c5d4c9fc-fxqk7(web-server-3-86c5d4c9fc-fxqk7);\nend;\nkind-worker_pod_web-client3-1 -- 162.891768 MB --> kind-worker_pod_web-server-3-86c5d4c9fc-fxqk7;\nkind-worker_pod_web-client3-1 -- 162.891768 MB --> svc_antrea-test-3/iperf3-3:tcp;';
     let component = shallow(<DependencyPanel {...props} />);
-    let theme = useTheme2();
+    let renderedHtmlString = component.render().text();
     expect(
-      component.contains(
-        <DiagramPanelController boxColor={'red'} layerLevel='four' graphString='graph LR;\n' theme={theme} ></DiagramPanelController>
-      )
+      renderedHtmlString.includes(expectedGraphString)
     ).toEqual(true);
   });
 });

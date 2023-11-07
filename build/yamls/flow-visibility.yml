@@ -3526,13 +3526,16 @@ data:
         "version": 6,
         "weekStart": ""
     }
-  network_topology_dashboard.json: |
+  network_topology_dashboard.json: |-
     {
       "annotations": {
         "list": [
           {
             "builtIn": 1,
-            "datasource": "-- Grafana --",
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
@@ -3550,8 +3553,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 6,
-      "iteration": 1695808205600,
+      "id": 7,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -3586,7 +3588,7 @@ data:
                 }
               },
               "queryType": "sql",
-              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ( destinationPodName != '' OR sourcePodName != '' )\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
               "refId": "A"
             }
           ],
@@ -3638,7 +3640,7 @@ data:
         }
       ],
       "refresh": "",
-      "schemaVersion": 34,
+      "schemaVersion": 37,
       "style": "dark",
       "tags": [],
       "templating": {
@@ -6877,7 +6879,7 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
+          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
             2.2.0
         - name: CLICKHOUSE_USERNAME
           valueFrom:

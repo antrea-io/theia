@@ -26,17 +26,13 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
   
   let nodeToPodMap = new Map<string, String[]>();
   let srcToDestMap = new Map<string, Map<string, number>>();
+  let themeToColorsMap = new Map<string, string>();
+  themeToColorsMap['secondaryAndTertiary'] = theme.colors.background.canvas;
+  themeToColorsMap['textAndLine'] = theme.colors.text.maxContrast;
 
   let graphString = 'graph LR;\n';
   let styleString = '';
   let boxColor;
-  let layerLevel;
-
-  if (options.layerFour) {
-    layerLevel = 'four';
-  } else {
-    layerLevel = 'seven';
-  }
 
   switch(options.color) {
     case 'red':
@@ -75,9 +71,8 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
         return sourcePodName;
       }
   
-      let groupByPodLabel = options.groupByPodLabel;
-      let srcName = getName(groupByPodLabel, true, sourcePodLabel);
-      let dstName = getName(groupByPodLabel, false, destinationPodLabel);
+      let srcName = getName(options.groupByPodLabel, true, sourcePodLabel);
+      let dstName = getName(options.groupByPodLabel, false, destinationPodLabel);
   
       // determine which nodes contain which pods
       if (nodeToPodMap.has(sourceNodeName) && !nodeToPodMap.get(sourceNodeName)?.includes(srcName)) {
@@ -142,13 +137,13 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
   function layerSevenGraph() {
     function getColorFromStatus(httpStatus: string) {
       // colors that correspond to each of the types of http response code; i.e. 4xx and 5xx codes return red to symbolize errors
-      const colors = ['orange', 'green', 'blue', 'red', 'red'];
+      const codeToColor = {1:'orange', 2:'green', 3:'blue', 4:'red', 5:'red'};
       let statusType = +httpStatus.charAt(0);
       if (statusType < 1 || statusType > 5) {
         // nothing else returns purple, purple indicates an error in the httpVals field
         return 'purple';
       }
-      return colors[statusType-1];
+      return codeToColor[statusType];
     }
 
     let ctr = 0;
@@ -161,7 +156,10 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
       const destinationPort = destinationTransportPorts?.values.get(i);
       const httpVals = httpValsList?.values.get(i);
 
-      let httpValsJSON = JSON.parse(httpVals);
+      let httpValsJSON;
+      if (httpVals !== undefined) {
+        httpValsJSON = JSON.parse(httpVals);
+      }
       for (const txId in httpValsJSON) {
         let graphLine = '';
         if (sourcePodName !== '') {
@@ -187,8 +185,10 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
 
   if (options.layerFour) {
     layerFourGraph();
+    console.log('GRAPH STRING FOUR:\n'+graphString);
   } else {
     layerSevenGraph();
+    console.log('GRAPH STRING SEVEN:\n'+graphString);
   }
   
   try {
@@ -206,8 +206,8 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
       <DiagramPanelController 
         graphString={graphString}
         boxColor={boxColor}
-        layerLevel={layerLevel}
-        theme={theme}
+        layerLevelFour={options.layerFour}
+        themeColors={themeToColorsMap}
       ></DiagramPanelController>
     </div>
   );

@@ -3,9 +3,9 @@ import mermaid from 'mermaid';
 
 export interface DiagramPanelControllerProps {
   boxColor: any;
-  layerLevel: string;
+  layerLevelFour: boolean;
   graphString: string;
-  theme: any;
+  themeColors: Map<string, string>;
 }
 
 interface DiagramPanelControllerState {
@@ -30,7 +30,6 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
 
   renderCallback(svgCode: string, bindFunctions: any) {
     if (this && bindFunctions) {
-      console.log('binding diagram functions');
       this.bindFunctions = bindFunctions;
     }
   }
@@ -42,7 +41,7 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
   componentDidUpdate(prevProps: DiagramPanelControllerProps) {
     if (prevProps.graphString !== this.props.graphString ||
       prevProps.boxColor !== this.props.boxColor ||
-      prevProps.layerLevel !== this.props.layerLevel) {
+      prevProps.layerLevelFour !== this.props.layerLevelFour) {
       this.initializeMermaid();
     }
   }
@@ -53,14 +52,14 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
       theme: 'base',
       themeVariables: {
         primaryColor: this.props.boxColor,
-        secondaryColor: this.props.theme.colors.background.canvas,
-        tertiaryColor: this.props.theme.colors.background.canvas,
-        primaryTextColor: this.props.theme.colors.text.maxContrast,
-        lineColor: this.props.theme.colors.text.maxContrast,
+        secondaryColor: this.props.themeColors['secondaryAndTertiary'],
+        tertiaryColor: this.props.themeColors['secondaryAndTertiary'],
+        primaryTextColor: this.props.themeColors['textAndLine'],
+        lineColor: this.props.themeColors['textAndLine'],
       },
     });
     if (this.diagramRef) {
-      const diagramId = 'graphDiv'+this.props.layerLevel;
+      const diagramId = this.props.layerLevelFour ? 'graphDivFour' : 'graphDivSeven';
       mermaid.render(diagramId, this.props.graphString, (svg, bindFunctions) => {
         this.diagramRef.innerHTML = svg;
         this.bindFunctions?.(this.diagramRef);
@@ -69,14 +68,15 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
   }
 
   render() {
-    if (this.props.layerLevel === 'four') {
+    if (this.props.layerLevelFour) {
       return (
         <div className='diagram-wrapper'>
           <div 
             ref={this.setDiagramRef}
-            className={`diagram-${this.props.layerLevel}`}
+            className={`diagram-four`}
           ></div>
           <div><p>In this graph, Pods are grouped by parent Node, and arrows between Pods describe the quantity of data sent from source to destination in bytes.</p></div>
+          <div hidden><p>{this.props.graphString}</p></div>
         </div>
       )
     } else {
@@ -84,11 +84,12 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
         <div className='diagram-wrapper'>
           <div 
             ref={this.setDiagramRef}
-            className={`diagram-${this.props.layerLevel}`}
+            className={`diagram-seven`}
           ></div>
           <div><p>In this graph, each flow between a source and destination is represented by an arrow labelled with the http content length of the data being sent.
             The color of the line is used to denote the status of the flow, where green represents a successful send, blue represents an informational response, yellow represents a redirectional response, and red represents an error response.
           </p></div>
+          <div hidden><p>{this.props.graphString}</p></div>
         </div>
       )
     }

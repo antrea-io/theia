@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -21,8 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 6,
-  "iteration": 1695808205600,
+  "id": 7,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -57,7 +59,7 @@
             }
           },
           "queryType": "sql",
-          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND ( destinationPodName != '' OR sourcePodName != '' )\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
           "refId": "A"
         }
       ],
@@ -109,7 +111,7 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 34,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [],
   "templating": {

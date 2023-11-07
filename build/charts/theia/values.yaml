@@ -240,7 +240,7 @@ grafana:
   installPlugins:
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin
     - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin
-    - https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin
+    - https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v2.zip;theia-grafana-dependency-plugin
     - grafana-clickhouse-datasource 2.2.0
   # -- The dashboards to be displayed in Grafana UI. The files must be put under
   # provisioning/dashboards.

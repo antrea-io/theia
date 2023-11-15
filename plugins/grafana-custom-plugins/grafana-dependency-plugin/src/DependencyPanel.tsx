@@ -162,19 +162,19 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
       }
       for (const txId in httpValsJSON) {
         let graphLine = '';
-        if (sourcePodName !== '') {
+        if (sourcePodName !== undefined) {
           graphLine = sourcePodName;
         } else {
           graphLine = sourceIP + ':' + sourcePort;
         }
         graphLine = graphLine + ' --' + httpValsJSON[txId].length + '--> ';
-        if (destinationPodName !== '') {
+        if (destinationPodName !== undefined) {
           graphLine = graphLine + destinationPodName;
         } else {
           graphLine = graphLine + destinationIP + ':' + destinationPort;
         }
         graphString = graphString + graphLine + '\n';
-        let styleLine = 'linkStyle ' + ctr + ' stroke: ' + getColorFromStatus(httpValsJSON.status+'') + '\n';
+        let styleLine = 'linkStyle ' + ctr + ' stroke: ' + getColorFromStatus(httpValsJSON[txId].status+'') + '\n';
         styleString = styleString + styleLine;
         ctr += 1;
       }
@@ -185,7 +185,6 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
 
   if (options.layerFour) {
     layerFourGraph();
-    console.log('GRAPH STRING FOUR:\n'+graphString);
   } else {
     layerSevenGraph();
     console.log('GRAPH STRING SEVEN:\n'+graphString);

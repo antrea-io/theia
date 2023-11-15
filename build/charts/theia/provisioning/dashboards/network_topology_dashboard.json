@@ -59,7 +59,7 @@
             }
           },
           "queryType": "sql",
-          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND httpVals == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator', 'local-path-storage')\nAND octetDeltaCount != 0\nAND l7ProtocolName == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
           "refId": "A"
         }
       ],
@@ -102,7 +102,7 @@
             }
           },
           "queryType": "sql",
-          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, sourceIP, sourceTransportPort, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, destinationIP, destinationTransportPort, octetDeltaCount, httpVals FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND httpVals != ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+          "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, sourceIP, sourceTransportPort, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, destinationIP, destinationTransportPort, octetDeltaCount, httpVals FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator', 'local-path-storage')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND l7ProtocolName != ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
           "refId": "A"
         }
       ],

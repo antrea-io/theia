@@ -87,7 +87,8 @@ export class DiagramPanelController extends React.Component<DiagramPanelControll
             className={`diagram-seven`}
           ></div>
           <div><p>In this graph, each flow between a source and destination is represented by an arrow labelled with the http content length of the data being sent.
-            The color of the line is used to denote the status of the flow, where green represents a successful send, blue represents an informational response, yellow represents a redirectional response, and red represents an error response.
+            The color of the line is used to denote the status of the flow, where green represents a successful send (2xx code), blue represents an informational response (3xx code),
+            yellow represents a redirectional response (1xx code), and red represents an error response (4xx or 5xx code).
           </p></div>
           <div hidden><p>{this.props.graphString}</p></div>
         </div>

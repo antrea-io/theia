@@ -42,27 +42,5 @@ describe('Table Plugin Test', () => {
     expect(renderedHtmlString.includes('GET')).toEqual(true);
     expect(renderedHtmlString.includes('200')).toEqual(true);
     expect(renderedHtmlString.includes('1256')).toEqual(true);
-    // expect(
-    //   component.contains(
-    //     <td className="MuiTableCell-root MuiTableCell-body MuiTableCell-sizeMedium css-qlgmli-MuiTableCell-root">10.10.1.4:42162</td>
-    //     // <MaterialReactTable 
-    //     //   columns={columns} 
-    //     //   data={tableData}
-    //     //   enableExpanding
-    //     //   enableColumnResizing
-    //     //   layoutMode='grid'
-    //     //   muiTableHeadCellProps={{
-    //     //     sx: {
-    //     //       flex: '0 0 auto',
-    //     //     },
-    //     //   }}
-    //     //   muiTableBodyCellProps={{
-    //     //     sx: {
-    //     //       flex: '0 0 auto',
-    //     //     },
-    //     //   }}
-    //     // />
-    //   )
-    // ).toEqual(true);
   });
 });

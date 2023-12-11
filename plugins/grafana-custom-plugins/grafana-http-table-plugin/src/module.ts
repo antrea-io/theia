@@ -1,6 +1,6 @@
 import { PanelPlugin } from '@grafana/data';
 import { SimpleOptions } from './types';
-import { TablePanel } from './components/TablePanel';
+import { TablePanel } from './TablePanel';
 
 export const plugin = new PanelPlugin<SimpleOptions>(TablePanel).setPanelOptions((builder) => {
   return builder
@@ -35,6 +35,5 @@ export const plugin = new PanelPlugin<SimpleOptions>(TablePanel).setPanelOptions
           },
         ],
       },
-      showIf: (config) => config.showSeriesCount,
     });
 });

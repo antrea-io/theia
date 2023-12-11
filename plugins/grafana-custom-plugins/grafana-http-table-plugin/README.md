@@ -1,114 +1,114 @@
-# Grafana panel plugin template
+# Grafana HTTP Table Plugin
 
-This template is a starting point for building a panel plugin for Grafana.
+## What is Grafana HTTP Table Plugin?
 
-## What are Grafana panel plugins?
+Grafana HTTP Table Plugin allows users to visualize the incoming HTTP values
+that are encoded via JSON. Currently, the plugin shows the following HTTP
+fields within a table: hostname, URL, user agent, content type, method,
+protocol, status, and length.
 
-Panel plugins allow you to add new types of visualizations to your dashboard, such as maps, clocks, pie charts, lists, and more.
+## Acknowledgements
 
-Use panel plugins when you want to do things like visualize data returned by data source queries, navigate between dashboards, or control external systems (such as smart home devices).
+The Grafana HTTP Table Plugin is created using [MaterialTable](https://material-table.com/#/)
 
-## Getting started
+## Data Source
 
-### Frontend
+Supported Databases:
+
+- Clickhouse
+
+## Queries Convention
+
+Currently, the HTTP Table Plugin is only for restricted use cases, and for
+corrrect loading of data, the query is expected to return the following field:
+
+- field 1: sourceIP value with name or an alias of `sourceIP`
+- field 2: sourceTransportPort value with name or an alias of `sourceTransportPort`
+- field 3: destinationIP value with name or an alias of `destinationIP`
+- field 4: destinationTransportPort value with name or an alias of `destinationTransportPort`
+- field 5: httpVals value with name or an alias of `httpVals`
+
+ClickHouse query example:
+
+```sql
+SELECT sourceIP, sourceTransportPort, destinationIP, destinationTransportPort, httpVals
+FROM flows
+```
+
+## Installation
+
+### 1. Install the Panel
+
+Installing on a local Grafana:
+
+For local instances, plugins are installed and updated via a simple CLI command.
+Use the grafana-cli tool to install chord-panel-plugin from the commandline:
+
+```shell
+grafana-cli --pluginUrl https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v2.zip plugins install theia-grafana-http-table-plugin
+```
+
+The plugin will be installed into your grafana plugins directory; the default is
+`/var/lib/grafana/plugins`. More information on the [cli tool](https://grafana.com/docs/grafana/latest/administration/cli/#plugins-commands).
+
+Alternatively, you can manually download the .zip file and unpack it into your grafana
+plugins directory.
+
+[Download](https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v2.zip)
+
+Installing to a Grafana deployed on Kubernetes:
+
+In Grafana deployment manifest, configure the environment variable `GF_INSTALL_PLUGINS`
+as below:
+
+```yaml
+env:
+- name: GF_INSTALL_PLUGINS
+   value: "https://github.com/Dhruv-J/grafana-http-table-plugin/archive/refs/tags/v2.zip;theia-grafana-http-table-plugin"
+```
+
+### 2. Add the Panel to a Dashboard
+
+Installed panels are available immediately in the Dashboards section in your Grafana
+main menu, and can be added like any other core panel in Grafana. To see a list of
+installed panels, click the Plugins item in the main menu. Both core panels and
+installed panels will appear. For more information, visit the docs on [Grafana plugin installation](https://grafana.com/docs/grafana/latest/plugins/installation/).
+
+## Customization
+
+This plugin is built with [@grafana/plugin](https://grafana.com/developers/plugin-tools/),
+which is a CLI that enables efficient development of Grafana plugins. To customize
+the plugin and do local testings:
 
 1. Install dependencies
 
    ```bash
-   npm install
+   cd grafana-dependency-plugin
+   yarn install
    ```
 
-2. Build plugin in development mode and run in watch mode
+2. Build plugin in development mode or run in watch mode
 
    ```bash
-   npm run dev
+   yarn dev
+   ```
+
+   or
+
+   ```bash
+   yarn watch
    ```
 
 3. Build plugin in production mode
 
    ```bash
-   npm run build
+   yarn build
    ```
-
-4. Run the tests (using Jest)
-
-   ```bash
-   # Runs the tests and watches for changes, requires git init first
-   npm run test
-
-   # Exits after running all the tests
-   npm run test:ci
-   ```
-
-5. Spin up a Grafana instance and run the plugin inside it (using Docker)
-
-   ```bash
-   npm run server
-   ```
-
-6. Run the E2E tests (using Cypress)
-
-   ```bash
-   # Spins up a Grafana instance first that we tests against
-   npm run server
-
-   # Starts the tests
-   npm run e2e
-   ```
-
-7. Run the linter
-
-   ```bash
-   npm run lint
-
-   # or
-
-   npm run lint:fix
-   ```
-
-## Distributing your plugin
-
-When distributing a Grafana plugin either within the community or privately the plugin must be signed so the Grafana application can verify its authenticity. This can be done with the `@grafana/sign-plugin` package.
-
-_Note: It's not necessary to sign a plugin during development. The docker development environment that is scaffolded with `@grafana/create-plugin` caters for running the plugin without a signature._
-
-## Initial steps
-
-Before signing a plugin please read the Grafana [plugin publishing and signing criteria](https://grafana.com/developers/plugin-tools/publish-a-plugin/publishing-and-signing-criteria) documentation carefully.
-
-`@grafana/create-plugin` has added the necessary commands and workflows to make signing and distributing a plugin via the grafana plugins catalog as straightforward as possible.
-
-Before signing a plugin for the first time please consult the Grafana [plugin signature levels](https://grafana.com/docs/grafana/latest/developers/plugins/sign-a-plugin/#plugin-signature-levels) documentation to understand the differences between the types of signature level.
-
-1. Create a [Grafana Cloud account](https://grafana.com/signup).
-2. Make sure that the first part of the plugin ID matches the slug of your Grafana Cloud account.
-   - _You can find the plugin ID in the `plugin.json` file inside your plugin directory. For example, if your account slug is `acmecorp`, you need to prefix the plugin ID with `acmecorp-`._
-3. Create a Grafana Cloud API key with the `PluginPublisher` role.
-4. Keep a record of this API key as it will be required for signing a plugin
-
-## Signing a plugin
-
-### Using Github actions release workflow
-
-If the plugin is using the github actions supplied with `@grafana/create-plugin` signing a plugin is included out of the box. The release workflow can prepare everything to make submitting your plugin to Grafana as easy as possible. Before being able to sign the plugin however a secret needs adding to the Github repository.
-
-1. Please navigate to "settings > secrets > actions" within your repo to create secrets.
-2. Click "New repository secret"
-3. Name the secret "GRAFANA_API_KEY"
-4. Paste your Grafana Cloud API key in the Secret field
-5. Click "Add secret"
-
-#### Push a version tag
-
-To trigger the workflow we need to push a version tag to github. This can be achieved with the following steps:
-
-1. Run `npm version <major|minor|patch>`
-2. Run `git push origin main --follow-tags`
 
 ## Learn more
 
-Below you can find source code for existing app plugins and other related documentation.
-
-- [Basic panel plugin example](https://github.com/grafana/grafana-plugin-examples/tree/master/examples/panel-basic#readme)
-- [`plugin.json` documentation](https://grafana.com/developers/plugin-tools/reference-plugin-json)
-- [How to sign a plugin?](https://grafana.com/docs/grafana/latest/developers/plugins/sign-a-plugin/)
+- [Build a panel plugin tutorial](https://grafana.com/tutorials/build-a-panel-plugin)
+- [Grafana documentation](https://grafana.com/docs/)
+- [Grafana Tutorials](https://grafana.com/tutorials/) - Grafana Tutorials are step-by-step
+guides that help you make the most of Grafana
+- [Grafana UI Library](https://developers.grafana.com/ui) - UI components to help you build interfaces using Grafana Design System

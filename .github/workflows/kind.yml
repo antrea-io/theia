@@ -118,7 +118,7 @@ jobs:
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - name: Download Spark jobs images from previous jobs
@@ -200,7 +200,7 @@ jobs:
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - name: Download ClickHouse monitor images from previous jobs
@@ -273,7 +273,7 @@ jobs:
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - name: Download Spark jobs images from previous jobs
@@ -349,7 +349,7 @@ jobs:
           docker system prune -a -f --filter "until=1h" || true > /dev/null
           df -h
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
       - name: Download ClickHouse monitor images from previous jobs

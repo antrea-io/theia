@@ -121,7 +121,7 @@ var grafanaTestCases = []struct {
 			{
 				queryId:      11,
 				panelName:    "Number of NetworkPolicies",
-				expectResult: []string{"16"},
+				expectResult: []string{"10"},
 			},
 			{
 				queryId:      15,

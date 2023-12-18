@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import {config} from '@grafana/runtime'
 import { PanelProps } from '@grafana/data';
-import { SimpleOptions } from 'types';
+import { TableOptions } from 'types';
 import { MaterialReactTable, type MRT_ColumnDef} from 'material-react-table';
 import { ThemeProvider, createTheme } from '@mui/material';
 
-interface Props extends PanelProps<SimpleOptions> {}
+interface Props extends PanelProps<TableOptions> {}
 
 export const TablePanel: React.FC<Props> = ({ options, data, width, height }) => {
   const frame = data.series[0];

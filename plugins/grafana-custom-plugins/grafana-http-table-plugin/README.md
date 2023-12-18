@@ -15,7 +15,7 @@ The Grafana HTTP Table Plugin is created using [MaterialTable](https://material-
 
 Supported Databases:
 
-- Clickhouse
+- ClickHouse
 
 ## Queries Convention
 

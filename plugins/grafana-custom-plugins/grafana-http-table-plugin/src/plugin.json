@@ -10,8 +10,8 @@
       "name": "Antrea io"
     },
     "logos": {
-      "small": "img/logo.svg",
-      "large": "img/logo.svg"
+      "small": "https://raw.githubusercontent.com/antrea-io/antrea/main/docs/assets/logo/antrea_logo_stacked.svg",
+      "large": "https://raw.githubusercontent.com/antrea-io/antrea/main/docs/assets/logo/antrea_logo_stacked.svg"
     },
     "links": [
       {

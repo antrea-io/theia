@@ -122,19 +122,19 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Download Spark jobs images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spark-jobs
       - name: Download ClickHouse monitor images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-monitor
       - name: Download ClickHouse server images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-server
       - name: Download Theia Manager images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: theia-manager
       - name: Load Theia image
@@ -204,11 +204,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Download ClickHouse monitor images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-monitor
       - name: Download ClickHouse server images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-server
       - name: Load Theia image
@@ -277,19 +277,19 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Download Spark jobs images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: spark-jobs
       - name: Download ClickHouse monitor images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-monitor
       - name: Download ClickHouse server images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-server
       - name: Download Theia Manager images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: theia-manager
       - name: Load Theia image
@@ -353,11 +353,11 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Download ClickHouse monitor images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-monitor
       - name: Download ClickHouse server images from previous jobs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: clickhouse-server
       - name: Load Theia clickhouse images

@@ -61,7 +61,7 @@ jobs:
           format: 'table'
           output: 'trivy.${{ matrix.image }}.${{ matrix.version }}.txt'
       - name: Upload Trivy scan report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: trivy-scan-reports
           path: trivy.*.txt

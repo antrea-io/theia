@@ -44,7 +44,7 @@ jobs:
     - name: Run unit tests
       run: make test-unit
     - name: Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: .coverage/unit/coverage-unit.txt
@@ -86,7 +86,7 @@ jobs:
         cd snowflake
         make test-unit
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: snowflake/.coverage/coverage-unit.txt

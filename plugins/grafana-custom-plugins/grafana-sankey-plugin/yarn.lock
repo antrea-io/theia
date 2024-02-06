@@ -1857,10 +1857,10 @@
   dependencies:
     "@types/d3-color" "*"
 
-"@types/enzyme-adapter-react-16@^1.0.7":
-  version "1.0.8"
-  resolved "https://registry.yarnpkg.com/@types/enzyme-adapter-react-16/-/enzyme-adapter-react-16-1.0.8.tgz#85bec6a9827110fb7299be8eed3a092f101c1dcc"
-  integrity sha512-nzYumRvxSh2Vbk7mkseYbInmpMbVZRc1EJQVeQmXhNCNVmLg2VOKAJujc7YJ/gDdPW+X03wYrDGa1Bj0Q/NTaw==
+"@types/enzyme-adapter-react-16@^1.0.9":
+  version "1.0.9"
+  resolved "https://registry.yarnpkg.com/@types/enzyme-adapter-react-16/-/enzyme-adapter-react-16-1.0.9.tgz#337d85f0e91be2654b246ec11701dcf75af30afc"
+  integrity sha512-z24MMxGtUL8HhXdye3tWzjp+19QTsABqLaX2oOZpxMPHRJgLfahQmOeTTrEBQd9ogW20+UmPBXD9j+XOasFHvw==
   dependencies:
     "@types/enzyme" "*"
 
@@ -7651,6 +7651,7 @@ string-template@~0.2.1:
   integrity sha512-Yptehjogou2xm4UJbxJ4CxgZx12HBfeystp0y3x7s4Dj32ltVVG1Gg8YhKjHZkHicuKpZX/ffilA8505VbUbpw==
 
 "string-width-cjs@npm:string-width@^4.2.0", string-width@^4.1.0, string-width@^4.2.0, string-width@^4.2.3:
+  name string-width-cjs
   version "4.2.3"
   resolved "https://registry.yarnpkg.com/string-width/-/string-width-4.2.3.tgz#269c7117d27b05ad2e536830a8ec895ef9c6d010"
   integrity sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==
@@ -8372,6 +8373,7 @@ wildcard@^2.0.0:
   integrity sha512-CC1bOL87PIWSBhDcTrdeLo6eGT7mCFtrg0uIJtqJUFyK+eJnzl8A1niH56uu7KMa5XFrtiV+AQuHO3n7DsHnLQ==
 
 "wrap-ansi-cjs@npm:wrap-ansi@^7.0.0", wrap-ansi@^7.0.0:
+  name wrap-ansi-cjs
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/wrap-ansi/-/wrap-ansi-7.0.0.tgz#67e145cff510a6a6984bdf1152911d69d2eb9e43"
   integrity sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==

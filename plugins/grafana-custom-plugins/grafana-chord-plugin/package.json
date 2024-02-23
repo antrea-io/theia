@@ -38,7 +38,7 @@
     "@types/enzyme": "^3.10.14",
     "@types/enzyme-adapter-react-16": "^1.0.7",
     "@types/my-d3": "npm:@types/d3@7.1.0",
-    "@types/node": "^18.15.11",
+    "@types/node": "^20.11.20",
     "copy-webpack-plugin": "^11.0.0",
     "css-loader": "^6.7.3",
     "emotion": "11.0.0",

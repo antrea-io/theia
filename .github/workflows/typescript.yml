@@ -66,6 +66,10 @@ jobs:
         yarn install
         yarn test --coverage
 
+        cd ../grafana-http-table-plugin/
+        yarn install
+        yarn test --coverage
+
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v3
       with:

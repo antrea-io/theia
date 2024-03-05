@@ -3,17 +3,9 @@ import mermaid from 'mermaid';
 import { DependencyOptions } from 'types';
 import { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
+import { DiagramPanelController } from 'DiagramController';
 
 interface Props extends PanelProps<DependencyOptions> {}
-
-class Mermaid extends React.Component<any> {
-  componentDidMount() {
-    mermaid.contentLoaded();
-  }
-  render() {
-    return <div className="mermaid">{this.props.chart}</div>
-  }
-}
 
 export const DependencyPanel: React.FC<Props> = ({ options, data, width, height }) => {
   const theme = useTheme2();
@@ -26,12 +18,22 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
   const destinationNodeNames = frame.fields.find((field) => field.name === 'destinationNodeName');
   const destinationServicePortNames = frame.fields.find((field) => field.name === 'destinationServicePortName');
   const octetDeltaCounts = frame.fields.find((field) => field.name === 'octetDeltaCount');
+  const sourceTransportPorts = frame.fields.find((field) => field.name === 'sourceTransportPort');
+  const destinationTransportPorts = frame.fields.find((field) => field.name === 'destinationTransportPort');
+  const sourceIPs = frame.fields.find((field) => field.name === 'sourceIP');
+  const destinationIPs = frame.fields.find((field) => field.name === 'destinationIP');
+  const httpValsList = frame.fields.find((field) => field.name === 'httpVals');
   
   let nodeToPodMap = new Map<string, String[]>();
   let srcToDestMap = new Map<string, Map<string, number>>();
+  let themeToColorsMap = new Map<string, string>();
+  themeToColorsMap['secondaryAndTertiary'] = theme.colors.background.canvas;
+  themeToColorsMap['textAndLine'] = theme.colors.text.maxContrast;
 
   let graphString = 'graph LR;\n';
+  let styleString = '';
   let boxColor;
+
   switch(options.color) {
     case 'red':
       boxColor = theme.colors.error.main;
@@ -47,124 +49,165 @@ export const DependencyPanel: React.FC<Props> = ({ options, data, width, height 
       break;
   }
 
-  mermaid.initialize({
-    startOnLoad: true,
-    theme: 'base',
-    themeVariables: {
-      primaryColor: boxColor,
-      secondaryColor: theme.colors.background.canvas,
-      tertiaryColor: theme.colors.background.canvas,
-      primaryTextColor: theme.colors.text.maxContrast,
-      lineColor: theme.colors.text.maxContrast,
-    },
-  });
-
-  for (let i = 0; i < frame.length; i++) {
-    const sourcePodName = sourcePodNames?.values.get(i);
-    const sourcePodLabel = sourcePodLabels?.values.get(i);
-    const sourceNodeName = sourceNodeNames?.values.get(i);
-    const destinationPodName = destinationPodNames?.values.get(i);
-    const destinationPodLabel = destinationPodLabels?.values.get(i);
-    const destinationNodeName = destinationNodeNames?.values.get(i);
-    const destinationServicePortName = destinationServicePortNames?.values.get(i);
-    const octetDeltaCount = octetDeltaCounts?.values.get(i);
-
-    function getName(groupByLabel: boolean, source: boolean, labelJSON: string) {
-      if(!groupByLabel || labelJSON === undefined || options.labelName === undefined) {
-        return source ? sourcePodName : destinationPodName;
+  function layerFourGraph() {
+    for (let i = 0; i < frame.length; i++) {
+      const sourcePodName = sourcePodNames?.values.get(i);
+      const sourcePodLabel = sourcePodLabels?.values.get(i);
+      const sourceNodeName = sourceNodeNames?.values.get(i);
+      const destinationPodName = destinationPodNames?.values.get(i);
+      const destinationPodLabel = destinationPodLabels?.values.get(i);
+      const destinationNodeName = destinationNodeNames?.values.get(i);
+      const destinationServicePortName = destinationServicePortNames?.values.get(i);
+      const octetDeltaCount = octetDeltaCounts?.values.get(i);
+  
+      function getName(groupByLabel: boolean, source: boolean, labelJSON: string) {
+        if(!groupByLabel || labelJSON === undefined || options.labelName === undefined) {
+          return source ? sourcePodName : destinationPodName;
+        }
+        let labels = JSON.parse(labelJSON);
+        if(labels[options.labelName] !== undefined) {
+          return labels[options.labelName];
+        }
+        return sourcePodName;
       }
-      let labels = JSON.parse(labelJSON);
-      if(labels[options.labelName] !== undefined) {
-        return labels[options.labelName];
+  
+      let srcName = getName(options.groupByPodLabel, true, sourcePodLabel);
+      let dstName = getName(options.groupByPodLabel, false, destinationPodLabel);
+  
+      // determine which nodes contain which pods
+      if (nodeToPodMap.has(sourceNodeName) && !nodeToPodMap.get(sourceNodeName)?.includes(srcName)) {
+        nodeToPodMap.get(sourceNodeName)?.push(srcName);
+      } else if (!nodeToPodMap.has(sourceNodeName)) {
+        nodeToPodMap.set(sourceNodeName, [srcName]);
       }
-      return sourcePodName;
-    }
-
-    let groupByPodLabel = options.groupByPodLabel;
-    let srcName = getName(groupByPodLabel, true, sourcePodLabel);
-    let dstName = getName(groupByPodLabel, false, destinationPodLabel);
-
-    // determine which nodes contain which pods
-    if (nodeToPodMap.has(sourceNodeName) && !nodeToPodMap.get(sourceNodeName)?.includes(srcName)) {
-      nodeToPodMap.get(sourceNodeName)?.push(srcName);
-    } else if (!nodeToPodMap.has(sourceNodeName)) {
-      nodeToPodMap.set(sourceNodeName, [srcName]);
-    }
-    if (nodeToPodMap.has(destinationNodeName) && !nodeToPodMap.get(destinationNodeName)?.includes(dstName)) {
-      nodeToPodMap.get(destinationNodeName)?.push(dstName);
-    } else if (!nodeToPodMap.has(destinationNodeName)) {
-      nodeToPodMap.set(destinationNodeName, [dstName]);
-    }
-
-    // determine how much traffic is being sent
-    let pod_src = sourceNodeName+'_pod_'+srcName;
-    let pod_dst = destinationNodeName+'_pod_'+dstName;
-    let svc_dst = 'svc_'+destinationServicePortName;
-    let dests = new Map<string, number>();
-    dests.set(pod_dst, octetDeltaCount);
-    if (destinationServicePortName !== '') {
-      dests.set(svc_dst, octetDeltaCount);
-    }
-    if (srcToDestMap.has(pod_src)) {
-      if (srcToDestMap.get(pod_src)?.has(pod_dst)) {
-        srcToDestMap.get(pod_src)?.set(pod_dst, octetDeltaCount+srcToDestMap.get(pod_src)?.get(pod_dst));
+      if (nodeToPodMap.has(destinationNodeName) && !nodeToPodMap.get(destinationNodeName)?.includes(dstName)) {
+        nodeToPodMap.get(destinationNodeName)?.push(dstName);
+      } else if (!nodeToPodMap.has(destinationNodeName)) {
+        nodeToPodMap.set(destinationNodeName, [dstName]);
+      }
+  
+      // determine how much traffic is being sent
+      let pod_src = sourceNodeName+'_pod_'+srcName;
+      let pod_dst = destinationNodeName+'_pod_'+dstName;
+      let svc_dst = 'svc_'+destinationServicePortName;
+      let dests = new Map<string, number>();
+      dests.set(pod_dst, octetDeltaCount);
+      if (destinationServicePortName !== '') {
+        dests.set(svc_dst, octetDeltaCount);
+      }
+      if (srcToDestMap.has(pod_src)) {
+        if (srcToDestMap.get(pod_src)?.has(pod_dst)) {
+          srcToDestMap.get(pod_src)?.set(pod_dst, octetDeltaCount+srcToDestMap.get(pod_src)?.get(pod_dst));
+        } else {
+          srcToDestMap.get(pod_src)?.set(pod_dst, octetDeltaCount);
+        }
+        if (destinationServicePortName === '') {
+          continue;
+        } else if (srcToDestMap.get(pod_src)?.has(svc_dst)) {
+          srcToDestMap.get(pod_src)?.set(svc_dst, octetDeltaCount+srcToDestMap.get(pod_src)?.get(svc_dst));
+        } else {
+          srcToDestMap.get(pod_src)?.set(svc_dst, octetDeltaCount);
+        }
       } else {
-        srcToDestMap.get(pod_src)?.set(pod_dst, octetDeltaCount);
+        srcToDestMap.set(pod_src, dests);
       }
-      if (destinationServicePortName === '') {
-        continue;
-      } else if (srcToDestMap.get(pod_src)?.has(svc_dst)) {
-        srcToDestMap.get(pod_src)?.set(svc_dst, octetDeltaCount+srcToDestMap.get(pod_src)?.get(svc_dst));
-      } else {
-        srcToDestMap.get(pod_src)?.set(svc_dst, octetDeltaCount);
-      }
-    } else {
-      srcToDestMap.set(pod_src, dests);
     }
-  }
-
-  // format pods inside node within graph string
-  nodeToPodMap.forEach((pods, nodename) => {
-    let str = 'subgraph ' + nodename + '\n';
-    pods.forEach((pod) => {
-      str += nodename + '_pod_' + pod + '(' + pod + ');\n';
-    });
-    str += 'end;\n';
-    graphString += str;
-  });
-  // format arrows to services and pods within graph string
-  let prefixes = ['', 'K', 'M', 'G', 'T'];
-  srcToDestMap.forEach((destsToBytes, src) => {
-    destsToBytes.forEach((bytes, dest) => {
-      let usedpref = Math.floor(Math.log(bytes) / Math.log(1000));
-      if (usedpref > 4) {usedpref = 4};
-      let str = src + ' -- ' + bytes/(Math.pow(1000, usedpref)) + ' ' + prefixes[usedpref] + 'B --> ' + dest + ';\n';
+  
+    // format pods inside node within graph string
+    nodeToPodMap.forEach((pods, nodename) => {
+      let str = 'subgraph ' + nodename + '\n';
+      pods.forEach((pod) => {
+        str += nodename + '_pod_' + pod + '(' + pod + ');\n';
+      });
+      str += 'end;\n';
       graphString += str;
     });
-  });
+    // format arrows to services and pods within graph string
+    let prefixes = ['', 'K', 'M', 'G', 'T'];
+    srcToDestMap.forEach((destsToBytes, src) => {
+      destsToBytes.forEach((bytes, dest) => {
+        let usedpref = Math.floor(Math.log(bytes) / Math.log(1000));
+        if (usedpref > 4) {usedpref = 4};
+        let str = src + ' -- ' + bytes/(Math.pow(1000, usedpref)) + ' ' + prefixes[usedpref] + 'B --> ' + dest + ';\n';
+        graphString += str;
+      });
+    });
+  }
 
-  // checking if graph syntax is valid
-  mermaid.parseError = function() {
+  function layerSevenGraph() {
+    function getColorFromStatus(httpStatus: string) {
+      // colors that correspond to each of the types of http response code; i.e. 4xx and 5xx codes return red to symbolize errors
+      const codeToColor = {1:'orange', 2:'green', 3:'blue', 4:'red', 5:'red'};
+      let statusType = +httpStatus.charAt(0);
+      if (statusType < 1 || statusType > 5) {
+        // nothing else returns purple, purple indicates an error in the httpVals field
+        return 'purple';
+      }
+      return codeToColor[statusType];
+    }
+
+    let ctr = 0;
+    for (let i = 0; i < frame.length; i++) {
+      const sourcePodName = sourcePodNames?.values.get(i);
+      const destinationPodName = destinationPodNames?.values.get(i);
+      const sourceIP = sourceIPs?.values.get(i);
+      const sourcePort = sourceTransportPorts?.values.get(i);
+      const destinationIP = destinationIPs?.values.get(i);
+      const destinationPort = destinationTransportPorts?.values.get(i);
+      const httpVals = httpValsList?.values.get(i);
+
+      let httpValsJSON;
+      if (httpVals !== undefined) {
+        httpValsJSON = JSON.parse(httpVals);
+      }
+      for (const txId in httpValsJSON) {
+        let graphLine = '';
+        if (sourcePodName !== undefined) {
+          graphLine = sourcePodName;
+        } else {
+          graphLine = sourceIP + ':' + sourcePort;
+        }
+        graphLine = graphLine + ' --' + httpValsJSON[txId].length + '--> ';
+        if (destinationPodName !== undefined) {
+          graphLine = graphLine + destinationPodName;
+        } else {
+          graphLine = graphLine + destinationIP + ':' + destinationPort;
+        }
+        graphString = graphString + graphLine + '\n';
+        let styleLine = 'linkStyle ' + ctr + ' stroke: ' + getColorFromStatus(httpValsJSON[txId].status+'') + '\n';
+        styleString = styleString + styleLine;
+        ctr += 1;
+      }
+    }
+
+    graphString = graphString + styleString;
+  }
+
+  if (options.layerFour) {
+    layerFourGraph();
+  } else {
+    layerSevenGraph();
+    console.log('GRAPH STRING SEVEN:\n'+graphString);
+  }
+  
+  try {
+    mermaid.parse(graphString);
+  } catch (err) {
     console.log('incorrect graph syntax for graph:\n'+graphString);
+    console.log(err);
     return (
       <div><p>Incorrect Graph Syntax</p></div>
     );
   }
-  if (mermaid.parse(graphString)) {
-    let graphElement = document.getElementsByClassName("graphDiv")[0];
-    // null check because the div does not exist at this point during the first run
-    if (graphElement != null) {
-      let insertSvg = function(svgCode: string){
-        graphElement!.innerHTML = svgCode;
-      }
-      mermaid.mermaidAPI.render('graphDiv', graphString, insertSvg);
-    }
-  }
 
-  // manually display first time, since render has no target yet
   return (
-    <div className="graphDiv">
-      <Mermaid chart={graphString}/>
+    <div className='wrapper'>
+      <DiagramPanelController 
+        graphString={graphString}
+        boxColor={boxColor}
+        layerLevelFour={options.layerFour}
+        themeColors={themeToColorsMap}
+      ></DiagramPanelController>
     </div>
   );
 };

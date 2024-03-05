@@ -6,6 +6,10 @@ export const plugin = new PanelPlugin<DependencyOptions>(DependencyPanel).setPan
     path: 'groupByPodLabel',
     name: 'Group by Pod Label',
     defaultValue: false,
+}).addBooleanSwitch({
+    path: 'layerFour',
+    name: 'Layer Four',
+    defaultValue: true,
 }).addTextInput({
     path: 'labelName',
     name: 'Label Name',

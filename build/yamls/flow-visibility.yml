@@ -757,6 +757,22 @@ data:
         ADD COLUMN aggType String,
         ADD COLUMN direction String,
         ADD COLUMN podName String;
+  000006_0-7-0.down.sql: |
+    --Alter table to drop new columns
+    ALTER TABLE flows
+        DROP COLUMN l7ProtocolName,
+        DROP COLUMN httpVals;
+    ALTER TABLE flows_local
+        DROP COLUMN l7ProtocolName,
+        DROP COLUMN httpVals;
+  000006_0-7-0.up.sql: |
+    --Alter table to add new columns
+    ALTER TABLE flows
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_local
+        ADD COLUMN l7ProtocolName String,
+        ADD COLUMN httpVals String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -831,6 +847,8 @@ data:
             clusterUUID String,
             egressName String,
             egressIP String,
+            l7ProtocolName String,
+            httpVals String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds);
@@ -3514,7 +3532,10 @@ data:
         "list": [
           {
             "builtIn": 1,
-            "datasource": "-- Grafana --",
+            "datasource": {
+              "type": "datasource",
+              "uid": "grafana"
+            },
             "enable": true,
             "hide": true,
             "iconColor": "rgba(0, 211, 255, 1)",
@@ -3532,8 +3553,7 @@ data:
       "editable": true,
       "fiscalYearStartMonth": 0,
       "graphTooltip": 0,
-      "id": 8,
-      "iteration": 1682533463233,
+      "id": 7,
       "links": [],
       "liveNow": false,
       "panels": [
@@ -3543,15 +3563,55 @@ data:
             "uid": "PDEE91DDB90597936"
           },
           "gridPos": {
-            "h": 35,
-            "w": 23,
+            "h": 22,
+            "w": 10,
             "x": 0,
+            "y": 0
+          },
+          "id": 4,
+          "options": {
+            "color": "yellow",
+            "groupByPodLabel": false,
+            "layerFour": true
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "grafana-clickhouse-datasource",
+                "uid": "PDEE91DDB90597936"
+              },
+              "meta": {
+                "builderOptions": {
+                  "fields": [],
+                  "limit": 100,
+                  "mode": "list"
+                }
+              },
+              "queryType": "sql",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator', 'local-path-storage')\nAND octetDeltaCount != 0\nAND l7ProtocolName == ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "refId": "A"
+            }
+          ],
+          "title": "Layer 4 Topology",
+          "type": "theia-grafana-dependency-plugin"
+        },
+        {
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "PDEE91DDB90597936"
+          },
+          "gridPos": {
+            "h": 22,
+            "w": 10,
+            "x": 10,
             "y": 0
           },
           "id": 2,
           "options": {
             "color": "yellow",
             "groupByLabel": false,
+            "groupByPodLabel": false,
+            "layerFour": false,
             "seriesCountSize": "sm",
             "showSeriesCount": false,
             "text": "Default value of text input option"
@@ -3571,16 +3631,16 @@ data:
                 }
               },
               "queryType": "sql",
-              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, octetDeltaCount FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND destinationPodName != ''\nAND sourcePodName != ''\nAND octetDeltaCount != 0\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
+              "rawSql": "SELECT sourcePodName, sourcePodLabels, sourcePodNamespace, sourceNodeName, sourceIP, sourceTransportPort, destinationPodName, destinationPodLabels, destinationNodeName, destinationServicePortName, destinationIP, destinationTransportPort, octetDeltaCount, httpVals FROM flows\nWHERE sourcePodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator', 'local-path-storage')\nAND destinationPodNamespace NOT IN ('kube-system', 'flow-visibility', 'flow-aggregator')\nAND octetDeltaCount != 0\nAND l7ProtocolName != ''\nAND $__timeFilter(flowEndSeconds)\nORDER BY flowEndSeconds DESC",
               "refId": "A"
             }
           ],
-          "title": "Network Topology",
+          "title": "Layer 7 Topology",
           "type": "theia-grafana-dependency-plugin"
         }
       ],
       "refresh": "",
-      "schemaVersion": 34,
+      "schemaVersion": 37,
       "style": "dark",
       "tags": [],
       "templating": {
@@ -3613,7 +3673,7 @@ data:
       "timezone": "",
       "title": "network_topology_dashboard",
       "uid": "yRVDEad4k",
-      "version": 2,
+      "version": 3,
       "weekStart": ""
     }
   networkpolicy_dashboard.json: |
@@ -6819,7 +6879,7 @@ spec:
       containers:
       - env:
         - name: GF_INSTALL_PLUGINS
-          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-dependency-plugin-1.0.2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
+          value: https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-sankey-plugin-1.0.3.zip;theia-grafana-sankey-plugin,https://downloads.antrea.io/artifacts/grafana-custom-plugins/theia-grafana-chord-plugin-1.0.2.zip;theia-grafana-chord-plugin,https://github.com/Dhruv-J/grafana-dependency-plugin/archive/refs/tags/v2.zip;theia-grafana-dependency-plugin,grafana-clickhouse-datasource
             2.2.0
         - name: CLICKHOUSE_USERNAME
           valueFrom:
@@ -7329,6 +7389,10 @@ spec:
               path: migrators/000005_0-6-0.down.sql
             - key: 000005_0-6-0.up.sql
               path: migrators/000005_0-6-0.up.sql
+            - key: 000006_0-7-0.down.sql
+              path: migrators/000006_0-7-0.down.sql
+            - key: 000006_0-7-0.up.sql
+              path: migrators/000006_0-7-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

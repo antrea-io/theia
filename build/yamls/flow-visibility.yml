@@ -757,6 +757,22 @@ data:
         ADD COLUMN aggType String,
         ADD COLUMN direction String,
         ADD COLUMN podName String;
+  000006_0-7-0.down.sql: |
+    --Alter table to drop new columns
+    ALTER TABLE flows
+        DROP COLUMN appProtocolName,
+        DROP COLUMN httpVals;
+    ALTER TABLE flows_local
+        DROP COLUMN appProtocolName,
+        DROP COLUMN httpVals;
+  000006_0-7-0.up.sql: |
+    --Alter table to add new columns
+    ALTER TABLE flows
+        ADD COLUMN appProtocolName String,
+        ADD COLUMN httpVals String;
+    ALTER TABLE flows_local
+        ADD COLUMN appProtocolName String,
+        ADD COLUMN httpVals String;
   create_table.sh: |
     #!/usr/bin/env bash
 
@@ -831,6 +847,8 @@ data:
             clusterUUID String,
             egressName String,
             egressIP String,
+            appProtocolName String,
+            httpVals String,
             trusted UInt8 DEFAULT 0
         ) engine=ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}', '{replica}')
         ORDER BY (timeInserted, flowEndSeconds);
@@ -7329,6 +7347,10 @@ spec:
               path: migrators/000005_0-6-0.down.sql
             - key: 000005_0-6-0.up.sql
               path: migrators/000005_0-6-0.up.sql
+            - key: 000006_0-7-0.down.sql
+              path: migrators/000006_0-7-0.down.sql
+            - key: 000006_0-7-0.up.sql
+              path: migrators/000006_0-7-0.up.sql
             name: clickhouse-mounted-configmap
           name: clickhouse-configmap-volume
         - emptyDir:

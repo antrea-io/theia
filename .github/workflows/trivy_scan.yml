@@ -50,7 +50,7 @@ jobs:
           docker pull antrea/${{ matrix.image }}:${{ matrix.version }}
       - name: Run Trivy vulnerability scanner on theia ${{ matrix.image }}:${{ matrix.version }} image
         if: ${{ always() && steps.pull.conclusion == 'success' }}
-        uses: aquasecurity/trivy-action@0.16.1
+        uses: aquasecurity/trivy-action@0.20.0
         continue-on-error: true
         with:
           scan-type: 'image'

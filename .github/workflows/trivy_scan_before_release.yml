@@ -22,7 +22,7 @@ jobs:
       run: |
         make ${{ matrix.image }}
     - name: Run Trivy vulnerability scanner on latest Theia ${{ matrix.image }} image
-      uses: aquasecurity/trivy-action@0.16.1
+      uses: aquasecurity/trivy-action@0.21.0
       continue-on-error: true
       with:
         scan-type: 'image'
@@ -38,7 +38,7 @@ jobs:
       run: |
         make theia-manager
     - name: Run Trivy vulnerability scanner on theia-manager Docker image
-      uses: aquasecurity/trivy-action@0.16.1
+      uses: aquasecurity/trivy-action@0.21.0
       with:
         scan-type: 'image'
         image-ref: 'antrea/theia-manager:latest'

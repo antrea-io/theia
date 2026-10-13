@@ -1,4 +1,4 @@
 kubernetes==18.20.0
-pyspark==3.3.2
+pyspark==3.5.8
 pytest==6.2.5
 PyYAML==6.0
